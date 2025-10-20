@@ -204,6 +204,12 @@ export default function PayoutsTab({ rows = [], columns = [], ...rest }) {
     }
   }
 
+  // one-row mark paid (re-uses existing markPaid)
+  const markOnePaid = (id) => {
+    if (!id) return;
+    markPaid(id);
+  };
+
 /* -------------------------------------------------------------------------- */
 /*                           Filters / Sorting Logic                           */
 /* -------------------------------------------------------------------------- */
