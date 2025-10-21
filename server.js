@@ -3,7 +3,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-
 dotenv.config();
 
 const authRoutes = require('./routes/auth');
@@ -15,39 +14,49 @@ const studentRoutes = require('./routes/students');
 const tutorLessonRoutes = require('./routes/tutorLessons');
 const paymentRoutes = require('./routes/payments');
 const payoutRoutes = require('./routes/payouts');
-const refundsRouter = require('./routes/refunds'); // ✅ NEW
+const refundsRouter = require('./routes/refunds');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const disputeRoutes = require('./routes/disputes');
-// ✅ NEW: availability routes
 const availabilityRoutes = require('./routes/availability');
-// ✅ NEW: finance routes
 const financeRoutes = require('./routes/finance');
-// ✅ NEW: support routes
 const supportRoutes = require('./routes/support');
-// ✅ NEW: metrics routes (admin dashboards)
 const metricsRoutes = require('./routes/metrics');
 
 const app = express();
-app.use(cors());
 
-// Stripe webhook (must be before express.json)
+// --- CORS (allowlist) --------------------------------------------------------
+const ALLOW = [
+  'http://localhost:5173',
+  'https://lernitt.vercel.app',
+];
+app.use(cors({ origin: ALLOW, credentials: true }));
+
+// --- Webhooks (order matters; before global express.json) --------------------
 app.post(
   '/api/payments/stripe/webhook',
   require('express').raw({ type: 'application/json' }),
   require('./routes/stripeWebhook')
 );
-
-// PayPal webhook (JSON body ok here)
 app.post(
   '/api/payments/paypal/webhook',
   require('express').json(),
   require('./routes/paypalWebhook')
 );
 
+// --- Parsers -----------------------------------------------------------------
 app.use(express.json());
 
-// Order matters: specific before generic
+// --- Health check (no DB required) ------------------------------------------
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// --- Routes (keep existing) --------------------------------------------------
 app.use('/api/tutors/lessons', tutorLessonRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
@@ -56,25 +65,28 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/payouts', payoutRoutes);
-app.use('/api/refunds', refundsRouter); // ✅ NEW
+app.use('/api/refunds', refundsRouter);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/disputes', disputeRoutes);
-// ✅ NEW: mount availability API
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/tutors', tutorRoutes);
-// ✅ FIXED: proper finance mount
 app.use('/api/finance', financeRoutes);
-// ✅ NEW: mount support API
 app.use('/api/support', supportRoutes);
-// ✅ NEW: mount metrics API (for Growth/Lessons/Financials/Risk & Ops dashboards)
 app.use('/api/admin/metrics', metricsRoutes);
 
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    app.listen(5000, () => console.log('Server running on port 5000'));
-    console.log('✅ Connected to MongoDB Atlas');
-  })
-  .catch((err) => console.error('MongoDB connection error:', err));
+// --- Start server immediately (non-blocking DB) ------------------------------
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// --- Connect MongoDB (optional; logs on failure) -----------------------------
+if (process.env.MONGODB_URI) {
+  mongoose
+    .connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ Connected to MongoDB Atlas'))
+    .catch((err) =>
+      console.error('MongoDB connection error:', err && err.message ? err.message : err)
+    );
+} else {
+  console.warn('⚠️ MONGODB_URI not set; running without database.');
+}
