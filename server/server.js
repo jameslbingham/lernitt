@@ -2,6 +2,7 @@
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import seedRouter from "./routes/seed.js";
 
 const app = express();
 
@@ -30,6 +31,9 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Seed route
+app.use("/api/seed", seedRouter);
 
 // Start server
 const PORT = process.env.PORT || 5000;
