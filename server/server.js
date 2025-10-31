@@ -4,6 +4,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 import seedRouter from "./routes/seed.js";
 import payoutsRouter from "./routes/payouts.js";
+import refundsRouter from "./routes/refunds.js";
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.get("/api/health", (req, res) => {
 // Routes
 app.use("/api/seed", seedRouter);
 app.use("/api/payouts", payoutsRouter);
+app.use("/api/refunds", refundsRouter);
 
 // Start server
 const PORT = process.env.PORT || 5000;
