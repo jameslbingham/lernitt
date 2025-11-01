@@ -7,6 +7,7 @@ import payoutsRouter from "./routes/payouts.js";
 import refundsRouter from "./routes/refunds.js";
 
 const app = express();
+app.use(express.json()); // parse JSON bodies
 
 // CORS
 const ALLOW = ["http://localhost:5173", "https://lernitt.vercel.app"];
