@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import seedRouter from "./routes/seed.js";
 import payoutsRouter from "./routes/payouts.js";
 import refundsRouter from "./routes/refunds.js";
+import authRouter from "./routes/auth.js"; // <-- added
 
 const app = express();
 app.use(express.json()); // parse JSON bodies
@@ -39,6 +40,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/seed", seedRouter);
 app.use("/api/payouts", payoutsRouter);
 app.use("/api/refunds", refundsRouter);
+app.use("/api/auth", authRouter); // <-- added
 
 // Start server
 const PORT = process.env.PORT || 5000;
