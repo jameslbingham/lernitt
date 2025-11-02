@@ -22,7 +22,7 @@ const UserSchema = new Schema(
     // ---- Existing tutor fields (kept) ----
     bio:      { type: String },
     subjects: [{ type: String }],
-    price:    { type: Number },           // you already had "price" for tutors
+    price:    { type: Number },
     avatar:   { type: String },
 
     // ---- Existing payout fields (kept) ----
@@ -33,15 +33,15 @@ const UserSchema = new Schema(
     // ---- Existing admin field (kept) ----
     isAdmin: { type: Boolean, default: false },
 
-    // ---- New optional fields (added; do not break existing code) ----
+    // ---- New optional fields ----
     role:       { type: String, enum: ["student", "tutor", "admin"], default: "student", index: true },
     isTutor:    { type: Boolean, default: false },
-    hourlyRate: { type: Number, min: 0 },        // complements your existing "price"
+    hourlyRate: { type: Number, min: 0 },
     languages:  [{ type: String, trim: true }],
     country:    { type: String, trim: true },
     timezone:   { type: String, trim: true },
 
-    // Aggregates for dashboards (optional, can be maintained by jobs/hooks)
+    // Aggregates for dashboards
     totalEarnings: { type: Number, default: 0 },
     totalLessons:  { type: Number, default: 0 },
 
@@ -58,7 +58,6 @@ UserSchema.index({ role: 1 });
 UserSchema.index({ isTutor: 1 });
 
 /* ------------------------- Password helpers ------------------------ */
-// Only hash if the password field has been modified (safe for existing users)
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   try {
@@ -90,4 +89,4 @@ UserSchema.methods.summary = function () {
   };
 };
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = mongoose.models.User || mongoose.model("User", UserSchema);
