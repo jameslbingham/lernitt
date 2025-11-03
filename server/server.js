@@ -27,8 +27,13 @@ app.use("/api/payouts", payoutRoutes);
 app.use("/api/refunds", refundRoutes);
 app.use("/api/seed", seedRoutes);
 
-// Health check
-app.get("/health", (_req, res) => res.json({ ok: true }));
+// Health check (moved under /api)
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Root check (optional, helps debugging)
+app.get("/", (_req, res) =>
+  res.json({ ok: true, message: "Lernitt backend running" })
+);
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Server listening on ${PORT}`));
