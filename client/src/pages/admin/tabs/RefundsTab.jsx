@@ -2,9 +2,9 @@
 // ============================================================================
 // RefundsTab — Full, Table Layout (Users/Tutors style), Mock-Safe, Self-Contained
 // Integrated Steps 23.1 → 23.11
+// Live API only for loading. Mock banner removed. All features retained.
 // ============================================================================
 
-// Step 23.1 — Unified imports
 import React, {
   useEffect,
   useMemo,
@@ -27,6 +27,7 @@ import {
   exportTableData,
 } from "@/lib/adminExports";
 import {
+  // kept for compatibility during transition (not used by loadRefunds now)
   getRefunds,
   approveRefund as mockApproveRefund,
   denyRefund as mockDenyRefund,
@@ -36,7 +37,7 @@ import { API, IS_MOCK, safeFetchJSON } from "../../../lib/safeFetch";
 import AdminTable from "./AdminTableShim.jsx";
 import { approveRefund, denyRefund } from "@/lib/api";
 
-// Step 23.1 — Keep Local Toast + Confirm Provider (for self-contained mode)
+// --------------------------- Local Toast/Confirm ---------------------------
 const ToastCtx = createContext(null);
 
 function ToastProviderLocal({ children }) {
@@ -129,9 +130,7 @@ function useLocalToast() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
+// ------------------------------- Utilities ---------------------------------
 const toNum = (v) => (typeof v === "number" ? v : Number(v || 0));
 const pad = (n) => String(n).padStart(2, "0");
 const fmtDate = (s) => {
@@ -146,9 +145,7 @@ const money = (v) => {
   return Number.isFinite(n) ? n.toFixed(2) : "0.00";
 };
 
-// ---------------------------------------------------------------------------
-// StatusBadge (visual)
-// ---------------------------------------------------------------------------
+// ------------------------------ StatusBadge --------------------------------
 function StatusBadge({ s }) {
   const base = "px-2 py-0.5 rounded-full border text-xs";
   if (s === "approved")
@@ -164,21 +161,15 @@ function StatusBadge({ s }) {
   return <span className={`${base} bg-blue-50 border-blue-200 text-blue-800`}>{s || "pending"}</span>;
 }
 
-// ---------------------------------------------------------------------------
-// Inline Reason Modal (deny flow)
-// ---------------------------------------------------------------------------
+// ------------------------------ ReasonModal --------------------------------
 function ReasonModal({ title = "Enter reason", label = "Reason", initial = "", onCancel, onSubmit }) {
   const [text, setText] = useState(initial);
   const ref = useRef(null);
-
   useEffect(() => {
     if (ref.current) {
-      try {
-        ref.current.focus();
-      } catch {}
+      try { ref.current.focus(); } catch {}
     }
   }, []);
-
   return (
     <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-lg p-5 w-[min(92vw,420px)]">
@@ -192,9 +183,7 @@ function ReasonModal({ title = "Enter reason", label = "Reason", initial = "", o
           placeholder="Type reason…"
         />
         <div className="flex justify-end gap-2 mt-4">
-          <button className="px-3 py-1 border rounded" onClick={onCancel}>
-            Cancel
-          </button>
+          <button className="px-3 py-1 border rounded" onClick={onCancel}>Cancel</button>
           <button
             className="px-3 py-1 border rounded bg-green-600 text-white"
             onClick={() => onSubmit(text.trim())}
@@ -206,19 +195,16 @@ function ReasonModal({ title = "Enter reason", label = "Reason", initial = "", o
     </div>
   );
 }
-// ---------------------------------------------------------------------------
-// Main wrapper component (with ErrorBoundary - Step 23.2)
-// ---------------------------------------------------------------------------
+
+// ------------------------------- Wrapper -----------------------------------
 export default function RefundsTab({ rows = [], columns = [], ...rest }) {
   const hasExternalData =
     Array.isArray(rows) && rows.length && Array.isArray(columns) && columns.length;
   if (hasExternalData) {
     return <AdminTable rows={rows} columns={columns} {...rest} />;
   }
-
   return (
     <ToastProviderLocal>
-      {/* Step 23.2 — Wrap internal component in ErrorBoundary */}
       <ErrorBoundary>
         <RefundsTabInner />
       </ErrorBoundary>
@@ -226,15 +212,13 @@ export default function RefundsTab({ rows = [], columns = [], ...rest }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Inner Component (core logic and UI rendering)
-// ---------------------------------------------------------------------------
+// ------------------------------ Inner Component ----------------------------
 function RefundsTabInner() {
   const { toast, confirm } = useLocalToast();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); // Step 23.3 - Track load errors
+  const [error, setError] = useState(null);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -253,47 +237,40 @@ function RefundsTabInner() {
   const [expanded, setExpanded] = useState(null);
   const [denyTarget, setDenyTarget] = useState(null);
 
-  // -------------------------------------------------------------------------
-  // ✅ REPLACED FUNCTION — DO NOT MODIFY AGAIN
-  // -------------------------------------------------------------------------
+  // ---------------------- LIVE-ONLY loadRefunds (final) ---------------------
   async function loadRefunds() {
     setLoading(true);
     setError(null);
     try {
       const res = await safeFetch(`${API}/api/refunds`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const arr = (data?.rows || []).map((r) => ({
-        id: r._id,
-        lessonId: "",
-        student: { name: r.studentId || "" },
-        tutor: {},
+
+      // Accept either {rows:[...]} or raw array
+      const list = Array.isArray(data) ? data : (data?.rows || data?.items || []);
+      const arr = (list || []).map((r) => ({
+        id: r._id || r.id,
+        lessonId: r.lessonId || "",
+        student: { name: r.student?.name || r.studentId || "" },
+        tutor: { name: r.tutor?.name || r.tutorId || "" },
         amount: r.amount,
         currency: r.currency,
         status: r.status,
-        reason: r.note || "",
+        reason: r.note || r.reason || "",
         createdAt: r.createdAt,
+        notes: r.notes || [],
+        failureReason: r.failureReason,
       }));
       setItems(arr);
     } catch (err) {
-      console.warn("Mock fallback: getRefunds()");
-      try {
-        const arr = getRefunds();
-        setItems(arr);
-        toast("Loaded mock refunds.", "info");
-      } catch (e) {
-        console.error(e);
-        setError(e);
-        toast("Failed to load refunds.", "error");
-      }
+      console.error("Refunds load failed:", err);
+      setError(err);
     } finally {
       setLoading(false);
     }
   }
-
-  // ⬆️ END OF REPLACED FUNCTION
   // -------------------------------------------------------------------------
 
-  // Step 23.3 — Show SkeletonTable / RetryCard before render
   useEffect(() => {
     loadRefunds();
   }, []);
@@ -373,7 +350,7 @@ function RefundsTabInner() {
       toast("Cancel failed.", "error");
     }
   }
-  // Step 23.5 — Add safe mock-compatible note system
+
   async function addNote(id) {
     const text = (noteText[id] || "").trim();
     if (!text) {
@@ -407,7 +384,7 @@ function RefundsTabInner() {
     }
   }
 
-  /* ------------------------------- bulk ops ------------------------------- */
+  /* ------------------------------ bulk ops ------------------------------- */
   async function bulkUpdate(next) {
     if (!selected.length) return;
     const ok = await confirm(
@@ -446,13 +423,9 @@ function RefundsTabInner() {
     if (status) arr = arr.filter((r) => (r.status || "") === status);
     if (currency) arr = arr.filter((r) => (r.currency || "") === currency);
     if (tutor)
-      arr = arr.filter(
-        (r) => (r.tutor?.name || "").toLowerCase() === tutor.toLowerCase()
-      );
+      arr = arr.filter((r) => (r.tutor?.name || "").toLowerCase() === tutor.toLowerCase());
     if (student)
-      arr = arr.filter(
-        (r) => (r.student?.name || "").toLowerCase() === student.toLowerCase()
-      );
+      arr = arr.filter((r) => (r.student?.name || "").toLowerCase() === student.toLowerCase());
 
     if (fromDate) {
       const from = new Date(fromDate);
@@ -545,6 +518,7 @@ function RefundsTabInner() {
         .reduce((s, r) => s + toNum(r.amount), 0),
     [sorted, selected]
   );
+
   /* -------------------------------- exports ------------------------------- */
   function exportTable() {
     const rows = sorted.map((d) => ({
@@ -589,13 +563,12 @@ function RefundsTabInner() {
     );
   }
 
-  /* --------------------------------- render -------------------------------- */
+  /* --------------------------------- render ------------------------------- */
   return (
     <div className="bg-white p-4 rounded-2xl shadow-sm space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-bold text-xl">
-          Refunds {IS_MOCK && <span className="text-sm font-normal opacity-60">(Mock)</span>}
-        </h2>
+        {/* Mock banner removed */}
+        <h2 className="font-bold text-xl">Refunds</h2>
         <button className="px-3 py-1 border rounded" onClick={loadRefunds} disabled={loading}>
           Reload
         </button>
@@ -642,7 +615,7 @@ function RefundsTabInner() {
               }}
             />
 
-            {/* Remaining filter UI unchanged... */}
+            {/* Additional filter controls unchanged */}
           </div>
         </div>
 
@@ -652,7 +625,78 @@ function RefundsTabInner() {
               <div className="p-6 text-gray-600">No refunds found.</div>
             ) : (
               <table className="min-w-full text-sm">
-                {/* full table UI unchanged */}
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="p-2 text-left">{th("id", "ID")}</th>
+                    <th className="p-2 text-left">{th("student", "Student")}</th>
+                    <th className="p-2 text-left">{th("tutor", "Tutor")}</th>
+                    <th className="p-2 text-right">{th("amount", "Amount")}</th>
+                    <th className="p-2 text-left">{th("currency", "Currency")}</th>
+                    <th className="p-2 text-left">{th("status", "Status")}</th>
+                    <th className="p-2 text-left">{th("reason", "Reason")}</th>
+                    <th className="p-2 text-left">{th("createdAt", "Created At")}</th>
+                    <th className="p-2 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map((r) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="p-2">{r.id}</td>
+                      <td className="p-2">{r.student?.name || "—"}</td>
+                      <td className="p-2">{r.tutor?.name || "—"}</td>
+                      <td className="p-2 text-right">${money(r.amount)}</td>
+                      <td className="p-2">{r.currency || "—"}</td>
+                      <td className="p-2"><StatusBadge s={r.status} /></td>
+                      <td className="p-2">{r.reason || "—"}</td>
+                      <td className="p-2">{fmtDate(r.createdAt)}</td>
+                      <td className="p-2">
+                        <div className="flex gap-2 flex-wrap">
+                          <button className="px-2 py-1 border rounded" onClick={() => approve(r.id)}>
+                            Approve
+                          </button>
+                          <button className="px-2 py-1 border rounded" onClick={() => deny(r.id)}>
+                            Deny
+                          </button>
+                          <button className="px-2 py-1 border rounded" onClick={() => retry(r.id)}>
+                            Retry
+                          </button>
+                          <button className="px-2 py-1 border rounded" onClick={() => cancel(r.id)}>
+                            Cancel
+                          </button>
+                        </div>
+                        <div className="mt-2">
+                          <input
+                            className="border rounded px-2 py-1 w-full"
+                            placeholder="Add note…"
+                            value={noteText[r.id] || ""}
+                            onChange={(e) =>
+                              setNoteText((m) => ({ ...m, [r.id]: e.target.value }))
+                            }
+                          />
+                          <button
+                            className="mt-1 px-2 py-1 border rounded"
+                            onClick={() => addNote(r.id)}
+                          >
+                            Save note
+                          </button>
+                        </div>
+                        {r.notes?.length ? (
+                          <div className="mt-2 text-xs text-gray-600 space-y-1">
+                            {r.notes.map((n, i) => (
+                              <div key={i}>
+                                <span className="font-semibold">{n.by || "admin"}:</span>{" "}
+                                <span>{n.text}</span>{" "}
+                                <span className="opacity-60">
+                                  ({fmtDate(n.at || n.createdAt)})
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             )}
           </div>
