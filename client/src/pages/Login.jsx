@@ -33,46 +33,43 @@ export default function Login() {
     } catch {}
   }, [email, remember]);
 
-  async function onSubmit(e){
-    e.preventDefault(); if (loading) return;
-    setErr(""); setLoading(true);
-    try{
-      if (MOCK){
-        const role = email.startsWith("admin") ? "admin"
-                   : email.startsWith("tutor") ? "tutor"
-                   : "student";
-        localStorage.setItem("token","mock");
+  async function onSubmit(e) {
+    e.preventDefault();
+    if (loading) return;
+    setErr("");
+    setLoading(true);
+    try {
+      if (MOCK) {
+        const role = email.startsWith("admin")
+          ? "admin"
+          : email.startsWith("tutor")
+          ? "tutor"
+          : "student";
+        localStorage.setItem("token", "mock");
         localStorage.setItem("user", JSON.stringify({ role }));
         window.dispatchEvent(new Event("auth-change"));
-        return nav(next, { replace:true });
+        return nav(next, { replace: true });
       }
       const data = await apiFetch(`${API}/api/auth/login`, {
-        method:"POST",
-        body:{ email, password }
+        method: "POST",
+        body: { email, password },
       });
       if (!data?.token) throw new Error("No token returned");
       localStorage.setItem("token", data.token);
       if (data.user) {
-        try { localStorage.setItem("user", JSON.stringify(data.user)); } catch {}
+        try {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        } catch {}
       }
-      try { window.dispatchEvent(new Event("auth-change")); } catch {}
-      nav(next, { replace:true });
-    }catch(e2){
+      try {
+        window.dispatchEvent(new Event("auth-change"));
+      } catch {}
+      nav(next, { replace: true });
+    } catch (e2) {
       setErr(e2?.message || "Login failed");
-    }finally{
+    } finally {
       setLoading(false);
     }
-  }
-
-  function quickFill(role = "student") {
-    const map = {
-      student: "student@example.com",
-      tutor: "tutor@example.com",
-      admin: "admin@example.com",
-    };
-    const em = map[role] || "user@example.com";
-    setEmail(em);
-    if (!MOCK) setPassword("");
   }
 
   return (
@@ -114,7 +111,7 @@ export default function Login() {
               width: "100%",
               padding: 8,
               borderRadius: 8,
-              border: "1px solid #e5e7eb",
+              border: "1px solid #e57e7eb",
               marginTop: 4,
             }}
           />
@@ -204,29 +201,41 @@ export default function Login() {
         </button>
       </form>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={() => quickFill("student")}
-          style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
-        >
-          Use demo student
-        </button>
-        <button
-          type="button"
-          onClick={() => quickFill("tutor")}
-          style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
-        >
-          Use demo tutor
-        </button>
-        <button
-          type="button"
-          onClick={() => quickFill("admin")}
-          style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
-        >
-          Use demo admin
-        </button>
-      </div>
+      {/* Demo buttons (mock mode only) */}
+      {import.meta.env.VITE_MOCK === "1" && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("student@example.com");
+              setPassword("123456");
+            }}
+            style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
+          >
+            Use demo student
+          </button>{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("tutor@example.com");
+              setPassword("123456");
+            }}
+            style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
+          >
+            Use demo tutor
+          </button>{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("admin@example.com");
+              setPassword("123456");
+            }}
+            style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
+          >
+            Use demo admin
+          </button>
+        </div>
+      )}
 
       {MOCK && (
         <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
