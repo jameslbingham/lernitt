@@ -1,3 +1,13 @@
+// ⚠️ SECURITY CHECK: Prevent deploying with bypass enabled in production
+if (
+  process.env.NODE_ENV === "production" &&
+  (process.env.VITE_AUTH_BYPASS === "1" || process.env.VITE_BYPASS === "1")
+) {
+  throw new Error(
+    "❌ BLOCKED: VITE_BYPASS or VITE_AUTH_BYPASS is enabled in production. Remove it before deploying."
+  );
+}
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
