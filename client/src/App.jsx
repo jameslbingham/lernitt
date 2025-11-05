@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-do
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
-import { useAuth } from "./hooks/useAuth.js";
+import { useAuth } from "./hooks/useAuth.jsx";
 
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
