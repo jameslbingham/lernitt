@@ -1,42 +1,89 @@
-// /client/src/hooks/useAuth.js
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { safeFetchJSON } from "@/api/safeFetch";
 
-export function readToken() {
-  try { return localStorage.getItem("token") || ""; } catch { return ""; }
+const AuthContext = createContext(null);
+const TOKEN_KEY = "authToken";
+const API = import.meta.env.VITE_API;
+
+function decodeJwt(token) {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(payload)
+        .split("")
+        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json) || {};
+  } catch {
+    return {};
+  }
 }
-export function readUser() {
-  try { const raw = localStorage.getItem("user"); return raw ? JSON.parse(raw) : null; } catch { return null; }
-}
-function writeToken(v) { try { v ? localStorage.setItem("token", v) : localStorage.removeItem("token"); } catch {} }
-function writeUser(u) { try { u ? localStorage.setItem("user", JSON.stringify(u)) : localStorage.removeItem("user"); } catch {} }
-function emitAuthChange() { try { document.dispatchEvent(new Event("auth-change")); } catch {} }
 
-export function useAuth() {
-  const [token, setToken] = useState(readToken());
-  const [user, setUser] = useState(readUser());
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(null);
+  const [claims, setClaims] = useState({});
+  const [loading, setLoading] = useState(true);
 
+  // Load persisted token on mount
   useEffect(() => {
-    function onChange() { setToken(readToken()); setUser(readUser()); }
-    document.addEventListener("auth-change", onChange);
-    window.addEventListener("storage", onChange);
-    return () => {
-      document.removeEventListener("auth-change", onChange);
-      window.removeEventListener("storage", onChange);
-    };
+    const t = localStorage.getItem(TOKEN_KEY);
+    if (t) {
+      setToken(t);
+      setClaims(decodeJwt(t));
+    }
+    setLoading(false);
   }, []);
 
-  function getToken() { return readToken(); }
-  function login(newToken, newUser) {
-    writeToken(newToken); writeUser(newUser);
-    setToken(newToken || ""); setUser(newUser || null); emitAuthChange();
+  const role = claims?.role || claims?.user?.role || null;
+  const user = claims?.user || null;
+
+  async function login({ email, password }) {
+    const res = await safeFetchJSON(`${API}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res?.token) throw new Error("Login failed: missing token");
+    localStorage.setItem(TOKEN_KEY, res.token);
+    setToken(res.token);
+    setClaims(decodeJwt(res.token));
+    return true;
   }
+
   function logout() {
-    writeToken(""); writeUser(null);
-    setToken(""); setUser(null); emitAuthChange();
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    setClaims({});
   }
 
-  const isAuthed = !!token;
-  const loggedIn = isAuthed;
+  // Optional: refresh profile/token rotation
+  async function refresh() {
+    if (!token) return;
+    try {
+      const me = await safeFetchJSON(`${API}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (me?.token && me.token !== token) {
+        localStorage.setItem(TOKEN_KEY, me.token);
+        setToken(me.token);
+        setClaims(decodeJwt(me.token));
+      }
+    } catch {
+      /* no-op */
+    }
+  }
 
-  return { token, user, isAuthed, loggedIn, getToken, login, logout };
+  const value = useMemo(
+    () => ({ token, user, role, loading, login, logout, refresh }),
+    [token, user, role, loading]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
