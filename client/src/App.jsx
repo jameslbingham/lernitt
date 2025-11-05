@@ -1,5 +1,3 @@
-// rebuild after security lock added
-// trigger rebuild
 // client/src/App.jsx
 console.log("App.jsx loaded");
 
@@ -8,7 +6,7 @@ import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-do
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
-import { useAuth } from "./hooks/useAuth.jsx";
+import { useAuth } from "./hooks/useAuth.jsx";   // ✅ already present
 
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -113,12 +111,22 @@ function Nav() {
           {" | "} <Link to="/login">Login</Link>
         </>
       )}
+
+      {/* ✅ NEW: Logged-in display */}
+      {isAuthed && (
+        <div style={{ marginTop: 6, fontSize: "0.8rem", opacity: 0.7 }}>
+          Logged in as {JSON.parse(localStorage.getItem("user") || "{}")?.email}
+        </div>
+      )}
     </nav>
   );
 }
 
 export default function App({ mockMode }) {
   console.log("App rendering, mockMode =", mockMode);
+
+  // ✅ NEW inside App() — needed for future live auth
+  const { user, role, token } = useAuth();
 
   return (
     <BrowserRouter>
