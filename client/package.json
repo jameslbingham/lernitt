@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev:mock": "VITE_MOCK=1 vite --port 5173",
+    "dev:live": "VITE_MOCK=0 vite --port 5173",
     "dev": "vite --port 5173",
     "build": "vite build",
     "preview": "vite preview --port 5173"
