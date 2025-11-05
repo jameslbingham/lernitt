@@ -4,7 +4,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { ToastProvider } from "@/components/ui/ToastProvider.jsx";
 import { ConfirmProvider } from "./components/ui/ConfirmProvider";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth.jsx";
 
 const mockMode = import.meta.env.VITE_MOCK === "1";
 console.log("Lernitt booting, mockMode =", mockMode);
