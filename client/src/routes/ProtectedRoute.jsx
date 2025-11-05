@@ -3,7 +3,7 @@
 // Bypass works ONLY in local development, NEVER in production.
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth.js";
+import { useAuth } from "../hooks/useAuth.jsx";
 
 // 🔒 Bypass allowed ONLY when running locally (`import.meta.env.DEV`)
 const BYPASS =
