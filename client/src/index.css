@@ -1,0 +1,88 @@
+/* =========================
+   Global Base Styles
+   ========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #fafafa;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: #111;
+  line-height: 1.45;
+}
+
+/* Wrapper used by most pages */
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* =========================
+   Links
+   ========================= */
+
+a {
+  color: #0369a1;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   Buttons
+   ========================= */
+
+button {
+  font-family: inherit;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+button:hover {
+  background: #f3f4f6;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================
+   Inputs / Forms
+   ========================= */
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+/* =========================
+   Utility Classes
+   ========================= */
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.text-center {
+  text-align: center;
+}
