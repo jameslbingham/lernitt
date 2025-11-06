@@ -2,12 +2,16 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
+import { useAuth } from "../hooks/useAuth.jsx";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
-const MOCK = import.meta.env.VITE_MOCK === "1"; // mock = local dev only
+const MOCK = import.meta.env.VITE_MOCK === "1";   // mock = local dev only
 
 export default function Login() {
   const nav = useNavigate();
+  const { login } = useAuth();
+
+  // Handle ?next=/xyz redirect
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const next = params.get("next") || "/";
@@ -19,6 +23,7 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Load remembered email
   useEffect(() => {
     try {
       const saved = localStorage.getItem("login:email");
@@ -26,6 +31,7 @@ export default function Login() {
     } catch {}
   }, []);
 
+  // Save/remove remembered email
   useEffect(() => {
     try {
       if (remember && email) localStorage.setItem("login:email", email);
@@ -40,7 +46,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // ✅ Local mock mode (no backend needed)
+      // ✅ MOCK MODE – no backend call
       if (MOCK) {
         const role = email.startsWith("admin")
           ? "admin"
@@ -48,30 +54,22 @@ export default function Login() {
           ? "tutor"
           : "student";
 
-        // ✅ FIX: Save BOTH role and email in mock mode
-        localStorage.setItem("token", "mock");
-        localStorage.setItem("user", JSON.stringify({ role, email }));
-
-        window.dispatchEvent(new Event("auth-change"));
+        login("mock-token", { email, role });
         return nav(next, { replace: true });
       }
 
-      // ✅ Real backend login (Vercel / Render)
+      // ✅ REAL LOGIN (Vercel/Render backend)
       const data = await apiFetch(`${API}/api/auth/login`, {
         method: "POST",
         body: { email, password },
       });
 
-      if (!data?.token) throw new Error("No token returned");
-      localStorage.setItem("token", data.token);
-
-      if (data.user) {
-        try {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        } catch {}
+      if (!data?.token || !data?.user) {
+        throw new Error("Invalid login response from server");
       }
 
-      window.dispatchEvent(new Event("auth-change"));
+      // ✅ Use central auth handler
+      login(data.token, data.user);
       nav(next, { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Login failed");
