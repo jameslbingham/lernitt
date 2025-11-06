@@ -1,39 +1,22 @@
 // client/src/routes/ProtectedRoute.jsx
-// ✅ SAFE VERSION (LOCK)
-// Bypass works ONLY in local development, NEVER in production.
-
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-// 🔒 Bypass allowed ONLY when running locally (`import.meta.env.DEV`)
-const BYPASS =
-  import.meta.env.DEV &&
-  (import.meta.env.VITE_AUTH_BYPASS === "1" ||
-   import.meta.env.VITE_BYPASS === "1");
-
 export default function ProtectedRoute({ role }) {
-  const { isAuthed, user: hookUser } = useAuth();
+  const { token, user } = useAuth();
   const loc = useLocation();
 
-  // ✅ Local-dev bypass (no login needed on your computer)
-  if (BYPASS) return <Outlet />;
-
-  // --- Normal protected mode (live site) ---
-  let user = hookUser;
-  if (!user) {
-    try {
-      user = JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      user = null;
-    }
-  }
-
-  if (!isAuthed) {
+  // ❌ No token → force login
+  if (!token) {
     const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 
-  if (role && (!user || user.role !== role)) return <Navigate to="/" replace />;
+  // 🔒 If route requires a role, check it
+  if (role && (!user || user.role !== role)) {
+    return <Navigate to="/" replace />;
+  }
 
+  // ✅ Authenticated → allow access
   return <Outlet />;
 }
