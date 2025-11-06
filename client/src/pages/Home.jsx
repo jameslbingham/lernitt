@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
-import { useAuth } from "../hooks/useAuth.js";
+import { useAuth } from "../hooks/useAuth.jsx";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -13,7 +13,6 @@ function euros(n) {
 }
 
 export default function Home() {
-  // 🔎 Preserves your original search feature
   const [q, setQ] = useState("");
   const nav = useNavigate();
 
@@ -22,11 +21,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // Data shown on the homepage
-  const [upcoming, setUpcoming] = useState(null);      // soonest of /api/lessons/mine
-  const [notifUnread, setNotifUnread] = useState(0);   // unread notifications count
-  const [favCount, setFavCount] = useState(0);         // local favourites count
-  const [tutorPeek, setTutorPeek] = useState([]);      // a tiny list of tutors
+  const [upcoming, setUpcoming] = useState(null);
+  const [notifUnread, setNotifUnread] = useState(0);
+  const [favCount, setFavCount] = useState(0);
+  const [tutorPeek, setTutorPeek] = useState([]);
 
   // Load local favourites count
   useEffect(() => {
@@ -45,7 +43,6 @@ export default function Home() {
       setErr("");
 
       try {
-        // 1) Unread notifications (if authed)
         if (isAuthed) {
           const ns = await apiFetch("/api/notifications", { auth: true });
           if (alive) {
@@ -56,7 +53,6 @@ export default function Home() {
           setNotifUnread(0);
         }
 
-        // 2) Upcoming lesson (soonest)
         if (isAuthed) {
           const lessons = await apiFetch("/api/lessons/mine", { auth: true });
           if (alive) {
@@ -73,7 +69,6 @@ export default function Home() {
           setUpcoming(null);
         }
 
-        // 3) Tutor peek (public)
         try {
           const res = await apiFetch("/api/tutors?page=1&limit=6");
           const list = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
@@ -92,7 +87,6 @@ export default function Home() {
     };
   }, [isAuthed]);
 
-  // Derive display for upcoming
   const nextLesson = useMemo(() => {
     if (!upcoming) return null;
     const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
@@ -122,7 +116,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="p-4 space-y-4">
-        <h1 className="text-2xl font-bold">Welcome</h1>
+        <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
         {/* Keep search visible even during loading */}
         <form
           onSubmit={(e) => {
@@ -141,31 +135,24 @@ export default function Home() {
             Search
           </button>
         </form>
-        <div className="grid gap-3 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="border rounded-2xl p-3 animate-pulse space-y-2">
-              <div className="h-4 w-40 bg-gray-200 rounded" />
-              <div className="h-3 w-64 bg-gray-200 rounded" />
-              <div className="h-3 w-48 bg-gray-200 rounded" />
-            </div>
-          ))}
-        </div>
       </div>
     );
   }
 
   return (
     <div className="p-4 space-y-6">
-      {/* Hero / welcome */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
-        {/* Quick link to Settings */}
-        <Link to="/settings" className="text-sm underline">
-          Settings
-        </Link>
+
+      {/* ✅ NEW welcome section */}
+      <div style={{ paddingBottom: 16 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
+          Welcome to Lernitt
+        </h1>
+        <p style={{ fontSize: 16, opacity: 0.8 }}>
+          Book live lessons with tutors worldwide. Choose a subject, pick a tutor, and learn in real time.
+        </p>
       </div>
 
-      {/* 🔎 Your original search (preserved) */}
+      {/* ✅ Existing content below (unchanged) */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -184,6 +171,7 @@ export default function Home() {
         </button>
       </form>
 
+      {/* --- The rest of the page stays exactly the same --- */}
       {/* Status + calls to action */}
       {err && <div className="text-red-600 text-sm">{err}</div>}
 
@@ -315,7 +303,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* Quick admin / tutor utilities (visible to all; harmless if not a tutor) */}
+      {/* Quick admin / tutor utilities */}
       <div className="grid gap-3 md:grid-cols-3">
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Tutor tools</div>
