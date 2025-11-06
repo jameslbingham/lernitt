@@ -29,7 +29,7 @@ import Settings from "./pages/Settings.jsx";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
-// ------------------ Admin guard (now reads from useAuth) ---------------------
+// ------------------ Admin guard (reads from useAuth) ---------------------
 function AdminGuard({ children }) {
   const { user } = useAuth();
   if (user?.role === "admin") return children;
@@ -42,7 +42,7 @@ function AdminGuard({ children }) {
 function Nav() {
   const nav = useNavigate();
   const [unread, setUnread] = useState(0);
-  const { isAuthed, token, user, logout, getToken } = useAuth();
+  const { isAuthed, user, logout, getToken } = useAuth();
 
   async function fetchUnread() {
     const token = getToken();
@@ -95,7 +95,6 @@ function Nav() {
         </>
       )}
 
-      {/* ✅ Show logged-in info */}
       {isAuthed && (
         <div style={{ marginTop: 6, fontSize: "0.8rem", opacity: 0.7 }}>
           Logged in as {user?.email || user?.role}
@@ -125,61 +124,63 @@ export default function App({ mockMode }) {
         </div>
       )}
 
-      <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/tutors" element={<Tutors />} />
-          <Route path="/tutors/:id" element={<TutorProfile />} />
-          <Route path="/book/:tutorId" element={<BookLesson />} />
-          <Route path="/pay/:lessonId" element={<Pay />} />
-          <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
-          <Route path="/students" element={<Students />} />
-          <Route path="/favourites" element={<Favourites />} />
+      <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
+        <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/tutors" element={<Tutors />} />
+            <Route path="/tutors/:id" element={<TutorProfile />} />
+            <Route path="/book/:tutorId" element={<BookLesson />} />
+            <Route path="/pay/:lessonId" element={<Pay />} />
+            <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
+            <Route path="/students" element={<Students />} />
+            <Route path="/favourites" element={<Favourites />} />
 
-          {/* Admin routes */}
-          <Route
-            path="/admin"
-            element={
-              <AdminGuard>
-                <AdminDashboard />
-              </AdminGuard>
-            }
-          />
-          <Route
-            path="/admin/payouts"
-            element={
-              <AdminGuard>
-                <AdminDashboard initialTab="payouts" />
-              </AdminGuard>
-            }
-          />
-          <Route
-            path="/admin/*"
-            element={
-              <AdminGuard>
-                <AdminDashboard />
-              </AdminGuard>
-            }
-          />
+            {/* Admin routes */}
+            <Route
+              path="/admin"
+              element={
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/payouts"
+              element={
+                <AdminGuard>
+                  <AdminDashboard initialTab="payouts" />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/*"
+              element={
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              }
+            />
 
-          {/* Auth-protected */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/availability" element={<Availability />} />
-            <Route path="/my-lessons" element={<MyLessons />} />
-            <Route path="/tutor-lessons" element={<TutorLessons />} />
-            <Route path="/student-lesson/:lessonId" element={<StudentLessonDetail />} />
-            <Route path="/payouts" element={<Payouts />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/notifications" element={<Notifications />} />
-          </Route>
+            {/* Auth-protected */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/availability" element={<Availability />} />
+              <Route path="/my-lessons" element={<MyLessons />} />
+              <Route path="/tutor-lessons" element={<TutorLessons />} />
+              <Route path="/student-lesson/:lessonId" element={<StudentLessonDetail />} />
+              <Route path="/payouts" element={<Payouts />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/notifications" element={<Notifications />} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </Suspense>
+            {/* Fallback */}
+            <Route path="*" element={<Home />} />
+          </Routes>
+        </Suspense>
+      </main>
     </BrowserRouter>
   );
 }
