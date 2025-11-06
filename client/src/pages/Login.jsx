@@ -4,7 +4,7 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
-const MOCK = import.meta.env.VITE_MOCK === "1";   // mock = local dev only
+const MOCK = import.meta.env.VITE_MOCK === "1"; // mock = local dev only
 
 export default function Login() {
   const nav = useNavigate();
@@ -48,8 +48,10 @@ export default function Login() {
           ? "tutor"
           : "student";
 
+        // ✅ FIX: Save BOTH role and email in mock mode
         localStorage.setItem("token", "mock");
-        localStorage.setItem("user", JSON.stringify({ role }));
+        localStorage.setItem("user", JSON.stringify({ role, email }));
+
         window.dispatchEvent(new Event("auth-change"));
         return nav(next, { replace: true });
       }
