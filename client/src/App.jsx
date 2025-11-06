@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-do
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
-import { useAuth } from "./hooks/useAuth.jsx";   // ✅ already present
+import { useAuth } from "./hooks/useAuth.jsx";
 
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -29,27 +29,20 @@ import Settings from "./pages/Settings.jsx";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
-// ---- Admin Guard (mock + live) ---------------------------------------------
-function getUser() {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "{}");
-  } catch {
-    return {};
-  }
-}
+// ------------------ Admin guard (now reads from useAuth) ---------------------
 function AdminGuard({ children }) {
-  const user = getUser();
+  const { user } = useAuth();
   if (user?.role === "admin") return children;
   const next = encodeURIComponent(window.location.pathname + window.location.search);
   window.location.replace(`/login?next=${next}`);
   return null;
 }
-// ----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 function Nav() {
   const nav = useNavigate();
   const [unread, setUnread] = useState(0);
-  const { isAuthed, logout, getToken } = useAuth();
+  const { isAuthed, token, user, logout, getToken } = useAuth();
 
   async function fetchUnread() {
     const token = getToken();
@@ -86,19 +79,8 @@ function Nav() {
       <Link to="/payouts">Payouts</Link> | <Link to="/profile">Profile</Link> |{" "}
       <Link to="/settings">Settings</Link> |{" "}
       <Link to="/notifications">Notifications{unread ? ` (${unread})` : ""}</Link>{" "}
-      {(() => {
-        try {
-          const u = JSON.parse(localStorage.getItem("user") || "{}");
-          return u?.role === "admin";
-        } catch {
-          return false;
-        }
-      })() && (
-        <>
-          {" | "}
-          <Link to="/admin">Admin</Link>
-        </>
-      )}
+      {user?.role === "admin" && <> | <Link to="/admin">Admin</Link></>}
+
       {isAuthed ? (
         <>
           {" | "}
@@ -108,14 +90,15 @@ function Nav() {
         </>
       ) : (
         <>
-          {" | "} <Link to="/login">Login</Link>
+          {" | "}
+          <Link to="/login">Login</Link>
         </>
       )}
 
-      {/* ✅ NEW: Logged-in display */}
+      {/* ✅ Show logged-in info */}
       {isAuthed && (
         <div style={{ marginTop: 6, fontSize: "0.8rem", opacity: 0.7 }}>
-          Logged in as {JSON.parse(localStorage.getItem("user") || "{}")?.email}
+          Logged in as {user?.email || user?.role}
         </div>
       )}
     </nav>
@@ -124,9 +107,6 @@ function Nav() {
 
 export default function App({ mockMode }) {
   console.log("App rendering, mockMode =", mockMode);
-
-  // ✅ NEW inside App() — needed for future live auth
-  const { user, role, token } = useAuth();
 
   return (
     <BrowserRouter>
@@ -158,7 +138,7 @@ export default function App({ mockMode }) {
           <Route path="/students" element={<Students />} />
           <Route path="/favourites" element={<Favourites />} />
 
-          {/* Admin routes (guarded) */}
+          {/* Admin routes */}
           <Route
             path="/admin"
             element={
@@ -184,7 +164,7 @@ export default function App({ mockMode }) {
             }
           />
 
-          {/* Auth-protected user routes */}
+          {/* Auth-protected */}
           <Route element={<ProtectedRoute />}>
             <Route path="/availability" element={<Availability />} />
             <Route path="/my-lessons" element={<MyLessons />} />
