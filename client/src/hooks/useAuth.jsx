@@ -1,89 +1,91 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { safeFetchJSON } from "@/api/safeFetch";
+// /client/src/hooks/useAuth.jsx
+import { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);
-const TOKEN_KEY = "authToken";
-const API = import.meta.env.VITE_API;
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
 
-function decodeJwt(token) {
+export function readToken() {
   try {
-    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(
-      atob(payload)
-        .split("")
-        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(json) || {};
+    return localStorage.getItem(TOKEN_KEY) || "";
   } catch {
-    return {};
+    return "";
   }
 }
 
-export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null);
-  const [claims, setClaims] = useState({});
-  const [loading, setLoading] = useState(true);
+export function readUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
-  // Load persisted token on mount
+function writeToken(t) {
+  try {
+    t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
+function writeUser(u) {
+  try {
+    u ? localStorage.setItem(USER_KEY, JSON.stringify(u)) : localStorage.removeItem(USER_KEY);
+  } catch {}
+}
+
+function emitAuthChange() {
+  try {
+    document.dispatchEvent(new Event("auth-change"));
+  } catch {}
+}
+
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(readToken());
+  const [user, setUser] = useState(readUser());
+
+  // Listen for changes in localStorage (multi-tab support)
   useEffect(() => {
-    const t = localStorage.getItem(TOKEN_KEY);
-    if (t) {
-      setToken(t);
-      setClaims(decodeJwt(t));
+    function sync() {
+      setToken(readToken());
+      setUser(readUser());
     }
-    setLoading(false);
+    window.addEventListener("storage", sync);
+    document.addEventListener("auth-change", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      document.removeEventListener("auth-change", sync);
+    };
   }, []);
 
-  const role = claims?.role || claims?.user?.role || null;
-  const user = claims?.user || null;
-
-  async function login({ email, password }) {
-    const res = await safeFetchJSON(`${API}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    if (!res?.token) throw new Error("Login failed: missing token");
-    localStorage.setItem(TOKEN_KEY, res.token);
-    setToken(res.token);
-    setClaims(decodeJwt(res.token));
-    return true;
+  function login(newToken, newUser) {
+    writeToken(newToken);
+    writeUser(newUser);
+    setToken(newToken);
+    setUser(newUser);
+    emitAuthChange();
   }
 
   function logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    setClaims({});
+    writeToken("");
+    writeUser(null);
+    setToken("");
+    setUser(null);
+    emitAuthChange();
   }
 
-  // Optional: refresh profile/token rotation
-  async function refresh() {
-    if (!token) return;
-    try {
-      const me = await safeFetchJSON(`${API}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (me?.token && me.token !== token) {
-        localStorage.setItem(TOKEN_KEY, me.token);
-        setToken(me.token);
-        setClaims(decodeJwt(me.token));
-      }
-    } catch {
-      /* no-op */
-    }
-  }
+  const role = user?.role || null;
+  const isAuthed = !!token;
 
-  const value = useMemo(
-    () => ({ token, user, role, loading, login, logout, refresh }),
-    [token, user, role, loading]
+  return (
+    <AuthContext.Provider value={{ token, user, role, isAuthed, login, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
   return ctx;
 }
