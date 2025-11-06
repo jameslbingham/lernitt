@@ -2,7 +2,7 @@
 console.log("App.jsx loaded");
 
 import { useEffect, useState, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate, useLocation } from "react-router-dom";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
@@ -29,13 +29,23 @@ import Settings from "./pages/Settings.jsx";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
-// ------------------ Admin guard (reads from useAuth) ---------------------
+// ---- Admin Guard (real login) ---------------------------------------------
 function AdminGuard({ children }) {
-  const { user } = useAuth();
-  if (user?.role === "admin") return children;
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.replace(`/login?next=${next}`);
-  return null;
+  const { token, user } = useAuth();
+  const loc = useLocation();
+
+  // Not logged in → go to login
+  if (!token) {
+    const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
+    return <Navigate to={`/login?next=${next}`} replace />;
+  }
+
+  // Logged in but not admin → block
+  if (!user || user.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 }
 // -----------------------------------------------------------------------------
 
