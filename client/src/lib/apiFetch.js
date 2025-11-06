@@ -74,7 +74,8 @@ async function handleResponse(res) {
       data = null;
     }
   } else {
-    data = await res.text();
+    // ✅ FIX: supports mock responses that are plain objects (no .text())
+    data = (await res.text?.()) || res;
   }
 
   // JSON error object (even if 200 OK)
@@ -111,7 +112,9 @@ function handleUnauthorizedRedirect() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   } catch {}
-  document.dispatchEvent(new Event("auth-change"));
+  try {
+    document.dispatchEvent(new Event("auth-change"));
+  } catch {}
   const next = encodeURIComponent(window.location.pathname + window.location.search);
   window.location.replace(`/login?next=${next}`);
 }
