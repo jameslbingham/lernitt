@@ -4,11 +4,6 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const authRoutes = require("./routes/auth");
-const payoutRoutes = require("./routes/payouts");
-const refundRoutes = require("./routes/refunds");
-const seedRoutes = require("./routes/seed");
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -22,10 +17,28 @@ if (process.env.MONGODB_URI) {
 }
 
 // Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/payouts", payoutRoutes);
-app.use("/api/refunds", refundRoutes);
-app.use("/api/seed", seedRoutes);
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/tutors", require("./routes/tutors"));
+app.use("/api/lessons", require("./routes/lessons"));
+app.use("/api/tutor-lessons", require("./routes/tutorLessons"));
+app.use("/api/students", require("./routes/students"));
+app.use("/api/availability", require("./routes/availability"));
+app.use("/api/reviews", require("./routes/reviews"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/payments", require("./routes/payments"));
+app.use("/api/payouts", require("./routes/payouts"));
+app.use("/api/refunds", require("./routes/refunds"));
+app.use("/api/finance", require("./routes/finance"));
+app.use("/api/metrics", require("./routes/metrics"));
+app.use("/api/admin", require("./routes/admin"));
+app.use("/api/admin-payments", require("./routes/adminPayments"));
+app.use("/api/profile", require("./routes/profile"));
+app.use("/api/support", require("./routes/support"));
+// webhooks (no auth)
+app.use("/api/stripe/webhook", require("./routes/stripeWebhook"));
+app.use("/api/paypal/webhook", require("./routes/paypalWebhook"));
+// seed utilities (dev only)
+app.use("/api/seed", require("./routes/seed"));
 
 // Health check (moved under /api)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
