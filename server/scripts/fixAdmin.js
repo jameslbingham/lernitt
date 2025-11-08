@@ -10,15 +10,35 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
   try {
     await mongoose.connect(process.env.MONGODB_URI);
 
-    const res = await User.updateOne(
-      { email: 'admin@example.com' },
-      { $set: { isAdmin: true } }
-    );
+    const email = 'admin@example.com';
+    const password = 'password123';
 
-    console.log('✅ Admin updated:', res);
-    process.exit();
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = new User({
+        name: 'Admin',
+        email,
+        password,           // will be hashed by pre-save hook
+        role: 'admin',
+        isAdmin: true,
+        isTutor: false,
+        verified: true,
+      });
+      await user.save();
+      console.log('✅ Admin created with new password');
+    } else {
+      user.password = password; // will be hashed by pre-save hook
+      user.role = 'admin';
+      user.isAdmin = true;
+      await user.save();
+      console.log('✅ Admin password reset and role updated');
+    }
+
+    await mongoose.disconnect();
+    process.exit(0);
   } catch (e) {
-    console.error('Error fixing admin:', e);
+    console.error('❌ Error fixing admin:', e);
     process.exit(1);
   }
 })();
