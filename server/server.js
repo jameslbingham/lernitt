@@ -5,7 +5,9 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 
 const app = express();
-app.use(cors());
+
+// Updated CORS line
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
 // Connect to Mongo only if URI present
