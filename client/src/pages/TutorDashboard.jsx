@@ -1,7 +1,7 @@
 // /client/src/pages/TutorDashboard.jsx
 import { useEffect, useState } from "react";
-import { apiFetch } from "../lib/apiFetch";
-import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/apiFetch.js";
+import { useAuth } from "../hooks/useAuth.jsx";
 
 export default function TutorDashboard() {
   const { getToken, user } = useAuth();
