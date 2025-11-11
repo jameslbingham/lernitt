@@ -44,7 +44,6 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(readToken());
   const [user, setUser] = useState(readUser());
 
-  // Listen for changes in localStorage (multi-tab support)
   useEffect(() => {
     function sync() {
       setToken(readToken());
@@ -74,11 +73,17 @@ export function AuthProvider({ children }) {
     emitAuthChange();
   }
 
+  function getToken() {
+    return readToken();
+  }
+
   const role = user?.role || null;
   const isAuthed = !!token;
 
   return (
-    <AuthContext.Provider value={{ token, user, role, isAuthed, login, logout }}>
+    <AuthContext.Provider
+      value={{ token, user, role, isAuthed, login, logout, getToken }}
+    >
       {children}
     </AuthContext.Provider>
   );
