@@ -27,6 +27,9 @@ import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
 import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
 
+// NEW: Tutor Dashboard
+import TutorDashboard from "./pages/TutorDashboard";
+
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
 // ---- Admin Guard (real login) ---------------------------------------------
@@ -34,17 +37,13 @@ function AdminGuard({ children }) {
   const { token, user } = useAuth();
   const loc = useLocation();
 
-  // Not logged in → go to login
   if (!token) {
     const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
-
-  // Logged in but not admin → block
   if (!user || user.role !== "admin") {
     return <Navigate to="/" replace />;
   }
-
   return children;
 }
 // -----------------------------------------------------------------------------
@@ -61,7 +60,7 @@ function Nav() {
       const list = await apiFetch(`${API}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setUnread(Array.isArray(list) ? list.filter((n) => !n.read).length : 0);
+        setUnread(Array.isArray(list) ? list.filter((n) => !n.read).length : 0);
     } catch {
       setUnread(0);
     }
@@ -90,7 +89,7 @@ function Nav() {
       <Link to="/settings">Settings</Link> |{" "}
       <Link to="/notifications">Notifications{unread ? ` (${unread})` : ""}</Link>{" "}
       {user?.role === "admin" && <> | <Link to="/admin">Admin</Link></>}
-
+      {" | "} <Link to="/tutor">Tutor Dashboard</Link>
       {isAuthed ? (
         <>
           {" | "}
@@ -104,7 +103,6 @@ function Nav() {
           <Link to="/login">Login</Link>
         </>
       )}
-
       {isAuthed && (
         <div style={{ marginTop: 6, fontSize: "0.8rem", opacity: 0.7 }}>
           Logged in as {user?.email || user?.role}
@@ -184,6 +182,8 @@ export default function App({ mockMode }) {
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/notifications" element={<Notifications />} />
+              {/* NEW protected Tutor Dashboard */}
+              <Route path="/tutor" element={<TutorDashboard />} />
             </Route>
 
             {/* Fallback */}
