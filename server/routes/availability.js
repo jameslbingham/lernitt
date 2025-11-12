@@ -1,8 +1,8 @@
-// server/routes/availability.js
+// /server/routes/availability.js
 const express = require("express");
 const Availability = require("../models/Availability");
 const Lesson = require("../models/Lesson");
-const auth = require("../middleware/auth");
+const { verifyToken } = require("../middleware/auth");
 const { DateTime } = require("luxon");
 
 const router = express.Router();
@@ -57,14 +57,14 @@ router.get("/:tutorId", async (req, res) => {
   }
 });
 
-// PUT /api/availability
-router.put("/", auth, async (req, res) => {
+// PUT /api/availability  (protected)
+router.put("/", verifyToken, async (req, res) => {
   try {
     const tutor = req.user.id;
     const {
       timezone,
-      weekly = [],         // [{ dow, ranges:[{start,end}] }]
-      exceptions = [],     // [{ date, open, ranges:[{start,end}] }]
+      weekly = [],
+      exceptions = [],
       slotInterval = 30,
       slotStartPolicy = "hourHalf",
     } = req.body || {};
@@ -86,6 +86,7 @@ router.put("/", auth, async (req, res) => {
     doc.slotStartPolicy = slotStartPolicy === "hourHalf" ? "hourHalf" : "hourHalf";
 
     await doc.save();
+    console.log("✅ Availability updated for tutor", tutor);
     res.json(doc);
   } catch (e) {
     console.error(e);
@@ -94,8 +95,7 @@ router.put("/", auth, async (req, res) => {
 });
 
 /* ---------- exceptions API ---------- */
-// POST /api/availability/exceptions  { date, open, ranges:[{start,end}] }
-router.post("/exceptions", auth, async (req, res) => {
+router.post("/exceptions", verifyToken, async (req, res) => {
   try {
     const { date, open, ranges = [] } = req.body || {};
     if (!date || typeof open !== "boolean") {
@@ -108,11 +108,11 @@ router.post("/exceptions", auth, async (req, res) => {
     const av = await Availability.findOne({ tutor: req.user.id });
     if (!av) return res.status(404).json({ error: "Availability not found" });
 
-    // replace any existing exception for that date
     av.exceptions = (av.exceptions || []).filter((e) => e.date !== date);
     av.exceptions.push({ date, open, ranges: open ? ranges : [] });
     await av.save();
 
+    console.log("✅ Exception updated for tutor", req.user.id);
     res.json({ ok: true, availability: av });
   } catch (err) {
     console.error(err);
@@ -120,8 +120,7 @@ router.post("/exceptions", auth, async (req, res) => {
   }
 });
 
-// DELETE /api/availability/exceptions/:date
-router.delete("/exceptions/:date", auth, async (req, res) => {
+router.delete("/exceptions/:date", verifyToken, async (req, res) => {
   try {
     const { date } = req.params;
     const av = await Availability.findOne({ tutor: req.user.id });
@@ -141,13 +140,13 @@ router.delete("/exceptions/:date", auth, async (req, res) => {
   }
 });
 
-/* ---------- slots API: GET /:tutorId/slots?from&to&dur&tz ---------- */
+/* ---------- slots API ---------- */
 router.get("/:tutorId/slots", async (req, res) => {
   try {
     const { tutorId } = req.params;
-    const from = req.query.from; // YYYY-MM-DD
-    const to = req.query.to;     // YYYY-MM-DD
-    const dur = Math.max(15, parseInt(req.query.dur || "60", 10)); // minutes
+    const from = req.query.from;
+    const to = req.query.to;
+    const dur = Math.max(15, parseInt(req.query.dur || "60", 10));
     const studentTz = req.query.tz || "UTC";
 
     const avail = await Availability.findOne({ tutor: tutorId });
@@ -159,28 +158,22 @@ router.get("/:tutorId/slots", async (req, res) => {
 
     let day = DateTime.fromISO(from, { zone: tutorTz }).startOf("day");
     const last = DateTime.fromISO(to, { zone: tutorTz }).endOf("day");
-
     const resultsUTC = [];
 
     while (day <= last) {
       const isoDate = day.toISODate();
-
-      // exceptions win; if open=false → closed
       const ex = (avail.exceptions || []).find((e) => e.date === isoDate);
       let ranges = [];
       if (ex) {
         ranges = ex.open ? (ex.ranges || []) : [];
       } else {
-        // weekly.dow uses 0=Sun..6=Sat ; Luxon weekday: 1..7 (Mon..Sun)
-        const dowIndex = day.weekday % 7; // Sun -> 0
+        const dowIndex = day.weekday % 7;
         const dayWeekly = (avail.weekly || []).filter((w) => w.dow === dowIndex);
         ranges = dayWeekly.flatMap((w) => w.ranges || []);
       }
 
       if (ranges.length) {
-        // slice ranges into slots using policy + interval (tutor tz)
         const dayBlocks = sliceDaySlots(day, ranges, dur, policy, interval);
-
         if (dayBlocks.length) {
           const dayStartUTC = day.toUTC();
           const dayEndUTC = day.endOf("day").toUTC();
@@ -197,10 +190,13 @@ router.get("/:tutorId/slots", async (req, res) => {
             e: DateTime.fromJSDate(l.endTime).toUTC(),
           }));
 
+          // Strict overlap check
           for (const b of dayBlocks) {
             const slotUTCs = { s: b.toUTC(), e: b.plus({ minutes: dur }).toUTC() };
             const overlaps = blocked.some(
-              (x) => slotUTCs.s < x.e && slotUTCs.e > x.s
+              (x) =>
+                (slotUTCs.s >= x.s && slotUTCs.s < x.e) ||
+                (slotUTCs.e > x.s && slotUTCs.e <= x.e)
             );
             if (!overlaps) resultsUTC.push(slotUTCs.s.toISO());
           }
@@ -210,7 +206,6 @@ router.get("/:tutorId/slots", async (req, res) => {
       day = day.plus({ days: 1 }).startOf("day");
     }
 
-    // convert to student tz for display
     const slotsInStudentTz = resultsUTC.map((iso) =>
       DateTime.fromISO(iso, { zone: "utc" }).setZone(studentTz).toISO()
     );
@@ -219,6 +214,31 @@ router.get("/:tutorId/slots", async (req, res) => {
   } catch (e) {
     console.error("slots error", e);
     res.status(500).json({ error: "Failed to generate slots" });
+  }
+});
+
+/* ---------- extra tutor + admin endpoints ---------- */
+// GET /api/availability/me → current tutor's own availability
+router.get("/me", verifyToken, async (req, res) => {
+  try {
+    const av = await Availability.findOne({ tutor: req.user.id });
+    res.json(av || {});
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to load your availability" });
+  }
+});
+
+// DELETE /api/availability/all → admin only
+router.delete("/all", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    await Availability.deleteMany({});
+    res.json({ ok: true, message: "All availabilities cleared" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
