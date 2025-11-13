@@ -8,6 +8,45 @@ const Lesson = require('../models/Lesson');
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
 const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
 
+/* ============================================================
+   NEW REQUIRED ALIAS ROUTES
+   These match what Pay.jsx calls:
+   POST /api/payments/stripe/create
+   POST /api/payments/paypal/create
+   ============================================================ */
+
+router.post('/stripe/create', auth, async (req, res) => {
+  try {
+    // Frontend sends lessonId → backend expects lesson
+    req.body.lesson = req.body.lessonId || req.body.lesson;
+
+    // Forward the request to the real Stripe route
+    req.url = '/stripe';
+    return router.handle(req, res);
+  } catch (e) {
+    console.error('[PAY][stripe/create] error:', e);
+    return res.status(500).json({ message: 'Error forwarding to /stripe' });
+  }
+});
+
+router.post('/paypal/create', auth, async (req, res) => {
+  try {
+    // Frontend sends lessonId → backend expects lesson
+    req.body.lesson = req.body.lessonId || req.body.lesson;
+
+    // Forward to the real PayPal route
+    req.url = '/paypal';
+    return router.handle(req, res);
+  } catch (e) {
+    console.error('[PAY][paypal/create] error:', e);
+    return res.status(500).json({ message: 'Error forwarding to /paypal' });
+  }
+});
+
+/* ============================================================
+   ORIGINAL ROUTES (UNCHANGED)
+   ============================================================ */
+
 // Create Stripe PaymentIntent (simulated if no keys)
 router.post('/stripe', auth, async (req, res) => {
   try {
@@ -123,7 +162,7 @@ router.get('/mine', auth, async (req, res) => {
 // Manually update payment status (admin/dev)
 router.patch('/:id/status', auth, async (req, res) => {
   try {
-    const status = (req.body && req.body.status) || req.query.status; // 'succeeded' | 'failed' | 'pending'
+    const status = (req.body && req.body.status) || req.query.status;
     if (!['succeeded', 'failed', 'pending'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
@@ -144,12 +183,11 @@ router.patch('/:id/status', auth, async (req, res) => {
   }
 });
 
-// Refund ONLY if required by law, and cancel the lesson
+// Refund ONLY if required by law
 router.patch('/:id/refund', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
 
-    // Policy: refunds are NOT allowed unless legally required
     if (reason !== 'legal_required') {
       return res.status(403).json({ message: 'Refunds not allowed unless required by law.' });
     }
@@ -160,22 +198,18 @@ router.patch('/:id/refund', auth, async (req, res) => {
     const lesson = payment.lesson;
     if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
 
-    // Only student or tutor involved in the lesson
     const isStudent = lesson.student.toString() === req.user.id;
     const isTutor = lesson.tutor.toString() === req.user.id;
     if (!isStudent && !isTutor) return res.status(403).json({ message: 'Not allowed' });
 
-    // Only succeeded payments can be refunded
     if (payment.status !== 'succeeded') {
       return res.status(400).json({ message: 'Payment not succeeded; cannot refund' });
     }
 
-    // Prevent duplicate refunds
     if (payment.refundAmount && payment.refundAmount > 0) {
       return res.status(400).json({ message: 'Already refunded' });
     }
 
-    // Proceed with provider refund (or simulate)
     let refundProviderId = `re_sim_${Math.random().toString(36).slice(2, 12)}`;
 
     if (payment.provider === 'stripe' && hasStripeKeys && payment.providerIds.paymentIntentId) {
@@ -183,7 +217,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
         const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
         const refund = await stripe.refunds.create({
           payment_intent: payment.providerIds.paymentIntentId,
-          amount: payment.amount // full refund
+          amount: payment.amount
         });
         refundProviderId = refund.id;
       } catch (e) {
@@ -192,22 +226,19 @@ router.patch('/:id/refund', auth, async (req, res) => {
     }
 
     if (payment.provider === 'paypal' && hasPayPalKeys) {
-      // Real PayPal refund omitted; simulate ID to keep flow consistent
       refundProviderId = `re_sim_${Math.random().toString(36).slice(2, 12)}`;
     }
 
-    // Update payment with refund details
     payment.refundAmount = payment.amount;
     payment.refundProviderId = refundProviderId;
     payment.refundedAt = new Date();
     await payment.save();
 
-    // Cancel the lesson and add cancel metadata
     lesson.status = 'cancelled';
     lesson.cancelledAt = new Date();
     lesson.cancelledBy = isStudent ? 'student' : 'tutor';
     lesson.cancelReason = 'legal_required_refund';
-    lesson.reschedulable = false; // no reschedule with legal refund
+    lesson.reschedulable = false;
     await lesson.save();
 
     return res.json({
