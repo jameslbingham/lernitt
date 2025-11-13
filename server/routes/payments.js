@@ -8,45 +8,6 @@ const Lesson = require('../models/Lesson');
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
 const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
 
-/* ============================================================
-   NEW REQUIRED ALIAS ROUTES
-   These match what Pay.jsx calls:
-   POST /api/payments/stripe/create
-   POST /api/payments/paypal/create
-   ============================================================ */
-
-router.post('/stripe/create', auth, async (req, res) => {
-  try {
-    // Frontend sends lessonId → backend expects lesson
-    req.body.lesson = req.body.lessonId || req.body.lesson;
-
-    // Forward the request to the real Stripe route
-    req.url = '/stripe';
-    return router.handle(req, res);
-  } catch (e) {
-    console.error('[PAY][stripe/create] error:', e);
-    return res.status(500).json({ message: 'Error forwarding to /stripe' });
-  }
-});
-
-router.post('/paypal/create', auth, async (req, res) => {
-  try {
-    // Frontend sends lessonId → backend expects lesson
-    req.body.lesson = req.body.lessonId || req.body.lesson;
-
-    // Forward to the real PayPal route
-    req.url = '/paypal';
-    return router.handle(req, res);
-  } catch (e) {
-    console.error('[PAY][paypal/create] error:', e);
-    return res.status(500).json({ message: 'Error forwarding to /paypal' });
-  }
-});
-
-/* ============================================================
-   ORIGINAL ROUTES (UNCHANGED)
-   ============================================================ */
-
 // Create Stripe PaymentIntent (simulated if no keys)
 router.post('/stripe', auth, async (req, res) => {
   try {
@@ -183,7 +144,7 @@ router.patch('/:id/status', auth, async (req, res) => {
   }
 });
 
-// Refund ONLY if required by law
+// Refund ONLY if required by law, and cancel the lesson
 router.patch('/:id/refund', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
@@ -254,6 +215,48 @@ router.patch('/:id/refund', auth, async (req, res) => {
     console.error('[PAY][refund] error:', err);
     return res.status(500).json({ message: 'Server error', error: String(err.message || err) });
   }
+});
+
+/* ============================================
+   Stripe + PayPal SUCCESS / CANCEL callbacks
+   ============================================ */
+
+router.get("/stripe/success", async (req, res) => {
+  const { lessonId } = req.query;
+  if (!lessonId) {
+    return res.status(400).send("Missing lessonId");
+  }
+
+  const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
+  return res.redirect(`${frontend}/confirm/${encodeURIComponent(lessonId)}`);
+});
+
+router.get("/stripe/cancel", async (req, res) => {
+  const { lessonId } = req.query;
+  const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  return res.redirect(
+    `${frontend}/pay/${encodeURIComponent(lessonId || "")}?cancel=1`
+  );
+});
+
+router.get("/paypal/success", async (req, res) => {
+  const { lessonId } = req.query;
+  if (!lessonId) {
+    return res.status(400).send("Missing lessonId");
+  }
+
+  const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
+  return res.redirect(`${frontend}/confirm/${encodeURIComponent(lessonId)}`);
+});
+
+router.get("/paypal/cancel", async (req, res) => {
+  const { lessonId } = req.query;
+  const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
+
+  return res.redirect(
+    `${frontend}/pay/${encodeURIComponent(lessonId || "")}?cancel=1`
+  );
 });
 
 module.exports = router;
