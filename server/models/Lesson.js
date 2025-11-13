@@ -29,30 +29,39 @@ const LessonSchema = new Schema(
     // Lesson status lifecycle
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+      enum: [
+        'booked',     // ← NEW
+        'pending',
+        'confirmed',
+        'paid',       // ← NEW
+        'completed',
+        'cancelled',
+        'expired'     // ← NEW
+      ],
       default: 'pending',
       index: true,
     },
 
-    // Linked payment + payout flow
+    // Payment + payout flow
     payment:  { type: Schema.Types.ObjectId, ref: 'Payment' },
     payout:   { type: Schema.Types.ObjectId, ref: 'Payout' },
     isPaid:   { type: Boolean, default: false },
+    paidAt:   { type: Date },                      // ← NEW FIELD
 
-    // Free 30-min trial (excluded from payouts)
+    // Free 30-minute trial
     isTrial:  { type: Boolean, default: false },
 
-    // Lesson notes and feedback
+    // Notes
     notes:    { type: String, trim: true, maxlength: 1000 },
 
     // Cancellations / rescheduling
     rescheduledAt: { type: Date },
-    cancelledAt:   { type: Date },
+    cancelledAt:   { type: Date },                 // (already existed)
     cancelledBy:   { type: String, enum: ['student', 'tutor', 'admin'] },
     cancelReason:  { type: String, trim: true },
     reschedulable: { type: Boolean, default: false },
 
-    // Duration in minutes (for analytics)
+    // Duration for analytics
     durationMins: { type: Number, default: 0 },
   },
   { timestamps: true }
