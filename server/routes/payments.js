@@ -8,7 +8,9 @@ const Lesson = require('../models/Lesson');
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
 const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
 
-// Create Stripe PaymentIntent (simulated if no keys)
+/* ============================================
+   Create Stripe PaymentIntent (simulated if no keys)
+   ============================================ */
 router.post('/stripe', auth, async (req, res) => {
   try {
     console.log('[PAY][stripe] body:', req.body);
@@ -61,7 +63,9 @@ router.post('/stripe', auth, async (req, res) => {
   }
 });
 
-// Create PayPal order (simulated if no keys)
+/* ============================================
+   Create PayPal order (simulated if no keys)
+   ============================================ */
 router.post('/paypal', auth, async (req, res) => {
   try {
     const { amount, currency = 'EUR', lesson } = req.body;
@@ -97,7 +101,9 @@ router.post('/paypal', auth, async (req, res) => {
   }
 });
 
-// List my payments (paged)
+/* ============================================
+   Payment list for logged-in user
+   ============================================ */
 router.get('/mine', auth, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
@@ -120,10 +126,12 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
-// Manually update payment status (admin/dev)
+/* ============================================
+   Manual payment status update
+   ============================================ */
 router.patch('/:id/status', auth, async (req, res) => {
   try {
-    const status = (req.body && req.body.status) || req.query.status;
+    const status = (req.body && req.body.status) || req.query.status; // 'succeeded' | 'failed' | 'pending'
     if (!['succeeded', 'failed', 'pending'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
@@ -144,11 +152,14 @@ router.patch('/:id/status', auth, async (req, res) => {
   }
 });
 
-// Refund ONLY if required by law, and cancel the lesson
+/* ============================================
+   Refund (legal-only)
+   ============================================ */
 router.patch('/:id/refund', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
 
+    // Policy: refunds allowed ONLY when legally required
     if (reason !== 'legal_required') {
       return res.status(403).json({ message: 'Refunds not allowed unless required by law.' });
     }
@@ -171,6 +182,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
       return res.status(400).json({ message: 'Already refunded' });
     }
 
+    // Provider refund (simulate if no keys)
     let refundProviderId = `re_sim_${Math.random().toString(36).slice(2, 12)}`;
 
     if (payment.provider === 'stripe' && hasStripeKeys && payment.providerIds.paymentIntentId) {
@@ -220,7 +232,6 @@ router.patch('/:id/refund', auth, async (req, res) => {
 /* ============================================
    Stripe + PayPal SUCCESS / CANCEL callbacks
    ============================================ */
-
 router.get("/stripe/success", async (req, res) => {
   const { lessonId } = req.query;
   if (!lessonId) {
@@ -257,6 +268,47 @@ router.get("/paypal/cancel", async (req, res) => {
   return res.redirect(
     `${frontend}/pay/${encodeURIComponent(lessonId || "")}?cancel=1`
   );
+});
+
+/* ============================================
+   Mark lesson as PAID (Stripe + PayPal)
+   ============================================ */
+router.post("/stripe/mark-paid", async (req, res) => {
+  try {
+    const { lessonId } = req.body || {};
+    if (!lessonId) return res.status(400).json({ message: "Missing lessonId" });
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ message: "Lesson not found" });
+
+    lesson.status = "paid";
+    lesson.paidAt = new Date();
+    await lesson.save();
+
+    return res.json({ ok: true, lessonId });
+  } catch (err) {
+    console.error("[PAY][stripe mark-paid] error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/paypal/mark-paid", async (req, res) => {
+  try {
+    const { lessonId } = req.body || {};
+    if (!lessonId) return res.status(400).json({ message: "Missing lessonId" });
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ message: "Lesson not found" });
+
+    lesson.status = "paid";
+    lesson.paidAt = new Date();
+    await lesson.save();
+
+    return res.json({ ok: true, lessonId });
+  } catch (err) {
+    console.error("[PAY][paypal mark-paid] error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
 });
 
 module.exports = router;
