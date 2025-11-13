@@ -15,7 +15,7 @@ function downloadIcs(filename, content) {
   URL.revokeObjectURL(url);
 }
 
-// cents → € helper (accepts cents or euros)
+// cents → € helper
 function eurosFromPrice(p) {
   const n = typeof p === "number" ? p : Number(p) || 0;
   return n >= 1000 ? n / 100 : n;
@@ -30,7 +30,9 @@ export default function BookingConfirmation() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const [copied, setCopied] = useState("");
 
-  // Load lesson
+  /* ----------------------------------------------------
+     LOAD LESSON  (PATCH INSERTED HERE)
+  ---------------------------------------------------- */
   useEffect(() => {
     (async () => {
       try {
@@ -39,14 +41,29 @@ export default function BookingConfirmation() {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!r.ok) throw new Error(`Failed to load lesson (${r.status})`);
-        setLesson(await r.json());
+
+        // ⬇⬇⬇ YOUR PATCH (required for new /book route) ⬇⬇⬇
+        const raw = await r.json();
+        setLesson({
+          ...raw,
+          start: raw.start || raw.startTime,
+          duration:
+            raw.duration ||
+            ((raw.endTime && raw.startTime)
+              ? (new Date(raw.endTime) - new Date(raw.startTime)) / 60000
+              : 60),
+          isTrial: raw.isTrial || raw.kind === "trial",
+        });
+        // ⬆⬆⬆ PATCH END ⬆⬆⬆
       } catch (e) {
         setError(e.message || "Failed to load lesson");
       }
     })();
   }, [lessonId]);
 
-  // Load tutor timezone once lesson is known
+  /* ----------------------------------------------------
+     LOAD TUTOR TIMEZONE
+  ---------------------------------------------------- */
   useEffect(() => {
     if (!lesson?.tutor) return;
     (async () => {
@@ -72,33 +89,39 @@ export default function BookingConfirmation() {
       </div>
     );
 
+  /* ----------------------------------------------------
+     RENDER PREP
+  ---------------------------------------------------- */
+
   const start = lesson?.start ? new Date(lesson.start) : null;
+
   const whenYour = start
     ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: tz })
     : "—";
+
   const whenTutor =
     start && tutorTz
       ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: tutorTz })
       : "";
 
-  // Status + permissions + ICS
   const status = (lesson.status || "").toLowerCase();
   const isConfirmed = status === "confirmed" || status === "completed" || status === "paid";
   const isTerminal = status === "completed" || status === "cancelled" || status === "expired";
   const canReschedule = !isTerminal;
   const canCancel = !isTerminal;
 
-  // Amount (show when available and not trial)
   const amountRaw =
     (typeof lesson?.amountCents === "number" && lesson.amountCents >= 0 && lesson.amountCents) ||
     (typeof lesson?.priceCents === "number" && lesson.priceCents >= 0 && lesson.priceCents) ||
     lesson?.price ||
     0;
+
   const amount = eurosFromPrice(amountRaw).toFixed(2);
 
   const dtstart = start ? start.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z" : "";
   const dtstamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const lessonUrl = `${window.location.origin}/student-lesson/${encodeURIComponent(lesson._id)}`;
+
   const ics = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Lernitt//Booking//EN
@@ -135,6 +158,7 @@ END:VCALENDAR`.trim();
       `Status: ${lesson.status || "reserved"}`,
       `Link: ${window.location.href}`,
     ].filter(Boolean);
+
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
       setCopied("Summary copied!");
@@ -145,21 +169,20 @@ END:VCALENDAR`.trim();
     }
   };
 
-  // Back target (preserve originating list filters if present)
   const backToTutors =
     (loc.state?.from?.pathname || "/tutors") + (loc.state?.from?.search || "");
 
-  // Back-to-Tutor href with trial banner trigger
   const backToTutorHref = `/tutors/${lesson.tutor}${lesson.isTrial ? "?trial=1" : ""}`;
 
+  /* ----------------------------------------------------
+     RENDER
+  ---------------------------------------------------- */
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
-      {/* Progress header */}
       <div style={{ marginBottom: 12, fontSize: 14 }}>
         <b>1) Reserved</b> → {lesson.isTrial ? <b>2) Trial</b> : isConfirmed ? <b>2) Paid</b> : "2) Pay"} → <b>3) Confirmed</b>
       </div>
 
-      {/* Back to tutors list */}
       <Link to={backToTutors} className="text-sm underline">
         ← Back to tutors
       </Link>
@@ -168,7 +191,7 @@ END:VCALENDAR`.trim();
         {lesson.isTrial ? "Trial booked" : isConfirmed ? "Booking confirmed" : "Booking pending"}
       </h1>
 
-      {/* Timezone info bar */}
+      {/* Timezone bar */}
       <div
         style={{
           padding: "6px 8px",
@@ -182,7 +205,7 @@ END:VCALENDAR`.trim();
         Times are shown in your timezone: {tz}.
       </div>
 
-      {/* Trial success banner */}
+      {/* Trial banner */}
       {lesson.isTrial && (
         <div
           style={{
@@ -197,7 +220,7 @@ END:VCALENDAR`.trim();
         </div>
       )}
 
-      {/* Payment reminder banner */}
+      {/* Payment pending banner */}
       {!lesson.isTrial && !isConfirmed && (
         <div
           style={{
@@ -252,7 +275,6 @@ END:VCALENDAR`.trim();
           alignItems: "center",
         }}
       >
-        {/* Payment CTA (only when needed) */}
         {!lesson.isTrial && !isConfirmed && (
           <Link
             to={`/pay/${lesson._id}`}
@@ -266,7 +288,7 @@ END:VCALENDAR`.trim();
             Go to Pay
           </Link>
         )}
-        {/* Paid badge */}
+
         {!lesson.isTrial && isConfirmed && (
           <span
             style={{
@@ -279,7 +301,6 @@ END:VCALENDAR`.trim();
           </span>
         )}
 
-        {/* Navigation / actions */}
         <Link
           to={`/my-lessons`}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
@@ -287,7 +308,6 @@ END:VCALENDAR`.trim();
           Go to My Lessons
         </Link>
 
-        {/* Reschedule/Cancel only when allowed */}
         {canReschedule && (
           <Link
             to={`/student-lesson/${lesson._id}`}
@@ -296,6 +316,7 @@ END:VCALENDAR`.trim();
             Reschedule
           </Link>
         )}
+
         {canCancel && (
           <Link
             to={`/student-lesson/${lesson._id}`}
@@ -305,7 +326,6 @@ END:VCALENDAR`.trim();
           </Link>
         )}
 
-        {/* Back to this specific tutor (trials trigger banner there) */}
         <Link
           to={backToTutorHref}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
@@ -313,27 +333,28 @@ END:VCALENDAR`.trim();
           Back to Tutor
         </Link>
 
-        {/* Add to calendar / copy tools */}
         <button
           onClick={() => downloadIcs(`lesson-${lesson._id}.ics`, ics)}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
           disabled={!start}
-          title={start ? "" : "Start time not available"}
         >
           Add to calendar (.ics)
         </button>
+
         <button
           onClick={copyLink}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
         >
           Copy link
         </button>
+
         <button
           onClick={copySummary}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
         >
           Copy summary
         </button>
+
         <button
           onClick={async () => {
             try {
