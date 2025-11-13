@@ -32,15 +32,28 @@ export default function Pay() {
       if (!r.ok) throw new Error(`Failed to load lesson (${r.status})`);
       const data = await r.json();
 
-      // Trials don’t pay: bounce to confirmation (preserve origin)
-      if (data.isTrial) {
+      // 🔥 NEW NORMALISATION PATCH
+      const normalized = {
+        ...data,
+        start: data.start || data.startTime,
+        duration:
+          data.duration ||
+          (data.endTime && data.startTime
+            ? (new Date(data.endTime) - new Date(data.startTime)) / 60000
+            : 60),
+        isTrial: data.isTrial || data.kind === "trial",
+      };
+
+      // Trials don’t pay: redirect to confirmation
+      if (normalized.isTrial) {
         nav(`/confirm/${encodeURIComponent(lessonId)}`, {
           replace: true,
           state: { from: loc.state?.from || { pathname: "/tutors" } },
         });
         return;
       }
-      setLesson(data);
+
+      setLesson(normalized);
     } catch (e) {
       setError(e.message || "Failed to load lesson");
     } finally {
@@ -54,7 +67,8 @@ export default function Pay() {
   }, [lessonId]);
 
   const status = (lesson?.status || "").toLowerCase();
-  const isConfirmed = status === "confirmed" || status === "completed" || status === "paid";
+  const isConfirmed =
+    status === "confirmed" || status === "completed" || status === "paid";
 
   async function startPayment(provider) {
     try {
@@ -146,6 +160,7 @@ export default function Pay() {
         <div><b>When:</b> {when}</div>
         <div><b>Duration:</b> {lesson.duration} min</div>
         <div><b>Amount:</b> € {amount}</div>
+
         {isConfirmed && (
           <div style={{ marginTop: 8, color: "#065f46" }}>
             This lesson is already <b>paid/confirmed</b>.
@@ -170,6 +185,7 @@ export default function Pay() {
             >
               {paying ? "Starting Stripe…" : "Pay with Stripe"}
             </button>
+
             <button
               disabled={paying}
               onClick={() => startPayment("paypal")}
@@ -185,6 +201,7 @@ export default function Pay() {
             </button>
           </>
         )}
+
         {isConfirmed && (
           <span
             style={{
@@ -197,6 +214,7 @@ export default function Pay() {
             Paid ✔
           </span>
         )}
+
         <Link
           to={`/confirm/${lessonId}`}
           state={{ from: loc.state?.from || { pathname: "/tutors" } }}
