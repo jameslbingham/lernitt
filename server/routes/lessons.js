@@ -8,6 +8,11 @@ const auth = require('../middleware/auth');
 const { canReschedule } = require('../utils/policies');
 const validateSlot = require("../utils/validateSlot");
 
+/* Small helper: is this status terminal? */
+function isTerminalStatus(status) {
+  return ['cancelled', 'completed', 'expired'].includes(status);
+}
+
 /* ============================================
    GET /api/lessons/tutor  
    All lessons for the logged-in tutor
@@ -19,12 +24,13 @@ router.get('/tutor', auth, async (req, res) => {
       .sort({ startTime: 1 });
 
     // Normalized structure for frontend
-    const out = lessons.map(l => ({
-      id: String(l._id),
-      student: l.student?.name || "Student",
+    const out = lessons.map((l) => ({
+      _id: String(l._id),
+      studentName: l.student?.name || "Student",
       tutor: String(l.tutor),
       subject: l.subject,
       start: l.startTime,
+      startTime: l.startTime,
       end: l.endTime,
       duration: l.durationMins,
       status: l.status,
@@ -33,9 +39,6 @@ router.get('/tutor', auth, async (req, res) => {
       isTrial: l.isTrial,
       createdAt: l.createdAt,
       cancelledAt: l.cancelledAt,
-      requestedNewDate: null,
-      requestedNewTime: null,
-      pendingUntil: null,
     }));
 
     return res.json(out);
@@ -47,6 +50,7 @@ router.get('/tutor', auth, async (req, res) => {
 
 /* ============================================
    Create a lesson (student booking)
+   status: 'booked' (pending payment)
    ============================================ */
 router.post('/', auth, async (req, res) => {
   try {
@@ -101,7 +105,7 @@ router.post('/', auth, async (req, res) => {
       currency,
       notes,
       isTrial,
-      status: 'booked', // NEW default lifecycle state
+      status: 'booked', // pending payment
     });
 
     await lesson.save();
@@ -155,6 +159,9 @@ router.get('/:id', auth, async (req, res) => {
 
 /* ============================================
    Tutor confirm (must be paid first)
+   PATCH /api/lessons/:id/confirm
+   Transitions: paid → confirmed
+   (or trial → confirmed)
    ============================================ */
 router.patch('/:id/confirm', auth, async (req, res) => {
   try {
@@ -165,18 +172,22 @@ router.patch('/:id/confirm', auth, async (req, res) => {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
-    if (['cancelled', 'completed', 'expired'].includes(lesson.status)) {
+    if (isTerminalStatus(lesson.status)) {
       return res.status(400).json({ message: `Cannot confirm a ${lesson.status} lesson` });
     }
 
     let paid = lesson.isPaid === true;
 
-    if (lesson.isTrial) paid = true;
+    if (lesson.isTrial) {
+      paid = true;
+    }
 
+    // Normal path: status already "paid"
     if (!lesson.isTrial && lesson.status === 'paid') {
       paid = true;
     }
 
+    // Fallback: check Payment record if not already marked paid
     if (!paid && !lesson.isTrial) {
       const succeededPayment = await Payment.findOne({
         lesson: lesson._id,
@@ -216,7 +227,50 @@ router.patch('/:id/confirm', auth, async (req, res) => {
 });
 
 /* ============================================
+   Tutor rejects a paid booking
+   PATCH /api/lessons/:id/reject
+   Typical: paid → cancelled (tutor-reject)
+   ============================================ */
+router.patch('/:id/reject', auth, async (req, res) => {
+  try {
+    const lesson = await Lesson.findById(req.params.id);
+    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    if (lesson.tutor.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not allowed' });
+    }
+
+    if (isTerminalStatus(lesson.status)) {
+      return res.status(400).json({ message: `Cannot reject a ${lesson.status} lesson` });
+    }
+
+    // We assume payment has already been taken (status "paid")
+    lesson.status = 'cancelled';
+    lesson.cancelledAt = new Date();
+    lesson.cancelledBy = 'tutor';
+    lesson.cancelReason = 'tutor-reject';
+    lesson.reschedulable = false;
+
+    await lesson.save();
+
+    await notify(
+      lesson.student,
+      'cancel',
+      'Lesson cancelled by tutor',
+      'Your lesson was cancelled by the tutor. Support will handle any refund if applicable.',
+      { lesson: lesson._id }
+    );
+
+    res.json({ ok: true, lesson });
+  } catch (err) {
+    console.error('[LESSONS][reject] error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ============================================
    Cancel (student or tutor)
+   PATCH /api/lessons/:id/cancel
    ============================================ */
 router.patch('/:id/cancel', auth, async (req, res) => {
   try {
@@ -268,6 +322,8 @@ router.patch('/:id/cancel', auth, async (req, res) => {
 
 /* ============================================
    Complete (tutor only)
+   PATCH /api/lessons/:id/complete
+   confirmed → completed (+ queue payout)
    ============================================ */
 router.patch('/:id/complete', auth, async (req, res) => {
   try {
@@ -282,7 +338,7 @@ router.patch('/:id/complete', auth, async (req, res) => {
       return res.status(400).json({ message: 'Lesson has not ended yet' });
     }
 
-    if (['cancelled', 'completed', 'expired'].includes(lesson.status)) {
+    if (isTerminalStatus(lesson.status)) {
       return res.status(400).json({ message: `Cannot complete a ${lesson.status} lesson` });
     }
 
@@ -317,7 +373,10 @@ router.patch('/:id/complete', auth, async (req, res) => {
 });
 
 /* ============================================
-   Reschedule
+   Request reschedule (student or tutor)
+   PATCH /api/lessons/:id/reschedule
+   Marks status → 'reschedule_requested'
+   (tutor later approves / rejects)
    ============================================ */
 router.patch('/:id/reschedule', auth, async (req, res) => {
   try {
@@ -337,6 +396,24 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
       return res.status(400).json({ message: 'newStartTime and newEndTime required' });
     }
 
+    if (isTerminalStatus(lesson.status)) {
+      return res.status(400).json({ message: `Cannot reschedule a ${lesson.status} lesson` });
+    }
+
+    // validate slot for new time
+    const durMins = Math.max(
+      15,
+      Math.round((new Date(newEndTime) - new Date(newStartTime)) / 60000)
+    );
+    const chk = await validateSlot({
+      tutorId: lesson.tutor,
+      startISO: newStartTime,
+      endISO: newEndTime,
+      durMins,
+    });
+    if (!chk.ok) return res.status(400).json({ error: `slot-invalid:${chk.reason}` });
+
+    // clash guard
     const clash = await Lesson.findOne({
       tutor: lesson.tutor,
       _id: { $ne: lesson._id },
@@ -346,31 +423,154 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
     });
     if (clash) return res.status(400).json({ message: 'Tutor has a clash at new time' });
 
-    lesson.startTime = new Date(newStartTime);
-    lesson.endTime = new Date(newEndTime);
-    lesson.rescheduledAt = new Date();
-    lesson.reschedulable = false;
+    // Store requested times; actual lesson time will be updated on approval.
+    lesson.pendingStartTime = new Date(newStartTime);
+    lesson.pendingEndTime = new Date(newEndTime);
+    lesson.status = 'reschedule_requested';
+    lesson.rescheduleRequestedAt = new Date();
+    lesson.rescheduleRequestedBy = isStudent ? 'student' : 'tutor';
 
     await lesson.save();
 
     await notify(
-      lesson.student,
+      lesson.tutor,
       'reschedule',
-      'Lesson rescheduled',
-      'Your lesson has been rescheduled.',
+      'Reschedule requested',
+      'A new lesson time has been requested.',
       { lesson: lesson._id }
     );
     await notify(
-      lesson.tutor,
+      lesson.student,
       'reschedule',
-      'Lesson rescheduled',
-      'The lesson time was changed.',
+      'Reschedule requested',
+      'Your reschedule request has been sent to the tutor.',
       { lesson: lesson._id }
     );
 
     return res.json({ ok: true, lesson });
   } catch (err) {
     console.error('[LESSONS][reschedule] error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ============================================
+   Tutor approves reschedule
+   PATCH /api/lessons/:id/reschedule-approve
+   reschedule_requested → confirmed (new time)
+   ============================================ */
+router.patch('/:id/reschedule-approve', auth, async (req, res) => {
+  try {
+    const lesson = await Lesson.findById(req.params.id);
+    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    if (lesson.tutor.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not allowed' });
+    }
+
+    if (lesson.status !== 'reschedule_requested') {
+      return res.status(400).json({ message: 'No reschedule request to approve' });
+    }
+
+    if (!lesson.pendingStartTime || !lesson.pendingEndTime) {
+      return res.status(400).json({ message: 'Missing pending reschedule times' });
+    }
+
+    lesson.startTime = lesson.pendingStartTime;
+    lesson.endTime = lesson.pendingEndTime;
+    lesson.pendingStartTime = undefined;
+    lesson.pendingEndTime = undefined;
+    lesson.rescheduleRequestedAt = undefined;
+    lesson.rescheduleRequestedBy = undefined;
+    lesson.rescheduledAt = new Date();
+    lesson.reschedulable = false;
+    lesson.status = 'confirmed';
+
+    await lesson.save();
+
+    await notify(
+      lesson.student,
+      'reschedule',
+      'Reschedule approved',
+      'Your new lesson time has been approved.',
+      { lesson: lesson._id }
+    );
+
+    res.json({ ok: true, lesson });
+  } catch (err) {
+    console.error('[LESSONS][reschedule-approve] error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ============================================
+   Tutor rejects reschedule
+   PATCH /api/lessons/:id/reschedule-reject
+   reschedule_requested → confirmed (original time)
+   ============================================ */
+router.patch('/:id/reschedule-reject', auth, async (req, res) => {
+  try {
+    const lesson = await Lesson.findById(req.params.id);
+    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    if (lesson.tutor.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not allowed' });
+    }
+
+    if (lesson.status !== 'reschedule_requested') {
+      return res.status(400).json({ message: 'No reschedule request to reject' });
+    }
+
+    lesson.pendingStartTime = undefined;
+    lesson.pendingEndTime = undefined;
+    lesson.rescheduleRequestedAt = undefined;
+    lesson.rescheduleRequestedBy = undefined;
+    // keep original start/end; revert status to confirmed (or paid if you prefer)
+    lesson.status = 'confirmed';
+
+    await lesson.save();
+
+    await notify(
+      lesson.student,
+      'reschedule',
+      'Reschedule rejected',
+      'The tutor kept the original lesson time.',
+      { lesson: lesson._id }
+    );
+
+    res.json({ ok: true, lesson });
+  } catch (err) {
+    console.error('[LESSONS][reschedule-reject] error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/* ============================================
+   Expire overdue lessons for this tutor
+   PATCH /api/lessons/expire-overdue
+   Any past lessons that are not terminal → expired
+   ============================================ */
+router.patch('/expire-overdue', auth, async (req, res) => {
+  try {
+    const now = new Date();
+    const query = {
+      tutor: req.user.id,
+      endTime: { $lt: now },
+      status: { $nin: ['cancelled', 'completed', 'expired'] },
+    };
+
+    const result = await Lesson.updateMany(query, {
+      $set: { status: 'expired' },
+    });
+
+    const modified =
+      typeof result.modifiedCount === 'number'
+        ? result.modifiedCount
+        : result.nModified || 0;
+
+    return res.json({ ok: true, updated: modified });
+  } catch (err) {
+    console.error('[LESSONS][expire-overdue] error:', err);
     return res.status(500).json({ message: 'Server error' });
   }
 });
