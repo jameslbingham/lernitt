@@ -31,34 +31,29 @@ function durationEnd(iso, minutes) {
   return new Date(d.getTime() + Number(minutes) * 60000);
 }
 
-/* STUDENT-FACING STATUS TRANSLATION (A1) */
-function translateStatus(raw) {
-  switch (raw) {
-    case "booked":
-      return "pending_payment";
-    case "pending":
-      return "paid_waiting_tutor";
-    case "confirmed":
-      return "confirmed";
-    case "completed":
-      return "completed";
-    case "cancelled":
-      return "cancelled";
-    case "expired":
-      return "expired";
-    case "reschedule_pending":
-      return "reschedule_requested";
-    default:
-      return raw || "pending_payment";
-  }
-}
-
+/* NEW: lifecycle rules */
 function deriveStatus(l) {
+  const raw = l.status || "booked";
   const started = new Date(l.start).getTime() <= Date.now();
   const terminal = ["completed", "cancelled", "expired"];
-  if (started && !terminal.includes(l.status)) return "expired";
-  return translateStatus(l.status);
+
+  // Auto-expire anything that has started but never reached a terminal state
+  if (started && !terminal.includes(raw)) return "expired";
+
+  return raw;
 }
+
+/* Student-friendly labels (Option A) */
+const STATUS_LABELS = {
+  booked: "Pending — payment needed",
+  paid: "Paid — awaiting tutor approval",
+  confirmed: "Confirmed",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  expired: "Expired",
+  // keep old key for future use if needed
+  reschedule_requested: "Reschedule requested",
+};
 
 function normalize(raw) {
   return {
@@ -73,7 +68,7 @@ function normalize(raw) {
             ? (new Date(raw.endTime) - new Date(raw.startTime || raw.start)) / 60000
             : 0)
       ) || 0,
-    status: raw.status,
+    status: raw.status || "booked",
     isTrial: !!raw.isTrial,
     price: typeof raw.price === "number" ? raw.price : Number(raw.price) || 0,
     subject: raw.subject || "",
@@ -92,7 +87,9 @@ function TinyCountdown({ to }) {
   }, [to]);
 
   if (!to || left <= 0)
-    return <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>• started</span>;
+    return (
+      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>• started</span>
+    );
 
   const s = Math.floor(left / 1000);
   const h = Math.floor(s / 3600);
@@ -105,48 +102,18 @@ function TinyCountdown({ to }) {
   );
 }
 
-/* STUDENT-FACING PILL COLOURS (A1) */
 function StatusPill({ status }) {
+  const friendly = STATUS_LABELS[status] || STATUS_LABELS.booked;
   const map = {
-    pending_payment: {
-      bg: "#fff7e6",
-      color: "#ad6800",
-      label: "Payment required",
-    },
-    paid_waiting_tutor: {
-      bg: "#e6f7ff",
-      color: "#0050b3",
-      label: "Paid — awaiting tutor",
-    },
-    confirmed: {
-      bg: "#e6fffb",
-      color: "#006d75",
-      label: "Confirmed",
-    },
-    reschedule_requested: {
-      bg: "#f0f5ff",
-      color: "#1d39c4",
-      label: "Reschedule requested",
-    },
-    completed: {
-      bg: "#f6ffed",
-      color: "#237804",
-      label: "Completed",
-    },
-    cancelled: {
-      bg: "#fff1f0",
-      color: "#a8071a",
-      label: "Cancelled",
-    },
-    expired: {
-      bg: "#fafafa",
-      color: "#595959",
-      label: "Expired",
-    },
+    booked: { bg: "#fff7e6", color: "#ad6800" },
+    paid: { bg: "#e6f7ff", color: "#0050b3" },
+    confirmed: { bg: "#e6fffb", color: "#006d75" },
+    reschedule_requested: { bg: "#f0f5ff", color: "#1d39c4" },
+    completed: { bg: "#f6ffed", color: "#237804" },
+    cancelled: { bg: "#fff1f0", color: "#a8071a" },
+    expired: { bg: "#fafafa", color: "#595959" },
   };
-
-  const s = map[status] || map.pending_payment;
-
+  const s = map[status] || map.booked;
   return (
     <span
       style={{
@@ -158,7 +125,7 @@ function StatusPill({ status }) {
         fontWeight: 600,
       }}
     >
-      {s.label}
+      {friendly}
     </span>
   );
 }
@@ -170,15 +137,13 @@ export default function StudentLessonDetail() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const passed = loc.state?.lesson || null;
 
   const [lesson, setLesson] = useState(passed ? normalize(passed) : null);
   const [loading, setLoading] = useState(!passed);
   const [err, setErr] = useState("");
 
-  /* Load full lesson */
   async function load() {
     if (!token) {
       nav(`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`, {
@@ -187,14 +152,13 @@ export default function StudentLessonDetail() {
       return;
     }
     if (!lessonId) return;
-
     setLoading(true);
     setErr("");
     try {
-      const data = await apiFetch(
-        `/api/lessons/${encodeURIComponent(lessonId)}`,
-        { auth: true }
-      );
+      // Use apiFetch so 401 auto-redirects to login
+      const data = await apiFetch(`/api/lessons/${encodeURIComponent(lessonId)}`, {
+        auth: true,
+      });
       setLesson(normalize(data));
     } catch (e) {
       setErr(e.message || "Could not load lesson.");
@@ -205,15 +169,15 @@ export default function StudentLessonDetail() {
 
   useEffect(() => {
     if (!passed) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
   const endAt = useMemo(
     () => (lesson ? durationEnd(lesson.start, lesson.duration) : null),
     [lesson]
   );
-
   const status = useMemo(
-    () => (lesson ? deriveStatus(lesson) : "pending_payment"),
+    () => (lesson ? deriveStatus(lesson) : "booked"),
     [lesson]
   );
 
@@ -221,12 +185,12 @@ export default function StudentLessonDetail() {
 
   async function onCancel() {
     if (MOCK) {
-      alert("Cancel disabled in mock mode.");
+      alert("Cancel is disabled in mock mode.");
       return;
     }
     if (!confirm("Cancel this lesson?")) return;
     try {
-      await apiFetch(`/api/lessons/${lesson._id}/cancel`, {
+      await apiFetch(`/api/lessons/${encodeURIComponent(lesson._id)}/cancel`, {
         method: "PATCH",
         auth: true,
         body: { reason: "user-cancel" },
@@ -239,7 +203,7 @@ export default function StudentLessonDetail() {
 
   function onWriteReview() {
     if (!lesson?.tutorId) return;
-    window.location.href = `/tutors/${lesson.tutorId}?review=1`;
+    window.location.href = `/tutors/${encodeURIComponent(lesson.tutorId)}?review=1`;
   }
 
   /* -------------------- render -------------------- */
@@ -254,42 +218,32 @@ export default function StudentLessonDetail() {
         </div>
       </div>
     );
-
-  if (err)
-    return <div className="p-4 text-red-600">{err}</div>;
-
-  if (!lesson)
-    return <div className="p-4">Not found.</div>;
+  if (err) return <div className="p-4 text-red-600">{err}</div>;
+  if (!lesson) return <div className="p-4">Not found.</div>;
 
   const isTrial = !!lesson.isTrial;
-  const isTerminal =
-    ["completed", "cancelled", "expired"].includes(status);
+  const isTerminal = ["completed", "cancelled", "expired"].includes(status);
 
-  const canPay = !MOCK && !isTrial && status === "pending_payment";
-  const canCancel =
-    !MOCK &&
-    ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
+  // New lifecycle-aware permissions
+  const canPay = !MOCK && !isTrial && status === "booked";
+  const canCancel = !MOCK && ["booked", "paid", "confirmed"].includes(status);
 
   const showCountdown =
-    ["pending_payment", "paid_waiting_tutor", "confirmed", "reschedule_requested"].includes(
-      status
-    );
+    ["booked", "paid", "confirmed", "reschedule_requested"].includes(status);
 
-  const yourTZ =
-    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const yourTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  /* -------------------- UI -------------------- */
+  const friendlyStatus = STATUS_LABELS[status] || STATUS_LABELS.booked;
 
   return (
     <div className="p-4 space-y-4">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur">
+      {/* Sticky header with status + live countdown */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold">
-            Lesson with {lesson.tutorName}
+            Lesson with {lesson.tutorName || "Tutor"}
           </h1>
           <StatusPill status={status} />
-
           {showCountdown && (
             <span className="text-xs opacity-80 ml-auto">
               <TinyCountdown to={lesson.start} />
@@ -298,7 +252,7 @@ export default function StudentLessonDetail() {
         </div>
       </div>
 
-      {/* Timezone */}
+      {/* Times are shown in your timezone */}
       <div
         style={{
           padding: "6px 8px",
@@ -308,10 +262,10 @@ export default function StudentLessonDetail() {
           background: "#eff6ff",
         }}
       >
-        Times are shown in your timezone: {yourTZ}
+        Times are shown in your timezone: {yourTZ}.
       </div>
 
-      {/* Back link */}
+      {/* Top bar back link */}
       <div className="flex items-center justify-between">
         <span />
         <Link to="/my-lessons" className="text-sm underline">
@@ -319,94 +273,100 @@ export default function StudentLessonDetail() {
         </Link>
       </div>
 
-      {/* Trial banner */}
-      {isTrial && (
+      {/* Mock banner */}
+      {MOCK && (
         <div
           style={{
+            background: "#ecfeff",
+            color: "#083344",
+            border: "1px solid #bae6fd",
+            borderRadius: 10,
             padding: "8px 12px",
-            borderRadius: 8,
-            background: "#d1fae5",
-            border: "1px solid #10b981",
-            marginTop: 12,
           }}
         >
-          🎉 Trial booked! Your free 30-minute lesson is confirmed.
+          Mock mode: trial bookings are confirmed instantly.
         </div>
       )}
 
-      {/* Payment required banner */}
-      {!isTrial && status === "pending_payment" && (
-        <div
-          style={{
-            padding: "8px 12px",
-            borderRadius: 8,
-            background: "#fef9c3",
-            border: "1px solid #facc15",
-            marginTop: 12,
-          }}
-        >
-          ⚠ Please complete payment to confirm this booking.
-        </div>
-      )}
-
-      {/* Paid waiting tutor */}
-      {!isTrial && status === "paid_waiting_tutor" && (
-        <div
-          style={{
-            padding: "8px 12px",
-            borderRadius: 8,
-            background: "#e0f2fe",
-            border: "1px solid #38bdf8",
-            marginTop: 12,
-          }}
-        >
-          💳 Payment complete! Waiting for the tutor to confirm.
-        </div>
-      )}
-
-      {/* Lesson details */}
       <div className="border rounded-2xl p-4 shadow-sm bg-white">
+        {/* Tutor row */}
         <div className="flex flex-wrap items-baseline gap-2">
           <div className="text-lg font-semibold">{lesson.tutorName}</div>
+          <span className="text-xs opacity-70">({lesson.tutorId})</span>
           <Link
-            to={`/tutors/${lesson.tutorId}`}
-            className="ml-auto text-sm border px-2 py-1 rounded-2xl"
+            to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
+            className="ml-auto text-sm border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
           >
             View tutor →
           </Link>
         </div>
 
+        {/* Reminder / success banners */}
+        {isTrial && (
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "#d1fae5",
+              border: "1px solid #10b981",
+              marginTop: 12,
+            }}
+          >
+            🎉 Trial booked! Your free 30-minute lesson is confirmed.
+          </div>
+        )}
+
+        {!isTrial && status === "booked" && (
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "#fef9c3",
+              border: "1px solid #facc15",
+              marginTop: 12,
+            }}
+          >
+            ⚠ Please complete payment to confirm this booking.
+          </div>
+        )}
+
+        {!isTrial && status === "paid" && (
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "#e0f2fe",
+              border: "1px solid #38bdf8",
+              marginTop: 12,
+            }}
+          >
+            💳 Payment complete! Waiting for the tutor to confirm.
+          </div>
+        )}
+
+        {/* Details */}
         <div className="mt-3 text-sm">
           <div>
             <b>Starts:</b> {fmtDateTime(lesson.start)}
             {showCountdown && <TinyCountdown to={lesson.start} />}
           </div>
-
           <div>
-            <b>Ends:</b>{" "}
-            {endAt ? fmtDateTime(endAt.toISOString()) : "—"}
+            <b>Ends:</b> {endAt ? fmtDateTime(endAt.toISOString()) : "—"}
           </div>
-
           <div>
             <b>Duration:</b> {lesson.duration} min
           </div>
-
           <div>
-            <b>Status:</b> {StatusPill({ status })}
+            <b>Status:</b> {friendlyStatus} {lesson.isTrial ? "· Trial" : ""}
           </div>
-
-          {!isTrial && (
-            <div>
-              <b>Price:</b> € {euros(lesson.price)}
-            </div>
-          )}
-
+          <div>
+            <b>Price:</b> € {euros(lesson.price)}
+          </div>
           {lesson.subject && (
             <div>
               <b>Subject:</b> {lesson.subject}
             </div>
           )}
-
           {lesson.notes && (
             <div className="mt-2">
               <b>Notes:</b>
@@ -419,8 +379,9 @@ export default function StudentLessonDetail() {
         <div className="mt-3 flex flex-wrap gap-2">
           {canPay && (
             <Link
-              to={`/pay/${lesson._id}`}
-              className="text-sm border px-3 py-1 rounded-2xl"
+              to={`/pay/${encodeURIComponent(lesson._id)}`}
+              aria-label="Go to payment for this lesson"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               Pay
             </Link>
@@ -429,15 +390,17 @@ export default function StudentLessonDetail() {
           {canCancel && (
             <button
               onClick={onCancel}
-              className="text-sm border px-3 py-1 rounded-2xl"
+              aria-label="Cancel this lesson"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               Cancel
             </button>
           )}
 
           <Link
-            to={`/tutors/${lesson.tutorId}`}
-            className="text-sm border px-3 py-1 rounded-2xl"
+            to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
+            aria-label="Open tutor profile"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             Tutor
           </Link>
@@ -445,12 +408,118 @@ export default function StudentLessonDetail() {
           {isTerminal && (
             <button
               onClick={onWriteReview}
-              className="text-sm border px-3 py-1 rounded-2xl"
+              aria-label="Write a review for this tutor"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               Write review
             </button>
           )}
         </div>
+
+        {/* Copy + ICS utilities */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(window.location.href);
+                alert("Link copied!");
+              } catch {
+                alert("Copy failed");
+              }
+            }}
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+          >
+            Copy link
+          </button>
+
+          <button
+            onClick={async () => {
+              const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+              const start = new Date(lesson.start);
+              const when = start.toLocaleString([], {
+                dateStyle: "medium",
+                timeStyle: "short",
+                timeZone: tz,
+              });
+              const summary = [
+                `Tutor: ${lesson.tutorName || lesson.tutorId}`,
+                `When (${tz}): ${when}`,
+                `Duration: ${lesson.duration} min`,
+                `Type: ${lesson.isTrial ? "Trial" : "Paid"}`,
+                `Status: ${friendlyStatus}`,
+                `Link: ${window.location.href}`,
+              ].join("\n");
+              try {
+                await navigator.clipboard.writeText(summary);
+                alert("Summary copied!");
+              } catch {
+                alert("Copy failed");
+              }
+            }}
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+          >
+            Copy summary
+          </button>
+
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(
+                  `${window.location.origin}/tutors/${encodeURIComponent(lesson.tutorId)}`
+                );
+                alert("Tutor link copied!");
+              } catch {
+                alert("Copy failed");
+              }
+            }}
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+          >
+            Copy tutor link
+          </button>
+
+          <button
+            onClick={() => {
+              const start = new Date(lesson.start);
+              const dtstart = start
+                .toISOString()
+                .replace(/[-:]/g, "")
+                .split(".")[0] + "Z";
+              const dtstamp =
+                new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+              const url = `${window.location.origin}/student-lesson/${encodeURIComponent(
+                lesson._id
+              )}`;
+              const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Lernitt//StudentLesson//EN
+BEGIN:VEVENT
+UID:${lesson._id}@lernitt
+SUMMARY:Lesson with ${lesson.tutorName || "Tutor"}
+DTSTART:${dtstart}
+DURATION:PT${lesson.duration}M
+DESCRIPTION:${lesson.isTrial ? "Trial lesson" : "Paid lesson"}
+DTSTAMP:${dtstamp}
+LOCATION:Online
+URL:${url}
+END:VEVENT
+END:VCALENDAR`;
+              const blob = new Blob([ics], { type: "text/calendar" });
+              const href = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = href;
+              a.download = `lesson-${lesson._id}.ics`;
+              a.click();
+              URL.revokeObjectURL(href);
+            }}
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+          >
+            Add to calendar
+          </button>
+        </div>
+
+        <p className="text-xs opacity-70 mt-1">
+          Tip: You can reschedule or cancel from here. (Policies may apply.)
+        </p>
       </div>
     </div>
   );
