@@ -5,10 +5,10 @@ import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
-// cents → € fallback helper (accepts cents or euros)
+// cents → € fallback helper
 function eurosFromPrice(p) {
   const n = typeof p === "number" ? p : Number(p) || 0;
-  return n >= 1000 ? n / 100 : n; // if backend sends cents (e.g., 2500) show €25.00
+  return n >= 1000 ? n / 100 : n;
 }
 
 export default function Pay() {
@@ -21,6 +21,9 @@ export default function Pay() {
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
 
+  /* ----------------------------------------------------------
+     LOAD LESSON + NORMALISE
+  ---------------------------------------------------------- */
   async function loadLesson() {
     setLoading(true);
     setError("");
@@ -30,9 +33,9 @@ export default function Pay() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!r.ok) throw new Error(`Failed to load lesson (${r.status})`);
+
       const data = await r.json();
 
-      // 🔥 NEW NORMALISATION PATCH
       const normalized = {
         ...data,
         start: data.start || data.startTime,
@@ -44,7 +47,7 @@ export default function Pay() {
         isTrial: data.isTrial || data.kind === "trial",
       };
 
-      // Trials don’t pay: redirect to confirmation
+      // Trials do not pay — redirect straight to confirmation page
       if (normalized.isTrial) {
         nav(`/confirm/${encodeURIComponent(lessonId)}`, {
           replace: true,
@@ -67,15 +70,22 @@ export default function Pay() {
   }, [lessonId]);
 
   const status = (lesson?.status || "").toLowerCase();
-  const isConfirmed =
-    status === "confirmed" || status === "completed" || status === "paid";
 
+  // Student-friendly rule:
+  // They only see “Already paid” if status === "paid" or "confirmed" or "completed"
+  const isAlreadyPaid =
+    status === "paid" || status === "confirmed" || status === "completed";
+
+  /* ----------------------------------------------------------
+     START CHECKOUT
+  ---------------------------------------------------------- */
   async function startPayment(provider) {
     try {
       setPaying(true);
       setError("");
 
       if (MOCK) {
+        // simulate payment success → redirect
         setTimeout(() => {
           alert(`MOCK: ${provider} payment succeeded.`);
           nav(`/confirm/${encodeURIComponent(lessonId)}`, {
@@ -95,21 +105,32 @@ export default function Pay() {
         },
         body: JSON.stringify({ lessonId }),
       });
+
       if (!r.ok) throw new Error(`Failed to start ${provider} checkout`);
       const data = await r.json();
 
+      // Stripe
       if (provider === "stripe" && data.url) {
         window.location.href = data.url;
-      } else if (provider === "paypal" && (data.approvalUrl || data.url)) {
-        window.location.href = data.approvalUrl || data.url;
-      } else {
-        throw new Error("Unexpected checkout payload");
+        return;
       }
+
+      // PayPal
+      if (provider === "paypal" && (data.approvalUrl || data.url)) {
+        window.location.href = data.approvalUrl || data.url;
+        return;
+      }
+
+      throw new Error("Unexpected checkout payload");
     } catch (e) {
       setError(e.message || "Payment failed to start");
       setPaying(false);
     }
   }
+
+  /* ----------------------------------------------------------
+     RENDER
+  ---------------------------------------------------------- */
 
   if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
 
@@ -134,19 +155,19 @@ export default function Pay() {
     ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
     : "—";
 
-  // Prefer amountCents/priceCents if present; fallback to price
   const amountRaw =
     (typeof lesson.amountCents === "number" && lesson.amountCents >= 0 && lesson.amountCents) ||
     (typeof lesson.priceCents === "number" && lesson.priceCents >= 0 && lesson.priceCents) ||
     lesson.price ||
     0;
+
   const amount = eurosFromPrice(amountRaw).toFixed(2);
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
       {/* Progress header */}
       <div style={{ marginBottom: 12, fontSize: 14 }}>
-        <b>1) Reserved</b> → {isConfirmed ? <b>2) Paid</b> : <b>2) Pay</b>} → 3) Confirmed
+        <b>1) Reserved</b> → {isAlreadyPaid ? <b>2) Paid</b> : <b>2) Pay</b>} → 3) Confirmed
       </div>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Pay for lesson</h1>
@@ -157,20 +178,22 @@ export default function Pay() {
           <b>Tutor:</b>{" "}
           <Link to={`/tutors/${lesson.tutor}`}>{lesson.tutorName || "Tutor"}</Link>
         </div>
+
         <div><b>When:</b> {when}</div>
         <div><b>Duration:</b> {lesson.duration} min</div>
         <div><b>Amount:</b> € {amount}</div>
 
-        {isConfirmed && (
+        {isAlreadyPaid && (
           <div style={{ marginTop: 8, color: "#065f46" }}>
-            This lesson is already <b>paid/confirmed</b>.
+            This lesson is already <b>paid</b>.  
+            Waiting for the tutor to approve.
           </div>
         )}
       </div>
 
-      {/* Actions */}
+      {/* Payment buttons */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        {!isConfirmed && (
+        {!isAlreadyPaid && (
           <>
             <button
               disabled={paying}
@@ -202,7 +225,7 @@ export default function Pay() {
           </>
         )}
 
-        {isConfirmed && (
+        {isAlreadyPaid && (
           <span
             style={{
               padding: "10px 14px",
@@ -211,7 +234,7 @@ export default function Pay() {
               color: "#065f46",
             }}
           >
-            Paid ✔
+            Paid ✔ — Waiting tutor confirmation
           </span>
         )}
 
@@ -224,12 +247,12 @@ export default function Pay() {
         </Link>
       </div>
 
-      {/* Non-fatal error while starting payment */}
+      {/* Non-fatal error */}
       {error && lesson && (
         <div style={{ color: "#b91c1c", marginBottom: 12 }}>{error}</div>
       )}
 
-      {MOCK && !isConfirmed && (
+      {MOCK && !isAlreadyPaid && (
         <div style={{ fontSize: 12, opacity: 0.8 }}>
           MOCK MODE: Checkout is simulated. Buttons auto-complete payment.
         </div>
