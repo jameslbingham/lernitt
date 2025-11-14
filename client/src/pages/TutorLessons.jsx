@@ -12,7 +12,7 @@ import {
 } from "../api/tutorLessons.js";
 
 /* -------------------------------------------------------
-   STATUS → FRIENDLY LABELS (Tutor view)
+   STATUS → FRIENDLY LABELS (Tutor view, A1 cycle)
 ------------------------------------------------------- */
 const STATUS_LABEL = {
   booked: "Awaiting student payment",
@@ -120,7 +120,7 @@ export default function TutorLessons() {
 
     const id = setInterval(
       () => setLessons((prev) => [...prev]),
-      30_000
+      30000
     );
     return () => clearInterval(id);
   }, []);
@@ -198,7 +198,6 @@ export default function TutorLessons() {
   }
 
   /* ---------- UI ---------- */
-
   if (loading) {
     return (
       <div className="p-4 space-y-4">
@@ -245,7 +244,7 @@ export default function TutorLessons() {
         Times are shown in your timezone: {tz}.
       </div>
 
-      {/* Search */}
+      {/* Search bar */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur">
         <input
           value={q}
@@ -259,7 +258,7 @@ export default function TutorLessons() {
       <div className="grid gap-2">
         {filtered.map((l) => {
           const start = getStart(l);
-          const showC =
+          const showCountdown =
             ["booked", "paid", "confirmed", "reschedule_requested"].includes(
               l.status
             );
@@ -279,7 +278,9 @@ export default function TutorLessons() {
                       })
                     : "—"}{" "}
                   <span className="opacity-70">with</span> {l.studentName}
-                  {showC && start && <TinyCountdown to={start.toISOString()} />}
+                  {showCountdown && start && (
+                    <TinyCountdown to={start.toISOString()} />
+                  )}
                 </div>
 
                 <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -297,7 +298,7 @@ export default function TutorLessons() {
 
               {/* ACTION BUTTONS */}
               <div className="flex flex-wrap gap-2">
-                {/* Need payment – tutor cannot act */}
+                {/* Student still needs to pay */}
                 {l.status === "booked" && (
                   <span className="px-3 py-1 text-xs opacity-70">
                     Waiting for student to pay
@@ -322,7 +323,7 @@ export default function TutorLessons() {
                   </>
                 )}
 
-                {/* Reschedule requested */}
+                {/* Reschedule request */}
                 {l.status === "reschedule_requested" && (
                   <>
                     <button
@@ -341,7 +342,7 @@ export default function TutorLessons() {
                   </>
                 )}
 
-                {/* Confirmed → tutor may mark completed */}
+                {/* Confirmed */}
                 {l.status === "confirmed" && (
                   <button
                     className="px-3 py-1 rounded-2xl border hover:shadow-sm"
@@ -351,7 +352,7 @@ export default function TutorLessons() {
                   </button>
                 )}
 
-                {/* Summary utility */}
+                {/* Copy summary */}
                 <button
                   className="px-3 py-1 rounded-2xl border hover:shadow-sm"
                   onClick={async () => {
