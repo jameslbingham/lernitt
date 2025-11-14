@@ -28,11 +28,18 @@ function durationEnd(iso, minutes) {
   if (Number.isNaN(d.getTime()) || !minutes) return null;
   return new Date(d.getTime() + Number(minutes) * 60000);
 }
+
+/* NEW: lifecycle rules */
 function deriveStatus(l) {
   const started = new Date(l.start).getTime() <= Date.now();
-  if (started && !["completed", "cancelled"].includes(l.status)) return "expired";
-  return l.status || "pending";
+  const terminal = ["completed", "cancelled", "expired"];
+
+  // Auto-expire
+  if (started && !terminal.includes(l.status)) return "expired";
+
+  return l.status || "booked";
 }
+
 function normalize(raw) {
   return {
     _id: raw._id || raw.id,
@@ -46,7 +53,7 @@ function normalize(raw) {
             ? (new Date(raw.endTime) - new Date(raw.startTime || raw.start)) / 60000
             : 0)
       ) || 0,
-    status: raw.status || "pending",
+    status: raw.status || "booked",
     isTrial: !!raw.isTrial,
     price: typeof raw.price === "number" ? raw.price : Number(raw.price) || 0,
     subject: raw.subject || "",
@@ -82,7 +89,8 @@ function TinyCountdown({ to }) {
 
 function StatusPill({ status }) {
   const map = {
-    pending: { bg: "#fff7e6", color: "#ad6800", label: "Pending" },
+    booked: { bg: "#fff7e6", color: "#ad6800", label: "Booked" },
+    paid: { bg: "#e6f7ff", color: "#0050b3", label: "Paid (waiting tutor)" },
     confirmed: { bg: "#e6fffb", color: "#006d75", label: "Confirmed" },
     reschedule_requested: {
       bg: "#f0f5ff",
@@ -93,7 +101,7 @@ function StatusPill({ status }) {
     cancelled: { bg: "#fff1f0", color: "#a8071a", label: "Cancelled" },
     expired: { bg: "#fafafa", color: "#595959", label: "Expired" },
   };
-  const s = map[status] || map.pending;
+  const s = map[status] || map.booked;
   return (
     <span
       style={{
@@ -135,7 +143,6 @@ export default function StudentLessonDetail() {
     setLoading(true);
     setErr("");
     try {
-      // Use apiFetch so 401 auto-redirects to login
       const data = await apiFetch(`/api/lessons/${encodeURIComponent(lessonId)}`, {
         auth: true,
       });
@@ -149,7 +156,6 @@ export default function StudentLessonDetail() {
 
   useEffect(() => {
     if (!passed) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
   const endAt = useMemo(
@@ -157,7 +163,7 @@ export default function StudentLessonDetail() {
     [lesson]
   );
   const status = useMemo(
-    () => (lesson ? deriveStatus(lesson) : "pending"),
+    () => (lesson ? deriveStatus(lesson) : "booked"),
     [lesson]
   );
 
@@ -203,16 +209,18 @@ export default function StudentLessonDetail() {
 
   const isTrial = !!lesson.isTrial;
   const isTerminal = ["completed", "cancelled", "expired"].includes(status);
-  const canPay = !MOCK && !isTrial && status === "pending";
-  const canCancel = !MOCK && (status === "pending" || status === "confirmed");
+
+  const canPay = !MOCK && !isTrial && status === "booked";
+  const canCancel = !MOCK && ["booked", "paid", "confirmed"].includes(status);
+
   const showCountdown =
-    status === "pending" || status === "confirmed" || status === "reschedule_requested";
+    ["booked", "paid", "confirmed", "reschedule_requested"].includes(status);
 
   const yourTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
   return (
     <div className="p-4 space-y-4">
-      {/* Sticky header with status + live countdown */}
+      {/* Sticky header with status + countdown */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold">
@@ -221,14 +229,13 @@ export default function StudentLessonDetail() {
           <StatusPill status={status} />
           {showCountdown && (
             <span className="text-xs opacity-80 ml-auto">
-              Starts in{" "}
               <TinyCountdown to={lesson.start} />
             </span>
           )}
         </div>
       </div>
 
-      {/* Times are shown in your timezone */}
+      {/* Timezone */}
       <div
         style={{
           padding: "6px 8px",
@@ -241,7 +248,7 @@ export default function StudentLessonDetail() {
         Times are shown in your timezone: {yourTZ}.
       </div>
 
-      {/* Top bar back link */}
+      {/* Back link */}
       <div className="flex items-center justify-between">
         <span />
         <Link to="/my-lessons" className="text-sm underline">
@@ -265,7 +272,7 @@ export default function StudentLessonDetail() {
       )}
 
       <div className="border rounded-2xl p-4 shadow-sm bg-white">
-        {/* Tutor row */}
+        {/* Tutor */}
         <div className="flex flex-wrap items-baseline gap-2">
           <div className="text-lg font-semibold">{lesson.tutorName}</div>
           <span className="text-xs opacity-70">({lesson.tutorId})</span>
@@ -277,8 +284,8 @@ export default function StudentLessonDetail() {
           </Link>
         </div>
 
-        {/* Reminder / success banners */}
-        {lesson.isTrial && (
+        {/* Lifecycle banners */}
+        {isTrial && (
           <div
             style={{
               padding: "8px 12px",
@@ -291,7 +298,8 @@ export default function StudentLessonDetail() {
             🎉 Trial booked! Your free 30-minute lesson is confirmed.
           </div>
         )}
-        {!lesson.isTrial && status === "pending" && (
+
+        {!isTrial && status === "booked" && (
           <div
             style={{
               padding: "8px 12px",
@@ -302,6 +310,20 @@ export default function StudentLessonDetail() {
             }}
           >
             ⚠ Please complete payment to confirm this booking.
+          </div>
+        )}
+
+        {status === "paid" && (
+          <div
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "#e0f2fe",
+              border: "1px solid #38bdf8",
+              marginTop: 12,
+            }}
+          >
+            💳 Payment complete! Waiting for the tutor to confirm.
           </div>
         )}
 
@@ -342,7 +364,7 @@ export default function StudentLessonDetail() {
             <Link
               to={`/pay/${encodeURIComponent(lesson._id)}`}
               aria-label="Go to payment for this lesson"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
             >
               Pay
             </Link>
@@ -352,7 +374,7 @@ export default function StudentLessonDetail() {
             <button
               onClick={onCancel}
               aria-label="Cancel this lesson"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
             >
               Cancel
             </button>
@@ -361,23 +383,23 @@ export default function StudentLessonDetail() {
           <Link
             to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
             aria-label="Open tutor profile"
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
           >
             Tutor
           </Link>
 
-          {(status === "completed" || status === "expired") && (
+          {isTerminal && (
             <button
               onClick={onWriteReview}
               aria-label="Write a review for this tutor"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
             >
               Write review
             </button>
           )}
         </div>
 
-        {/* Copy + ICS utilities */}
+        {/* Utilities */}
         <div className="flex flex-wrap gap-2 mt-2">
           <button
             onClick={async () => {
@@ -407,7 +429,7 @@ export default function StudentLessonDetail() {
                 `When (${tz}): ${when}`,
                 `Duration: ${lesson.duration} min`,
                 `Type: ${lesson.isTrial ? "Trial" : "Paid"}`,
-                `Status: ${lesson.status || "pending"}`,
+                `Status: ${lesson.status || "booked"}`,
                 `Link: ${window.location.href}`,
               ].join("\n");
               try {
