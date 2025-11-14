@@ -43,15 +43,15 @@ function deriveStatus(l) {
   return raw;
 }
 
-/* Student-friendly labels (Option A) */
+/* Student-friendly labels (Option A with B for confirmed) */
 const STATUS_LABELS = {
   booked: "Pending — payment needed",
   paid: "Paid — awaiting tutor approval",
-  confirmed: "Confirmed",
+  confirmed: "Tutor confirmed – lesson is now fully booked",
   completed: "Completed",
   cancelled: "Cancelled",
   expired: "Expired",
-  // keep old key for future use if needed
+  // keep old key for potential future use
   reschedule_requested: "Reschedule requested",
 };
 
@@ -467,7 +467,7 @@ export default function StudentLessonDetail() {
                 await navigator.clipboard.writeText(
                   `${window.location.origin}/tutors/${encodeURIComponent(lesson.tutorId)}`
                 );
-                alert("Tutor link copied!");
+              alert("Tutor link copied!");
               } catch {
                 alert("Copy failed");
               }
