@@ -3,63 +3,48 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   listTutorLessons,
-  confirmLesson,
+  approveBooking,
+  rejectBooking,
+  confirmPaidLesson,
   completeLesson,
   approveReschedule,
   rejectReschedule,
-  rejectPending,
   expireOverdue,
 } from "../api/tutorLessons.js";
 
-/* -------------------- constants & helpers -------------------- */
+/* -------------------- STATUS MAP -------------------- */
 
 const STATUS_LABEL = {
-  pending: "Pending approval",
-  reschedule_pending: "Reschedule requested",
+  booked: "Waiting for tutor approval",
+  pending: "Approved (waiting for student payment)",
+  paid: "Paid (awaiting your confirmation)",
   confirmed: "Confirmed",
   completed: "Completed",
-  not_approved: "Not approved",
+  cancelled: "Cancelled",
+  expired: "Expired",
+  reschedule_requested: "Reschedule requested",
 };
 
 function StatusBadge({ s }) {
-  const cls =
-    s === "pending"
-      ? "bg-yellow-100 text-yellow-800"
-      : s === "reschedule_pending"
-      ? "bg-purple-100 text-purple-800"
-      : s === "confirmed"
-      ? "bg-blue-100 text-blue-800"
-      : s === "completed"
-      ? "bg-green-100 text-green-800"
-      : "bg-red-100 text-red-800";
+  const map = {
+    booked: "bg-yellow-100 text-yellow-800",
+    pending: "bg-amber-100 text-amber-800",
+    paid: "bg-blue-100 text-blue-800",
+    confirmed: "bg-green-100 text-green-800",
+    completed: "bg-emerald-100 text-emerald-800",
+    cancelled: "bg-red-100 text-red-800",
+    expired: "bg-gray-200 text-gray-700",
+    reschedule_requested: "bg-purple-100 text-purple-800",
+  };
+
   return (
-    <span className={`text-xs px-2 py-1 rounded-2xl ${cls}`}>
+    <span className={`text-xs px-2 py-1 rounded-2xl ${map[s] || "bg-gray-100"}`}>
       {STATUS_LABEL[s] || s}
     </span>
   );
 }
 
-function DeadlineChip({ until }) {
-  if (!until) return null;
-  const ms = new Date(until) - new Date();
-  const overdue = ms <= 0;
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return (
-    <span
-      className="text-xs px-2 py-1 rounded-2xl"
-      style={{
-        background: overdue ? "#fee2e2" : "#fef3c7",
-        color: overdue ? "#991b1b" : "#92400e",
-        border: "1px solid rgba(0,0,0,0.05)",
-      }}
-      title={new Date(until).toLocaleString()}
-    >
-      {overdue ? "Overdue" : `Expires in ${h}h ${m}m`}
-    </span>
-  );
-}
+/* -------------------- Helpers -------------------- */
 
 function euros(n) {
   const v = Number(n);
@@ -67,21 +52,13 @@ function euros(n) {
   return (v >= 1000 ? v / 100 : v).toFixed(2);
 }
 
-// Best-effort start Date from various shapes your API/mocks may send
 function getStart(lesson) {
-  const iso = lesson.start || lesson.startISO || lesson.begin || null;
-  if (iso) {
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
-  if (lesson.date && lesson.time) {
-    const d = new Date(`${lesson.date} ${lesson.time}`);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
-  return null;
+  const iso = lesson.start || lesson.startISO || lesson.begin;
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
-// Tiny per-row countdown
 function TinyCountdown({ to }) {
   const [left, setLeft] = useState(() => (to ? new Date(to).getTime() - Date.now() : 0));
   useEffect(() => {
@@ -90,13 +67,14 @@ function TinyCountdown({ to }) {
     return () => clearInterval(id);
   }, [to]);
 
-  if (!to || left <= 0) {
+  if (!to || left <= 0)
     return <span className="ml-2 text-xs opacity-60">• starting/started</span>;
-  }
+
   const s = Math.floor(left / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
+
   return (
     <span className="ml-2 text-xs opacity-80">
       • starts in {h}h {m}m {sec}s
@@ -104,7 +82,7 @@ function TinyCountdown({ to }) {
   );
 }
 
-/* -------------------- page -------------------- */
+/* -------------------- PAGE -------------------- */
 
 export default function TutorLessons() {
   const [lessons, setLessons] = useState([]);
@@ -115,290 +93,252 @@ export default function TutorLessons() {
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  // load lessons
+  /* load lessons */
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const data = await listTutorLessons();
-        setLessons(data || []);
+        setLessons(await listTutorLessons());
       } catch (e) {
         setError(e.message || "Load failed");
       } finally {
         setLoading(false);
       }
     })();
-    const id = setInterval(() => setLessons((prev) => [...prev]), 30_000);
+
+    const id = setInterval(() => setLessons((p) => [...p]), 30_000);
     return () => clearInterval(id);
   }, []);
 
+  /* filtering */
   const filtered = useMemo(() => {
-    let arr = filter === "all" ? lessons : lessons.filter((l) => l.status === filter);
+    let arr =
+      filter === "all" ? lessons : lessons.filter((l) => l.status === filter);
 
     if (q.trim()) {
-      const term = q.trim().toLowerCase();
-      arr = arr.filter((l) => {
-        const hay = `${l.student || ""} ${l.subject || ""} ${l.date || ""} ${l.time || ""}`.toLowerCase();
-        return hay.includes(term);
-      });
+      const t = q.trim().toLowerCase();
+      arr = arr.filter((l) =>
+        `${l.student || ""} ${l.subject || ""}`.toLowerCase().includes(t)
+      );
     }
 
     return [...arr].sort((a, b) => {
-      const as = (a.date || "") + " " + (a.time || "");
-      const bs = (b.date || "") + " " + (b.time || "");
-      if (as && bs) return as.localeCompare(bs);
       const ad = getStart(a);
       const bd = getStart(b);
-      if (ad && bd) return ad - bd;
-      return 0;
+      return ad && bd ? ad - bd : 0;
     });
-  }, [lessons, filter, q]);
+  }, [filter, q, lessons]);
 
-  async function onConfirm(id) {
-    try { setLessons(await confirmLesson(id)); } catch (e) { setError(e.message || "Confirm failed"); }
-  }
-  async function onComplete(id) {
-    try { setLessons(await completeLesson(id)); } catch (e) { setError(e.message || "Complete failed"); }
-  }
-  async function onApproveReschedule(id) {
-    try { setLessons(await approveReschedule(id)); } catch (e) { setError(e.message || "Approve failed"); }
-  }
-  async function onRejectReschedule(id) {
-    try { setLessons(await rejectReschedule(id)); } catch (e) { setError(e.message || "Reject failed"); }
-  }
-  async function onRejectPending(id) {
-    try { setLessons(await rejectPending(id)); } catch (e) { setError(e.message || "Reject failed"); }
-  }
-  async function onExpireOverdue() {
-    try { setLessons(await expireOverdue()); } catch (e) { setError(e.message || "Expire failed"); }
-  }
+  /* actions */
+  const doApprove = async (id) => {
+    try {
+      setLessons(await approveBooking(id));
+    } catch (e) {
+      setError(e.message || "Approve failed");
+    }
+  };
 
-  const FilterButton = ({ k, label }) => (
-    <button
-      onClick={() => setFilter(k)}
-      className={`px-3 py-1 rounded-2xl border text-sm ${
-        filter === k ? "bg-black text-white" : "bg-white hover:bg-gray-50"
-      }`}
-    >
-      {label}
-    </button>
-  );
+  const doReject = async (id) => {
+    try {
+      setLessons(await rejectBooking(id));
+    } catch (e) {
+      setError(e.message || "Reject failed");
+    }
+  };
 
-  /* --------- Loading skeleton --------- */
+  const doConfirmPaid = async (id) => {
+    try {
+      setLessons(await confirmPaidLesson(id));
+    } catch (e) {
+      setError(e.message || "Confirm failed");
+    }
+  };
+
+  const doComplete = async (id) => {
+    try {
+      setLessons(await completeLesson(id));
+    } catch (e) {
+      setError(e.message || "Complete failed");
+    }
+  };
+
+  const doApproveResched = async (id) => {
+    try {
+      setLessons(await approveReschedule(id));
+    } catch (e) {
+      setError(e.message || "Approve failed");
+    }
+  };
+
+  const doRejectResched = async (id) => {
+    try {
+      setLessons(await rejectReschedule(id));
+    } catch (e) {
+      setError(e.message || "Reject failed");
+    }
+  };
+
+  const doExpire = async () => {
+    try {
+      setLessons(await expireOverdue());
+    } catch (e) {
+      setError(e.message || "Expire failed");
+    }
+  };
+
+  /* ------------------ Render ------------------ */
+
   if (loading) {
     return (
-      <div className="p-4 space-y-4">
-        <h1 className="text-2xl font-bold">My Upcoming Lessons</h1>
-        <div className="animate-pulse grid gap-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="border rounded-2xl p-3 space-y-2">
-              <div className="h-4 w-40 bg-gray-200 rounded" />
-              <div className="h-3 w-64 bg-gray-200 rounded" />
-              <div className="h-3 w-32 bg-gray-200 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
+      <div className="p-4">Loading…</div>
     );
   }
 
   return (
     <div className="p-4 space-y-4">
-      {/* Header */}
+      {/* header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">My Upcoming Lessons</h1>
+        <h1 className="text-2xl font-bold">My Lessons</h1>
+
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1 rounded-2xl border" onClick={onExpireOverdue}>
+          <button className="px-3 py-1 border rounded-2xl" onClick={doExpire}>
             Expire overdue
           </button>
-          <Link to="/availability" className="text-sm underline">← Back</Link>
+          <Link to="/availability" className="text-sm underline">
+            ← Back
+          </Link>
         </div>
       </div>
 
-      {/* Timezone info bar */}
-      <div
-        style={{
-          padding: "6px 8px",
-          fontSize: 12,
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          background: "#eff6ff",
-        }}
-      >
-        Times are shown in your timezone: {tz}.
+      {/* timezone */}
+      <div className="text-xs border p-2 rounded bg-blue-50">
+        Times shown in your timezone: {tz}
       </div>
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
 
-      {/* Sticky search + filters */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur">
-        <div className="flex flex-col gap-2">
-          <div className="relative">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by student, subject, date, or time…"
-              className="w-full border p-2 pr-8 rounded-2xl text-sm"
-            />
-            {q && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setQ("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-60 hover:opacity-100"
-              >
-                ×
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <FilterButton k="all" label="All" />
-            <FilterButton k="pending" label="Pending" />
-            <FilterButton k="reschedule_pending" label="Reschedule pending" />
-            <FilterButton k="confirmed" label="Confirmed" />
-            <FilterButton k="completed" label="Completed" />
-            <FilterButton k="not_approved" label="Not approved" />
-            <span className="ml-auto text-xs opacity-70 self-center">
-              Showing {filtered.length} lesson{filtered.length === 1 ? "" : "s"}
-            </span>
-          </div>
+      {/* filters */}
+      <div className="sticky top-0 bg-white py-2 border-b">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search…"
+          className="border p-2 rounded-2xl text-sm w-full mb-2"
+        />
+
+        <div className="flex flex-wrap gap-2 text-sm">
+          {[
+            ["all", "All"],
+            ["booked", "Booked"],
+            ["pending", "Awaiting payment"],
+            ["paid", "Paid"],
+            ["confirmed", "Confirmed"],
+            ["completed", "Completed"],
+            ["cancelled", "Cancelled"],
+            ["expired", "Expired"],
+            ["reschedule_requested", "Reschedule"],
+          ].map(([k, lbl]) => (
+            <button
+              key={k}
+              onClick={() => setFilter(k)}
+              className={`px-3 py-1 rounded-2xl border ${
+                filter === k ? "bg-black text-white" : "bg-white"
+              }`}
+            >
+              {lbl}
+            </button>
+          ))}
+
+          <span className="ml-auto text-xs opacity-60 self-center">
+            Showing {filtered.length}
+          </span>
         </div>
       </div>
 
-      {/* List */}
+      {/* LIST */}
       <div className="grid gap-2">
         {filtered.map((l) => {
           const start = getStart(l);
-          const showCountdown =
-            l.status === "pending" || l.status === "confirmed" || l.status === "reschedule_pending";
+          const showCountdown = ["booked", "pending", "paid", "confirmed"].includes(l.status);
 
           return (
             <div
               key={l.id || l._id}
               className="border rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center gap-3"
             >
+              {/* left side */}
               <div className="flex-1">
                 <div className="font-semibold">
-                  {l.date} {l.time} <span className="opacity-70">with</span> {l.student}
-                  {showCountdown && start && <TinyCountdown to={start.toISOString()} />}
+                  {start ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: tz }) : ""}
+                  <span className="opacity-70"> with </span>
+                  {l.student}
+                  {showCountdown && start && (
+                    <TinyCountdown to={start.toISOString()} />
+                  )}
                 </div>
 
-                <div className="mt-1 flex flex-wrap items-center gap-2">
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
                   <StatusBadge s={l.status} />
-                  {(l.status === "pending" || l.status === "reschedule_pending") && l.pendingUntil && (
-                    <DeadlineChip until={l.pendingUntil} />
+
+                  {l.subject && (
+                    <span className="text-xs opacity-70">{l.subject} · € {euros(l.price)}</span>
                   )}
-                  {l.status === "reschedule_pending" && (
+
+                  {l.status === "reschedule_requested" && (
                     <span className="text-xs">
-                      Requested: <b>{l.requestedNewDate} {l.requestedNewTime}</b>
-                    </span>
-                  )}
-                  {(l.subject || l.price != null) && (
-                    <span className="text-xs opacity-70">
-                      {l.subject ? `${l.subject}` : ""}{l.subject && l.price != null ? " · " : ""}
-                      {l.price != null ? `€ ${euros(l.price)}` : ""}
+                      Requested: {l.requestedNewDate} {l.requestedNewTime}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {l.status === "pending" && (
+              {/* actions */}
+              <div className="flex gap-2 flex-wrap">
+                {/* BOOKED → approve or reject */}
+                {l.status === "booked" && (
                   <>
-                    <button className="px-3 py-1 rounded-2xl border hover:shadow-sm" onClick={() => onConfirm(l.id)}>
+                    <button className="px-3 py-1 border rounded-2xl" onClick={() => doApprove(l.id)}>
                       Approve
                     </button>
-                    <button className="px-3 py-1 rounded-2xl border hover:shadow-sm" onClick={() => onRejectPending(l.id)}>
+                    <button className="px-3 py-1 border rounded-2xl" onClick={() => doReject(l.id)}>
                       Reject
                     </button>
                   </>
                 )}
-                {l.status === "reschedule_pending" && (
+
+                {/* PAID → tutor must confirm */}
+                {l.status === "paid" && (
+                  <button className="px-3 py-1 border rounded-2xl" onClick={() => doConfirmPaid(l.id)}>
+                    Confirm booking
+                  </button>
+                )}
+
+                {/* RESCHEDULE REQUEST */}
+                {l.status === "reschedule_requested" && (
                   <>
-                    <button className="px-3 py-1 rounded-2xl border hover:shadow-sm" onClick={() => onApproveReschedule(l.id)}>
+                    <button className="px-3 py-1 border rounded-2xl" onClick={() => doApproveResched(l.id)}>
                       Approve change
                     </button>
-                    <button className="px-3 py-1 rounded-2xl border hover:shadow-sm" onClick={() => onRejectReschedule(l.id)}>
+                    <button className="px-3 py-1 border rounded-2xl" onClick={() => doRejectResched(l.id)}>
                       Keep original
                     </button>
                   </>
                 )}
+
+                {/* CONFIRMED → mark complete */}
                 {l.status === "confirmed" && (
-                  <button className="px-3 py-1 rounded-2xl border hover:shadow-sm" onClick={() => onComplete(l.id)}>
+                  <button className="px-3 py-1 border rounded-2xl" onClick={() => doComplete(l.id)}>
                     Mark complete
                   </button>
                 )}
-
-                {/* Utilities */}
-                <button
-                  className="px-3 py-1 rounded-2xl border hover:shadow-sm"
-                  onClick={async () => {
-                    const when = start
-                      ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: tz })
-                      : `${l.date} ${l.time}`;
-                    const lines = [
-                      `Student: ${l.student}`,
-                      `When (${tz}): ${when}`,
-                      l.subject ? `Subject: ${l.subject}` : null,
-                      l.price != null ? `Price: € ${euros(l.price)}` : null,
-                      `Status: ${STATUS_LABEL[l.status] || l.status}`,
-                    ].filter(Boolean);
-                    try {
-                      await navigator.clipboard.writeText(lines.join("\n"));
-                      alert("Summary copied!");
-                    } catch {
-                      alert("Copy failed");
-                    }
-                  }}
-                >
-                  Copy summary
-                </button>
-
-                <button
-                  className="px-3 py-1 rounded-2xl border hover:shadow-sm"
-                  onClick={() => {
-                    if (!start) return alert("Calendar export unavailable.");
-                    const dtstart = start.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-                    const dtstamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-                    const uid = (l.id || l._id) + "@lernitt";
-                    const ics = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Lernitt//TutorLessons//EN
-BEGIN:VEVENT
-UID:${uid}
-SUMMARY:Lesson with ${l.student}
-DTSTART:${dtstart}
-DURATION:PT${Number(l.duration || 60)}M
-DESCRIPTION:${STATUS_LABEL[l.status] || l.status}
-DTSTAMP:${dtstamp}
-LOCATION:Online
-END:VEVENT
-END:VCALENDAR`;
-                    const blob = new Blob([ics], { type: "text/calendar" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `lesson-${l.id || "event"}.ics`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Add to calendar
-                </button>
               </div>
             </div>
           );
         })}
-
-        {filtered.length === 0 && (
-          <div className="text-sm opacity-70 p-3 border rounded-2xl">
-            No lessons for this filter.
-          </div>
-        )}
       </div>
 
-      <div className="text-xs opacity-60">
-        Mock mode: approvals, rejections, and expiry update only your browser storage.
+      <div className="text-xs opacity-50">
+        Note: Mock mode disables real approvals.
       </div>
     </div>
   );
