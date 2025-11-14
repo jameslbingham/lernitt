@@ -3,6 +3,7 @@ import { apiFetch } from "../lib/apiFetch";
 
 /* ================================================================
    GET ALL LESSONS FOR TUTOR
+   - Returns normalized list from /api/lessons/tutor
 ================================================================ */
 export async function listTutorLessons() {
   const data = await apiFetch("/api/lessons/tutor", { auth: true });
@@ -10,11 +11,13 @@ export async function listTutorLessons() {
 }
 
 /* ================================================================
-   ACTION: Confirm lesson (paid → confirmed)
+   ACTION: Tutor approves a PAID booking
+   - Status: paid → confirmed
+   - Backend: PATCH /api/lessons/:id/confirm
 ================================================================ */
-export async function tutorConfirmLesson(id) {
+export async function tutorApproveBooking(id) {
   if (!id) throw new Error("Missing lessonId");
-  const data = await apiFetch(`/api/lessons/${encodeURIComponent(id)}/confirm`, {
+  await apiFetch(`/api/lessons/${encodeURIComponent(id)}/confirm`, {
     method: "PATCH",
     auth: true,
   });
@@ -22,11 +25,13 @@ export async function tutorConfirmLesson(id) {
 }
 
 /* ================================================================
-   ACTION: Complete lesson (confirmed → completed)
+   ACTION: Tutor rejects a PAID booking
+   - Status: paid → cancelled (or equivalent backend logic)
+   - Backend: PATCH /api/lessons/:id/reject
 ================================================================ */
-export async function tutorCompleteLesson(id) {
+export async function tutorRejectBooking(id) {
   if (!id) throw new Error("Missing lessonId");
-  const data = await apiFetch(`/api/lessons/${encodeURIComponent(id)}/complete`, {
+  await apiFetch(`/api/lessons/${encodeURIComponent(id)}/reject`, {
     method: "PATCH",
     auth: true,
   });
@@ -34,52 +39,64 @@ export async function tutorCompleteLesson(id) {
 }
 
 /* ================================================================
-   ACTION: Approve reschedule
-   (reschedule_requested → confirmed with new times)
+   ACTION: Approve reschedule request
+   - Status: reschedule_requested → confirmed (new times)
+   - Backend: PATCH /api/reschedule/:id/approve
 ================================================================ */
 export async function tutorApproveReschedule(id) {
   if (!id) throw new Error("Missing lessonId");
-  const data = await apiFetch(
-    `/api/reschedule/${encodeURIComponent(id)}/approve`,
-    { method: "PATCH", auth: true }
-  );
+  await apiFetch(`/api/reschedule/${encodeURIComponent(id)}/approve`, {
+    method: "PATCH",
+    auth: true,
+  });
   return await listTutorLessons();
 }
 
 /* ================================================================
-   ACTION: Reject reschedule
-   (reschedule_requested → confirmed with original time)
+   ACTION: Reject reschedule request
+   - Status: reschedule_requested → confirmed (original time)
+   - Backend: PATCH /api/reschedule/:id/reject
 ================================================================ */
 export async function tutorRejectReschedule(id) {
   if (!id) throw new Error("Missing lessonId");
-  const data = await apiFetch(
-    `/api/reschedule/${encodeURIComponent(id)}/reject`,
-    { method: "PATCH", auth: true }
-  );
+  await apiFetch(`/api/reschedule/${encodeURIComponent(id)}/reject`, {
+    method: "PATCH",
+    auth: true,
+  });
   return await listTutorLessons();
 }
 
 /* ================================================================
-   ACTION: Tutor rejects pending (paid) lesson
-   (paid → cancelled/rejected)
+   ACTION: Tutor marks lesson completed
+   - Status: confirmed → completed
+   - Backend: PATCH /api/lessons/:id/complete
 ================================================================ */
-export async function tutorRejectPending(id) {
+export async function tutorMarkCompleted(id) {
   if (!id) throw new Error("Missing lessonId");
-  const data = await apiFetch(
-    `/api/lessons/${encodeURIComponent(id)}/reject`,
-    { method: "PATCH", auth: true }
-  );
+  await apiFetch(`/api/lessons/${encodeURIComponent(id)}/complete`, {
+    method: "PATCH",
+    auth: true,
+  });
   return await listTutorLessons();
 }
 
 /* ================================================================
    ACTION: Expire overdue lessons
-   (backend marks expired)
+   - Backend decides which lessons to mark expired
+   - Backend: PATCH /api/lessons/expire-overdue
 ================================================================ */
 export async function tutorExpireOverdue() {
-  const data = await apiFetch("/api/lessons/expire-overdue", {
+  await apiFetch("/api/lessons/expire-overdue", {
     method: "PATCH",
     auth: true,
   });
   return await listTutorLessons();
 }
+
+/* ================================================================
+   Backwards-compatibility aliases (if any old code still uses them)
+   - These simply forward to the new functions.
+================================================================ */
+export const tutorConfirmLesson = tutorApproveBooking;
+export const tutorCompleteLesson = tutorMarkCompleted;
+export const tutorRejectPending = tutorRejectBooking;
