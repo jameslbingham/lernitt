@@ -21,6 +21,21 @@ function eurosFromPrice(p) {
   return n >= 1000 ? n / 100 : n;
 }
 
+// Normalize lifecycle status to our canonical set
+function normalizeStatus(rawStatus, isTrial) {
+  const s = (rawStatus || "").toString().toLowerCase();
+  const allowed = ["booked", "paid", "confirmed", "completed", "cancelled", "expired"];
+
+  if (allowed.includes(s)) return s;
+
+  // Legacy "pending" → "booked"
+  if (s === "pending" || !s) {
+    return isTrial ? "confirmed" : "booked";
+  }
+
+  return s || "booked";
+}
+
 export default function BookingConfirmation() {
   const { lessonId } = useParams();
   const loc = useLocation();
@@ -31,7 +46,7 @@ export default function BookingConfirmation() {
   const [copied, setCopied] = useState("");
 
   /* ----------------------------------------------------
-     LOAD LESSON  (PATCH INSERTED HERE)
+     LOAD LESSON (always re-fetch from server)
   ---------------------------------------------------- */
   useEffect(() => {
     (async () => {
@@ -42,19 +57,23 @@ export default function BookingConfirmation() {
         });
         if (!r.ok) throw new Error(`Failed to load lesson (${r.status})`);
 
-        // ⬇⬇⬇ YOUR PATCH (required for new /book route) ⬇⬇⬇
         const raw = await r.json();
-        setLesson({
+        const isTrial = raw.isTrial || raw.kind === "trial";
+
+        const normalized = {
           ...raw,
           start: raw.start || raw.startTime,
           duration:
             raw.duration ||
-            ((raw.endTime && raw.startTime)
-              ? (new Date(raw.endTime) - new Date(raw.startTime)) / 60000
+            ((raw.endTime && (raw.startTime || raw.start))
+              ? (new Date(raw.endTime) - new Date(raw.startTime || raw.start)) / 60000
               : 60),
-          isTrial: raw.isTrial || raw.kind === "trial",
-        });
-        // ⬆⬆⬆ PATCH END ⬆⬆⬆
+          isTrial,
+        };
+
+        normalized.status = normalizeStatus(normalized.status, isTrial);
+
+        setLesson(normalized);
       } catch (e) {
         setError(e.message || "Failed to load lesson");
       }
@@ -92,7 +111,6 @@ export default function BookingConfirmation() {
   /* ----------------------------------------------------
      RENDER PREP
   ---------------------------------------------------- */
-
   const start = lesson?.start ? new Date(lesson.start) : null;
 
   const whenYour = start
@@ -104,11 +122,16 @@ export default function BookingConfirmation() {
       ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short", timeZone: tutorTz })
       : "";
 
-  const status = (lesson.status || "").toLowerCase();
-  const isConfirmed = status === "confirmed" || status === "completed" || status === "paid";
-  const isTerminal = status === "completed" || status === "cancelled" || status === "expired";
-  const canReschedule = !isTerminal;
-  const canCancel = !isTerminal;
+  const status = normalizeStatus(lesson.status, !!lesson.isTrial);
+
+  const isTrial = !!lesson.isTrial;
+  const isBooked = status === "booked";
+  const isPaid = status === "paid";
+  const isConfirmed = status === "confirmed";
+  const isCompleted = status === "completed";
+  const isCancelled = status === "cancelled";
+  const isExpired = status === "expired";
+  const isTerminal = isCompleted || isCancelled || isExpired;
 
   const amountRaw =
     (typeof lesson?.amountCents === "number" && lesson.amountCents >= 0 && lesson.amountCents) ||
@@ -130,7 +153,7 @@ UID:${lesson._id}@lernitt
 SUMMARY:Lesson with ${lesson.tutorName || "Tutor"}
 ${start ? `DTSTART:${dtstart}` : ""}
 DURATION:PT${lesson.duration || 60}M
-DESCRIPTION:${lesson.isTrial ? "Trial lesson" : "Paid lesson"}
+DESCRIPTION:${isTrial ? "Trial lesson" : "Paid lesson"}
 DTSTAMP:${dtstamp}
 LOCATION:Online
 URL:${lessonUrl}
@@ -154,8 +177,8 @@ END:VCALENDAR`.trim();
       `When (your time — ${tz}): ${whenYour}`,
       tutorTz ? `When (tutor time — ${tutorTz}): ${whenTutor}` : null,
       `Duration: ${lesson.duration || 60} min`,
-      lesson.isTrial ? "Type: Trial (free)" : `Amount: € ${amount}`,
-      `Status: ${lesson.status || "reserved"}`,
+      isTrial ? "Type: Trial (free)" : `Amount: € ${amount}`,
+      `Status: ${status || "booked"}`,
       `Link: ${window.location.href}`,
     ].filter(Boolean);
 
@@ -172,24 +195,46 @@ END:VCALENDAR`.trim();
   const backToTutors =
     (loc.state?.from?.pathname || "/tutors") + (loc.state?.from?.search || "");
 
-  const backToTutorHref = `/tutors/${lesson.tutor}${lesson.isTrial ? "?trial=1" : ""}`;
+  const backToTutorHref = `/tutors/${lesson.tutor}${isTrial ? "?trial=1" : ""}`;
+
+  // Headline text
+  const headline = isTrial
+    ? "Trial booked"
+    : isConfirmed || isCompleted
+    ? "Booking confirmed"
+    : isPaid
+    ? "Payment complete – waiting for tutor"
+    : isCancelled
+    ? "Booking cancelled"
+    : isExpired
+    ? "Booking expired"
+    : "Booking pending";
 
   /* ----------------------------------------------------
      RENDER
   ---------------------------------------------------- */
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+      {/* Progress bar */}
       <div style={{ marginBottom: 12, fontSize: 14 }}>
-        <b>1) Reserved</b> → {lesson.isTrial ? <b>2) Trial</b> : isConfirmed ? <b>2) Paid</b> : "2) Pay"} → <b>3) Confirmed</b>
+        <b>1) Booked</b> →{" "}
+        {isTrial ? (
+          <b>2) Trial</b>
+        ) : isPaid || isConfirmed || isCompleted ? (
+          <b>2) Paid</b>
+        ) : (
+          "2) Pay"
+        )}{" "}
+        → <b>3) Confirmed</b>
       </div>
 
+      {/* Back to tutors list */}
       <Link to={backToTutors} className="text-sm underline">
         ← Back to tutors
       </Link>
 
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
-        {lesson.isTrial ? "Trial booked" : isConfirmed ? "Booking confirmed" : "Booking pending"}
-      </h1>
+      {/* Main heading */}
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{headline}</h1>
 
       {/* Timezone bar */}
       <div
@@ -206,7 +251,7 @@ END:VCALENDAR`.trim();
       </div>
 
       {/* Trial banner */}
-      {lesson.isTrial && (
+      {isTrial && (
         <div
           style={{
             padding: "8px 12px",
@@ -220,8 +265,8 @@ END:VCALENDAR`.trim();
         </div>
       )}
 
-      {/* Payment pending banner */}
-      {!lesson.isTrial && !isConfirmed && (
+      {/* Payment / status banners */}
+      {!isTrial && isBooked && !isTerminal && (
         <div
           style={{
             padding: "8px 12px",
@@ -235,6 +280,77 @@ END:VCALENDAR`.trim();
         </div>
       )}
 
+      {!isTrial && isPaid && !isTerminal && !isConfirmed && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#e0f2fe",
+            border: "1px solid #38bdf8",
+            marginBottom: 12,
+          }}
+        >
+          💳 Payment complete! Waiting for the tutor to confirm.
+        </div>
+      )}
+
+      {isConfirmed && !isTerminal && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#dcfce7",
+            border: "1px solid #22c55e",
+            marginBottom: 12,
+          }}
+        >
+          ✅ Your booking has been confirmed by the tutor.
+        </div>
+      )}
+
+      {isCompleted && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#f6ffed",
+            border: "1px solid #52c41a",
+            marginBottom: 12,
+          }}
+        >
+          🎓 This lesson has been completed.
+        </div>
+      )}
+
+      {isCancelled && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#fff1f0",
+            border: "1px solid #f87171",
+            marginBottom: 12,
+          }}
+        >
+          ❌ This booking was cancelled.
+        </div>
+      )}
+
+      {isExpired && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#f3f4f6",
+            border: "1px solid #9ca3af",
+            marginBottom: 12,
+          }}
+        >
+          ⏰ This booking has expired.
+        </div>
+      )}
+
+      {/* Lesson details */}
       <div style={{ marginBottom: 12 }}>
         <div>
           <b>Tutor:</b>{" "}
@@ -251,22 +367,43 @@ END:VCALENDAR`.trim();
         <div>
           <b>Duration:</b> {lesson.duration || 60} min
         </div>
-        {!lesson.isTrial && (
+        {!isTrial && (
           <div>
             <b>Amount:</b> € {amount}
           </div>
         )}
-        {lesson.isTrial ? (
+        {isTrial ? (
           <div style={{ marginTop: 8 }}>
             This is a <b>free 30-minute trial</b>. No payment needed.
           </div>
-        ) : (
+        ) : isBooked ? (
           <div style={{ marginTop: 8 }}>
-            This lesson is <b>reserved</b>. Please complete payment to confirm.
+            This lesson is <b>booked</b>. Please complete payment to confirm.
           </div>
-        )}
+        ) : isPaid && !isConfirmed ? (
+          <div style={{ marginTop: 8 }}>
+            Payment received. The lesson is <b>waiting for tutor confirmation</b>.
+          </div>
+        ) : isConfirmed ? (
+          <div style={{ marginTop: 8 }}>
+            This lesson is <b>confirmed</b>.
+          </div>
+        ) : isCompleted ? (
+          <div style={{ marginTop: 8 }}>
+            This lesson is <b>completed</b>.
+          </div>
+        ) : isCancelled ? (
+          <div style={{ marginTop: 8 }}>
+            This lesson was <b>cancelled</b>.
+          </div>
+        ) : isExpired ? (
+          <div style={{ marginTop: 8 }}>
+            This lesson has <b>expired</b>.
+          </div>
+        ) : null}
       </div>
 
+      {/* Actions */}
       <div
         style={{
           display: "flex",
@@ -275,7 +412,8 @@ END:VCALENDAR`.trim();
           alignItems: "center",
         }}
       >
-        {!lesson.isTrial && !isConfirmed && (
+        {/* Payment CTA */}
+        {!isTrial && isBooked && !isTerminal && (
           <Link
             to={`/pay/${lesson._id}`}
             state={{ from: loc.state?.from || { pathname: "/tutors" } }}
@@ -289,7 +427,8 @@ END:VCALENDAR`.trim();
           </Link>
         )}
 
-        {!lesson.isTrial && isConfirmed && (
+        {/* Paid badge */}
+        {!isTrial && isPaid && (
           <span
             style={{
               padding: "10px 14px",
@@ -301,6 +440,7 @@ END:VCALENDAR`.trim();
           </span>
         )}
 
+        {/* Go to My Lessons */}
         <Link
           to={`/my-lessons`}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
@@ -308,7 +448,8 @@ END:VCALENDAR`.trim();
           Go to My Lessons
         </Link>
 
-        {canReschedule && (
+        {/* Reschedule / Cancel (only if not terminal) */}
+        {!isTerminal && (
           <Link
             to={`/student-lesson/${lesson._id}`}
             style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
@@ -317,7 +458,7 @@ END:VCALENDAR`.trim();
           </Link>
         )}
 
-        {canCancel && (
+        {!isTerminal && (
           <Link
             to={`/student-lesson/${lesson._id}`}
             style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
@@ -326,6 +467,7 @@ END:VCALENDAR`.trim();
           </Link>
         )}
 
+        {/* Back to tutor */}
         <Link
           to={backToTutorHref}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
@@ -333,6 +475,7 @@ END:VCALENDAR`.trim();
           Back to Tutor
         </Link>
 
+        {/* ICS + copy utilities */}
         <button
           onClick={() => downloadIcs(`lesson-${lesson._id}.ics`, ics)}
           style={{ padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: 10 }}
