@@ -5,7 +5,78 @@ import { apiFetch } from "../lib/apiFetch.js";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
-/* -------------------- UI helpers -------------------- */
+/* -------------------- helpers -------------------- */
+
+// cents → € formatting
+function euros(priceCentsOrEur) {
+  const n = Number(priceCentsOrEur);
+  if (!Number.isFinite(n)) return "0.00";
+  return (n >= 1000 ? n / 100 : n).toFixed(2);
+}
+
+/* STUDENT-FACING STATUS TRANSLATION (A1) */
+function translateStatus(raw) {
+  switch (raw) {
+    case "booked":
+      return "pending_payment";
+    case "pending":
+      return "paid_waiting_tutor";
+    case "confirmed":
+      return "confirmed";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "expired":
+      return "expired";
+    case "reschedule_pending":
+      return "reschedule_requested";
+    default:
+      return raw || "pending_payment";
+  }
+}
+
+// Normalize lesson shape
+function normalizeLesson(raw) {
+  const id = raw._id || raw.id;
+  const startISO = raw.start || raw.startTime || raw.begin;
+  const price = typeof raw.price === "number" ? raw.price : Number(raw.price) || 0;
+
+  const duration =
+    Number(
+      raw.duration ||
+        (raw.endTime
+          ? (new Date(raw.endTime) - new Date(startISO)) / 60000
+          : 0)
+    ) || 0;
+
+  const tutorId = String(raw.tutorId || raw.tutor?._id || raw.tutor || "");
+  const tutorName = raw.tutorName || raw.tutor?.name || "Tutor";
+
+  return {
+    _id: id,
+    start: startISO,
+    duration,
+    status: raw.status, // raw backend status
+    isTrial: !!raw.isTrial,
+    price,
+    tutorId,
+    tutorName,
+    subject: raw.subject || "",
+  };
+}
+
+function deriveStatus(l) {
+  const started = new Date(l.start).getTime() <= Date.now();
+  const translated = translateStatus(l.status);
+
+  if (started && !["completed", "cancelled", "expired"].includes(translated)) {
+    return "expired";
+  }
+  return translated;
+}
+
+/* -------------------- Components -------------------- */
 
 function StatusBadge({ status, isTrial }) {
   if (isTrial) {
@@ -25,15 +96,19 @@ function StatusBadge({ status, isTrial }) {
       </span>
     );
   }
+
   const map = {
-    booked: { label: "Booked (not paid)", bg: "#fff7e6", color: "#ad6800" },
-    paid: { label: "Paid (awaiting confirm)", bg: "#e6f7ff", color: "#0050b3" },
+    pending_payment: { label: "Payment required", bg: "#fff7e6", color: "#ad6800" },
+    paid_waiting_tutor: { label: "Paid — awaiting tutor", bg: "#e6f7ff", color: "#0050b3" },
     confirmed: { label: "Confirmed", bg: "#e6fffb", color: "#006d75" },
+    reschedule_requested: { label: "Reschedule requested", bg: "#f0f5ff", color: "#1d39c4" },
     completed: { label: "Completed", bg: "#f6ffed", color: "#237804" },
     cancelled: { label: "Cancelled", bg: "#fff1f0", color: "#a8071a" },
     expired: { label: "Expired", bg: "#fafafa", color: "#595959" },
   };
-  const s = map[status] || { label: status || "—", bg: "#fafafa", color: "#595959" };
+
+  const s = map[status] || map.pending_payment;
+
   return (
     <span
       style={{
@@ -53,70 +128,26 @@ function StatusBadge({ status, isTrial }) {
 
 function TinyCountdown({ to }) {
   const [left, setLeft] = useState(() => new Date(to).getTime() - Date.now());
+
   useEffect(() => {
     const id = setInterval(() => setLeft(new Date(to).getTime() - Date.now()), 1000);
     return () => clearInterval(id);
   }, [to]);
 
   if (!to || left <= 0) {
-    return (
-      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.6 }}>
-        • expired
-      </span>
-    );
+    return <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.6 }}>• expired</span>;
   }
+
   const s = Math.floor(left / 1000);
   const hrs = Math.floor(s / 3600);
   const mins = Math.floor((s % 3600) / 60);
   const secs = s % 60;
+
   return (
     <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.8 }}>
       • starts in {hrs}h {mins}m {secs}s
     </span>
   );
-}
-
-/* -------------------- Data helpers -------------------- */
-
-// Normalize lesson from either mock or real API
-function normalizeLesson(raw) {
-  const id = raw._id || raw.id;
-  const startISO = raw.start || raw.startTime || raw.begin;
-  const duration =
-    Number(
-      raw.duration ||
-        (raw.endTime ? (new Date(raw.endTime) - new Date(startISO)) / 60000 : 0)
-    ) || 0;
-  const status = raw.status || "booked"; // NEW default lifecycle
-  const isTrial = !!raw.isTrial;
-  const price = typeof raw.price === "number" ? raw.price : Number(raw.price) || 0;
-  const tutorId = String(raw.tutorId || raw.tutor?._id || raw.tutorIdStr || raw.tutor) || "";
-  const tutorName = raw.tutorName || raw.tutor?.name || "Tutor";
-  const subject = raw.subject || "";
-  return {
-    _id: id,
-    start: startISO,
-    duration,
-    status,
-    isTrial,
-    price,
-    tutorId,
-    tutorName,
-    subject,
-  };
-}
-
-function deriveStatus(l) {
-  const base = l.status || "booked";
-  const started = new Date(l.start).getTime() <= Date.now();
-  if (started && !["completed", "cancelled"].includes(base)) return "expired";
-  return base;
-}
-
-function euros(priceCentsOrEur) {
-  const n = Number(priceCentsOrEur);
-  if (!Number.isFinite(n)) return "0.00";
-  return (n >= 1000 ? n / 100 : n).toFixed(2);
 }
 
 /* -------------------- Page -------------------- */
@@ -132,7 +163,7 @@ export default function MyLessons() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // UI filters
+  // filters
   const [hidePast, setHidePast] = useState(false);
   const [onlyTrials, setOnlyTrials] = useState(false);
   const [q, setQ] = useState("");
@@ -141,6 +172,7 @@ export default function MyLessons() {
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
+  /* ----------- load lessons ----------- */
   async function load() {
     if (!loggedIn) {
       const next = encodeURIComponent(loc.pathname + loc.search);
@@ -150,9 +182,8 @@ export default function MyLessons() {
     setLoading(true);
     setErr("");
     try {
-      // Use the apiFetch helper. It routes to mocks when VITE_MOCK=1.
       const list = await apiFetch("/api/lessons/mine", { auth: true });
-      const normalized = (Array.isArray(list) ? list : []).map(normalizeLesson);
+      const normalized = list.map(normalizeLesson);
       setRows(normalized);
     } catch (e) {
       setErr(e.message || "Could not load lessons.");
@@ -163,33 +194,36 @@ export default function MyLessons() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn]);
 
-  // Show back-to-top after some scroll
+  // back to top
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 300);
-    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Derived + filtered list
+  /* ----------- filtered list ----------- */
   const ordered = useMemo(() => {
-    let arr = [...rows].sort((a, b) => {
-      const rank = (x) => (["expired", "completed"].includes(deriveStatus(x)) ? 1 : 0);
+    let arr = [...rows];
+
+    arr.sort((a, b) => {
+      const rank = (x) => (["expired", "completed", "cancelled"].includes(deriveStatus(x)) ? 1 : 0);
       return rank(a) - rank(b);
     });
 
     if (statusFilter !== "all") {
       arr = arr.filter((l) => deriveStatus(l) === statusFilter);
     }
+
     if (hidePast) {
       arr = arr.filter((l) => !["expired", "completed", "cancelled"].includes(deriveStatus(l)));
     }
+
     if (onlyTrials) {
       arr = arr.filter((l) => l.isTrial);
     }
+
     if (q.trim()) {
       const term = q.trim().toLowerCase();
       arr = arr.filter(
@@ -198,19 +232,20 @@ export default function MyLessons() {
           (l.subject || "").toLowerCase().includes(term)
       );
     }
+
     return arr;
   }, [rows, statusFilter, hidePast, onlyTrials, q]);
 
-  /* --------- Actions (disabled in mock) --------- */
-
+  /* ----------- cancel ----------- */
   async function cancelLesson(id) {
     if (MOCK) {
-      alert("Cancel is disabled in mock mode.");
+      alert("Cancel disabled in mock mode.");
       return;
     }
     if (!confirm("Cancel this lesson?")) return;
+
     try {
-      await apiFetch(`/api/lessons/${encodeURIComponent(id)}/cancel`, {
+      await apiFetch(`/api/lessons/${id}/cancel`, {
         method: "PATCH",
         auth: true,
         body: { reason: "user-cancel" },
@@ -221,13 +256,10 @@ export default function MyLessons() {
     }
   }
 
-  /* -------------------- Render -------------------- */
+  /* -------------------- render -------------------- */
 
-  if (!loggedIn) {
-    return <div className="p-4">Redirecting to login…</div>;
-  }
+  if (!loggedIn) return <div className="p-4">Redirecting…</div>;
 
-  // 🔄 Loading skeletons (upgrade)
   if (loading)
     return (
       <div className="p-4 space-y-3 animate-pulse">
@@ -251,7 +283,7 @@ export default function MyLessons() {
         </Link>
       </div>
 
-      {/* Timezone info bar (upgrade) */}
+      {/* TZ */}
       <div
         style={{
           padding: "6px 8px",
@@ -259,10 +291,9 @@ export default function MyLessons() {
           border: "1px solid #e5e7eb",
           borderRadius: 8,
           background: "#eff6ff",
-          marginTop: 4,
         }}
       >
-        Times are shown in your timezone: {tz}.
+        Times shown in your timezone: {tz}
       </div>
 
       {/* Mock banner */}
@@ -276,26 +307,24 @@ export default function MyLessons() {
             padding: "8px 12px",
           }}
         >
-          Mock mode: bookings are free trials and confirmed instantly.
+          Mock mode: trial bookings are confirmed instantly.
         </div>
       )}
 
-      {/* Error */}
+      {/* Errors */}
       {err && (
         <div className="text-red-600">
           {err}{" "}
-          <button
-            onClick={load}
-            className="ml-2 border px-2 py-1 rounded-2xl text-sm"
-          >
+          <button onClick={load} className="ml-2 border px-2 py-1 rounded-2xl text-sm">
             Retry
           </button>
         </div>
       )}
 
-      {/* Sticky search + filters */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      {/* Search + Filters */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur">
         <div className="flex flex-col gap-2">
+          {/* Search */}
           <div className="relative w-full">
             <input
               type="text"
@@ -307,30 +336,24 @@ export default function MyLessons() {
             {q && (
               <button
                 onClick={() => setQ("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black text-sm"
                 aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black text-sm"
               >
                 ✕
               </button>
             )}
           </div>
 
+          {/* Filters */}
           <div className="flex flex-wrap items-center gap-4">
             <label className="text-sm flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={hidePast}
-                onChange={(e) => setHidePast(e.target.checked)}
-              />
-              Hide past lessons
+              <input type="checkbox" checked={hidePast} onChange={(e) => setHidePast(e.target.checked)} />
+              Hide past
             </label>
+
             <label className="text-sm flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={onlyTrials}
-                onChange={(e) => setOnlyTrials(e.target.checked)}
-              />
-              Show only trials
+              <input type="checkbox" checked={onlyTrials} onChange={(e) => setOnlyTrials(e.target.checked)} />
+              Only trials
             </label>
 
             <label className="text-sm flex items-center gap-2">
@@ -341,9 +364,10 @@ export default function MyLessons() {
                 className="border rounded-2xl px-2 py-1 text-sm"
               >
                 <option value="all">All</option>
-                <option value="booked">Booked (not paid)</option>
-                <option value="paid">Paid (awaiting confirm)</option>
+                <option value="pending_payment">Payment required</option>
+                <option value="paid_waiting_tutor">Paid — awaiting tutor</option>
                 <option value="confirmed">Confirmed</option>
+                <option value="reschedule_requested">Reschedule requested</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="expired">Expired</option>
@@ -355,12 +379,13 @@ export default function MyLessons() {
             </span>
           </div>
 
-          {/* Badge legend */}
+          {/* Badge Legend */}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs opacity-80">
             <span className="opacity-60">Legend:</span>
-            <StatusBadge status="booked" />
-            <StatusBadge status="paid" />
+            <StatusBadge status="pending_payment" />
+            <StatusBadge status="paid_waiting_tutor" />
             <StatusBadge status="confirmed" />
+            <StatusBadge status="reschedule_requested" />
             <StatusBadge status="completed" />
             <StatusBadge status="cancelled" />
             <StatusBadge status="expired" />
@@ -370,9 +395,7 @@ export default function MyLessons() {
       </div>
 
       {/* Empty state */}
-      {!err && ordered.length === 0 && (
-        <div className="opacity-70">No lessons yet.</div>
-      )}
+      {!err && ordered.length === 0 && <div className="opacity-70">No lessons yet.</div>}
 
       {/* List */}
       {!err && ordered.length > 0 && (
@@ -383,125 +406,64 @@ export default function MyLessons() {
               isFinite(l.duration) && l.duration > 0
                 ? new Date(start.getTime() + l.duration * 60000)
                 : null;
+
             const status = deriveStatus(l);
-            const canPay = !MOCK && status === "booked" && !l.isTrial;
+            const canPay = !MOCK && status === "pending_payment" && !l.isTrial;
             const canCancel =
-              !MOCK && !["completed", "cancelled", "expired"].includes(status);
+              !MOCK && ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
 
             return (
               <li key={l._id} className="border rounded-2xl p-3">
+                {/* header row */}
                 <Link
-                  to={`/student-lesson/${encodeURIComponent(l._id)}`}
+                  to={`/student-lesson/${l._id}`}
                   state={{ lesson: l }}
                   className="flex items-baseline gap-2 hover:underline"
                 >
-                  <div className="font-medium">{l.tutorName || "Tutor"}</div>
+                  <div className="font-medium">{l.tutorName}</div>
                   <div className="text-xs opacity-70">
                     {start.toLocaleString()}
                     {end ? ` → ${end.toLocaleString()}` : ""}
                   </div>
                   <div className="ml-auto text-xs flex gap-2 items-center">
                     <StatusBadge status={status} isTrial={l.isTrial} />
-                    {(status === "booked" ||
-                      status === "paid" ||
-                      status === "confirmed") && (
+                    {["pending_payment", "paid_waiting_tutor", "confirmed", "reschedule_requested"].includes(status) && (
                       <TinyCountdown to={l.start} />
                     )}
                   </div>
                 </Link>
 
+                {/* price + subject */}
                 <div className="text-xs opacity-70 mt-1">
                   {l.subject || "—"} · Price: € {euros(l.price)}
                 </div>
 
+                {/* actions */}
                 <div className="mt-3 flex gap-2 flex-wrap">
                   {canPay && (
                     <Link
                       to={`/pay/${encodeURIComponent(l._id)}`}
-                      className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+                      className="text-sm border px-3 py-1 rounded-2xl"
                     >
                       Pay
                     </Link>
                   )}
+
                   {canCancel && (
                     <button
                       onClick={() => cancelLesson(l._id)}
-                      className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+                      className="text-sm border px-3 py-1 rounded-2xl"
                     >
                       Cancel
                     </button>
                   )}
+
                   <Link
                     to={`/tutors/${encodeURIComponent(l.tutorId)}`}
-                    className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+                    className="text-sm border px-3 py-1 rounded-2xl"
                   >
                     Tutor
                   </Link>
-
-                  {/* ✨ Copy summary (upgrade) */}
-                  <button
-                    onClick={async () => {
-                      const lines = [
-                        `Tutor: ${l.tutorName}`,
-                        `When: ${new Date(l.start).toLocaleString()}`,
-                        `Duration: ${l.duration} min`,
-                        `Type: ${l.isTrial ? "Trial" : "Paid"}`,
-                        `Status: ${status}`,
-                        `${window.location.origin}/student-lesson/${l._id}`,
-                      ].join("\n");
-                      try {
-                        await navigator.clipboard.writeText(lines);
-                        alert("Lesson summary copied!");
-                      } catch {
-                        alert("Copy failed");
-                      }
-                    }}
-                    className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-                  >
-                    Copy summary
-                  </button>
-
-                  {/* ✨ Add to calendar (.ics) (upgrade) */}
-                  <button
-                    onClick={() => {
-                      const dtstart = new Date(l.start)
-                        .toISOString()
-                        .replace(/[-:]/g, "")
-                        .split(".")[0] + "Z";
-                      const ics = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Lernitt//MyLessons//EN
-BEGIN:VEVENT
-UID:${l._id}@lernitt
-SUMMARY:Lesson with ${l.tutorName}
-DTSTART:${dtstart}
-DURATION:PT${l.duration}M
-DESCRIPTION:${l.isTrial ? "Trial lesson" : "Paid lesson"}
-LOCATION:Online
-END:VEVENT
-END:VCALENDAR`;
-                      const blob = new Blob([ics], { type: "text/calendar" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `lesson-${l._id}.ics`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-                  >
-                    Add to calendar
-                  </button>
-
-                  {/* ✨ Write review shortcut (upgrade) */}
-                  {status === "completed" && (
-                    <Link
-                      to={`/tutors/${encodeURIComponent(l.tutorId)}?review=1`}
-                      className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-                    >
-                      Write review
-                    </Link>
-                  )}
                 </div>
               </li>
             );
@@ -509,13 +471,11 @@ END:VCALENDAR`;
         </ul>
       )}
 
-      {/* Floating Back to Top */}
+      {/* Top button */}
       {showTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="fixed bottom-6 right-6 rounded-full shadow-lg border px-4 py-2 text-sm bg-white/90 hover:bg-white transition"
-          aria-label="Back to top"
-          title="Back to top"
         >
           ↑ Top
         </button>
