@@ -8,14 +8,53 @@ const auth = require('../middleware/auth');
 const { canReschedule } = require('../utils/policies');
 const validateSlot = require("../utils/validateSlot");
 
-// Create a lesson (student booking)
+/* ============================================
+   GET /api/lessons/tutor  
+   All lessons for the logged-in tutor
+   ============================================ */
+router.get('/tutor', auth, async (req, res) => {
+  try {
+    const lessons = await Lesson.find({ tutor: req.user.id })
+      .populate('student', 'name avatar')
+      .sort({ startTime: 1 });
+
+    // Normalized structure for frontend
+    const out = lessons.map(l => ({
+      id: String(l._id),
+      student: l.student?.name || "Student",
+      tutor: String(l.tutor),
+      subject: l.subject,
+      start: l.startTime,
+      end: l.endTime,
+      duration: l.durationMins,
+      status: l.status,
+      price: l.price,
+      currency: l.currency,
+      isTrial: l.isTrial,
+      createdAt: l.createdAt,
+      cancelledAt: l.cancelledAt,
+      requestedNewDate: null,
+      requestedNewTime: null,
+      pendingUntil: null,
+    }));
+
+    return res.json(out);
+  } catch (err) {
+    console.error("GET /tutor error", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ============================================
+   Create a lesson (student booking)
+   ============================================ */
 router.post('/', auth, async (req, res) => {
   try {
     console.log('[BOOK] body:', req.body);
 
     const { tutor, subject, startTime, endTime, price, currency, notes } = req.body;
 
-    // ✅ trial logic
+    // trial logic
     const isTrial = req.body.isTrial === true;
     if (isTrial) {
       const durMin = Math.round((new Date(endTime) - new Date(startTime)) / 60000);
@@ -33,7 +72,7 @@ router.post('/', auth, async (req, res) => {
     }
     const finalPrice = isTrial ? 0 : price;
 
-    // ✅ validate slot against availability + clashes
+    // validate slot
     const durMins = Math.max(15, Math.round((new Date(endTime) - new Date(startTime)) / 60000));
     const chk = await validateSlot({
       tutorId: tutor,
@@ -43,7 +82,7 @@ router.post('/', auth, async (req, res) => {
     });
     if (!chk.ok) return res.status(400).json({ error: `slot-invalid:${chk.reason}` });
 
-    // extra clash guard (any non-cancelled/non-expired lesson blocks the slot)
+    // clash guard
     const clash = await Lesson.findOne({
       tutor,
       startTime: { $lt: new Date(endTime) },
@@ -82,7 +121,9 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Get my lessons (student)
+/* ============================================
+   Student lessons (mine)
+   ============================================ */
 router.get('/mine', auth, async (req, res) => {
   try {
     const lessons = await Lesson.find({ student: req.user.id })
@@ -95,7 +136,9 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
-// Get a single lesson (for Pay + Confirmation page)
+/* ============================================
+   Get a single lesson
+   ============================================ */
 router.get('/:id', auth, async (req, res) => {
   try {
     const l = await Lesson.findById(req.params.id).populate('tutor', '_id name');
@@ -110,7 +153,9 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Confirm a lesson (tutor only, must be paid for non-trial)
+/* ============================================
+   Tutor confirm (must be paid first)
+   ============================================ */
 router.patch('/:id/confirm', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
@@ -120,35 +165,28 @@ router.patch('/:id/confirm', auth, async (req, res) => {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
-    // Block confirm for terminal states
     if (['cancelled', 'completed', 'expired'].includes(lesson.status)) {
       return res.status(400).json({ message: `Cannot confirm a ${lesson.status} lesson` });
     }
 
-    // Determine paid-ness
     let paid = lesson.isPaid === true;
 
-    // Trials: don't require payment
-    if (lesson.isTrial) {
-      paid = true;
-    }
+    if (lesson.isTrial) paid = true;
 
-    // If mark-paid flow already ran, accept status === 'paid'
     if (!lesson.isTrial && lesson.status === 'paid') {
       paid = true;
     }
 
-    // Legacy backstop: look up a succeeded payment if still not marked paid
     if (!paid && !lesson.isTrial) {
       const succeededPayment = await Payment.findOne({
         lesson: lesson._id,
         status: 'succeeded',
       }).lean();
+
       if (!succeededPayment) {
-        return res
-          .status(400)
-          .json({ message: 'Lesson must be paid before confirmation' });
+        return res.status(400).json({ message: 'Lesson must be paid before confirmation' });
       }
+
       lesson.isPaid = true;
       lesson.paidAt = lesson.paidAt || new Date();
       if (succeededPayment._id) lesson.payment = succeededPayment._id;
@@ -177,7 +215,9 @@ router.patch('/:id/confirm', auth, async (req, res) => {
   }
 });
 
-// Cancel a lesson (tutor or student) with 24h policy
+/* ============================================
+   Cancel (student or tutor)
+   ============================================ */
 router.patch('/:id/cancel', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
@@ -226,7 +266,9 @@ router.patch('/:id/cancel', auth, async (req, res) => {
   }
 });
 
-// Complete a lesson (tutor only, after endTime)
+/* ============================================
+   Complete (tutor only)
+   ============================================ */
 router.patch('/:id/complete', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
@@ -247,7 +289,6 @@ router.patch('/:id/complete', auth, async (req, res) => {
     lesson.status = 'completed';
     await lesson.save();
 
-    // Queue payout after completion (skip trials)
     const amountCents = Math.round((lesson.price || 0) * 100);
     if (!lesson.isTrial && amountCents > 0) {
       await Payout.create({
@@ -275,7 +316,9 @@ router.patch('/:id/complete', auth, async (req, res) => {
   }
 });
 
-// Reschedule (only if >24h before original start)
+/* ============================================
+   Reschedule
+   ============================================ */
 router.patch('/:id/reschedule', auth, async (req, res) => {
   try {
     const { newStartTime, newEndTime } = req.body || {};
@@ -294,7 +337,6 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
       return res.status(400).json({ message: 'newStartTime and newEndTime required' });
     }
 
-    // clash check with new lifecycle (any non-cancelled/non-expired lesson blocks)
     const clash = await Lesson.findOne({
       tutor: lesson.tutor,
       _id: { $ne: lesson._id },
@@ -333,7 +375,9 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
   }
 });
 
-// Trial summary for current student
+/* ============================================
+   Trial summary
+   ============================================ */
 router.get('/trial-summary/:tutorId', auth, async (req, res) => {
   try {
     const student = req.user.id;
