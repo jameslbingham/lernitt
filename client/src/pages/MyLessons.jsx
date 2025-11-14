@@ -26,9 +26,9 @@ function StatusBadge({ status, isTrial }) {
     );
   }
   const map = {
-    pending: { label: "Pending", bg: "#fff7e6", color: "#ad6800" },
+    booked: { label: "Booked (not paid)", bg: "#fff7e6", color: "#ad6800" },
+    paid: { label: "Paid (awaiting confirm)", bg: "#e6f7ff", color: "#0050b3" },
     confirmed: { label: "Confirmed", bg: "#e6fffb", color: "#006d75" },
-    reschedule_requested: { label: "Reschedule requested", bg: "#f0f5ff", color: "#1d39c4" },
     completed: { label: "Completed", bg: "#f6ffed", color: "#237804" },
     cancelled: { label: "Cancelled", bg: "#fff1f0", color: "#a8071a" },
     expired: { label: "Expired", bg: "#fafafa", color: "#595959" },
@@ -87,7 +87,7 @@ function normalizeLesson(raw) {
       raw.duration ||
         (raw.endTime ? (new Date(raw.endTime) - new Date(startISO)) / 60000 : 0)
     ) || 0;
-  const status = raw.status || "pending";
+  const status = raw.status || "booked"; // NEW default lifecycle
   const isTrial = !!raw.isTrial;
   const price = typeof raw.price === "number" ? raw.price : Number(raw.price) || 0;
   const tutorId = String(raw.tutorId || raw.tutor?._id || raw.tutorIdStr || raw.tutor) || "";
@@ -107,9 +107,10 @@ function normalizeLesson(raw) {
 }
 
 function deriveStatus(l) {
+  const base = l.status || "booked";
   const started = new Date(l.start).getTime() <= Date.now();
-  if (started && !["completed", "cancelled"].includes(l.status)) return "expired";
-  return l.status || "pending";
+  if (started && !["completed", "cancelled"].includes(base)) return "expired";
+  return base;
 }
 
 function euros(priceCentsOrEur) {
@@ -340,9 +341,9 @@ export default function MyLessons() {
                 className="border rounded-2xl px-2 py-1 text-sm"
               >
                 <option value="all">All</option>
-                <option value="pending">Pending</option>
+                <option value="booked">Booked (not paid)</option>
+                <option value="paid">Paid (awaiting confirm)</option>
                 <option value="confirmed">Confirmed</option>
-                <option value="reschedule_requested">Reschedule requested</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="expired">Expired</option>
@@ -357,9 +358,9 @@ export default function MyLessons() {
           {/* Badge legend */}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs opacity-80">
             <span className="opacity-60">Legend:</span>
-            <StatusBadge status="pending" />
+            <StatusBadge status="booked" />
+            <StatusBadge status="paid" />
             <StatusBadge status="confirmed" />
-            <StatusBadge status="reschedule_requested" />
             <StatusBadge status="completed" />
             <StatusBadge status="cancelled" />
             <StatusBadge status="expired" />
@@ -383,8 +384,9 @@ export default function MyLessons() {
                 ? new Date(start.getTime() + l.duration * 60000)
                 : null;
             const status = deriveStatus(l);
-            const canPay = !MOCK && status === "pending" && !l.isTrial;
-            const canCancel = !MOCK && (status === "pending" || status === "confirmed");
+            const canPay = !MOCK && status === "booked" && !l.isTrial;
+            const canCancel =
+              !MOCK && !["completed", "cancelled", "expired"].includes(status);
 
             return (
               <li key={l._id} className="border rounded-2xl p-3">
@@ -400,9 +402,9 @@ export default function MyLessons() {
                   </div>
                   <div className="ml-auto text-xs flex gap-2 items-center">
                     <StatusBadge status={status} isTrial={l.isTrial} />
-                    {(status === "pending" ||
-                      status === "confirmed" ||
-                      status === "reschedule_requested") && (
+                    {(status === "booked" ||
+                      status === "paid" ||
+                      status === "confirmed") && (
                       <TinyCountdown to={l.start} />
                     )}
                   </div>
