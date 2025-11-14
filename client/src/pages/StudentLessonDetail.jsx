@@ -12,6 +12,7 @@ function euros(n) {
   if (!Number.isFinite(v)) return "0.00";
   return (v >= 1000 ? v / 100 : v).toFixed(2);
 }
+
 function fmtDateTime(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso || "";
@@ -23,21 +24,40 @@ function fmtDateTime(iso) {
     minute: "2-digit",
   });
 }
+
 function durationEnd(iso, minutes) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime()) || !minutes) return null;
   return new Date(d.getTime() + Number(minutes) * 60000);
 }
 
-/* NEW: lifecycle rules */
+/* STUDENT-FACING STATUS TRANSLATION (A1) */
+function translateStatus(raw) {
+  switch (raw) {
+    case "booked":
+      return "pending_payment";
+    case "pending":
+      return "paid_waiting_tutor";
+    case "confirmed":
+      return "confirmed";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "expired":
+      return "expired";
+    case "reschedule_pending":
+      return "reschedule_requested";
+    default:
+      return raw || "pending_payment";
+  }
+}
+
 function deriveStatus(l) {
   const started = new Date(l.start).getTime() <= Date.now();
   const terminal = ["completed", "cancelled", "expired"];
-
-  // Auto-expire
   if (started && !terminal.includes(l.status)) return "expired";
-
-  return l.status || "booked";
+  return translateStatus(l.status);
 }
 
 function normalize(raw) {
@@ -53,7 +73,7 @@ function normalize(raw) {
             ? (new Date(raw.endTime) - new Date(raw.startTime || raw.start)) / 60000
             : 0)
       ) || 0,
-    status: raw.status || "booked",
+    status: raw.status,
     isTrial: !!raw.isTrial,
     price: typeof raw.price === "number" ? raw.price : Number(raw.price) || 0,
     subject: raw.subject || "",
@@ -72,9 +92,7 @@ function TinyCountdown({ to }) {
   }, [to]);
 
   if (!to || left <= 0)
-    return (
-      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>• started</span>
-    );
+    return <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>• started</span>;
 
   const s = Math.floor(left / 1000);
   const h = Math.floor(s / 3600);
@@ -87,21 +105,48 @@ function TinyCountdown({ to }) {
   );
 }
 
+/* STUDENT-FACING PILL COLOURS (A1) */
 function StatusPill({ status }) {
   const map = {
-    booked: { bg: "#fff7e6", color: "#ad6800", label: "Booked" },
-    paid: { bg: "#e6f7ff", color: "#0050b3", label: "Paid (waiting tutor)" },
-    confirmed: { bg: "#e6fffb", color: "#006d75", label: "Confirmed" },
+    pending_payment: {
+      bg: "#fff7e6",
+      color: "#ad6800",
+      label: "Payment required",
+    },
+    paid_waiting_tutor: {
+      bg: "#e6f7ff",
+      color: "#0050b3",
+      label: "Paid — awaiting tutor",
+    },
+    confirmed: {
+      bg: "#e6fffb",
+      color: "#006d75",
+      label: "Confirmed",
+    },
     reschedule_requested: {
       bg: "#f0f5ff",
       color: "#1d39c4",
       label: "Reschedule requested",
     },
-    completed: { bg: "#f6ffed", color: "#237804", label: "Completed" },
-    cancelled: { bg: "#fff1f0", color: "#a8071a", label: "Cancelled" },
-    expired: { bg: "#fafafa", color: "#595959", label: "Expired" },
+    completed: {
+      bg: "#f6ffed",
+      color: "#237804",
+      label: "Completed",
+    },
+    cancelled: {
+      bg: "#fff1f0",
+      color: "#a8071a",
+      label: "Cancelled",
+    },
+    expired: {
+      bg: "#fafafa",
+      color: "#595959",
+      label: "Expired",
+    },
   };
-  const s = map[status] || map.booked;
+
+  const s = map[status] || map.pending_payment;
+
   return (
     <span
       style={{
@@ -125,13 +170,15 @@ export default function StudentLessonDetail() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const passed = loc.state?.lesson || null;
 
   const [lesson, setLesson] = useState(passed ? normalize(passed) : null);
   const [loading, setLoading] = useState(!passed);
   const [err, setErr] = useState("");
 
+  /* Load full lesson */
   async function load() {
     if (!token) {
       nav(`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`, {
@@ -140,12 +187,14 @@ export default function StudentLessonDetail() {
       return;
     }
     if (!lessonId) return;
+
     setLoading(true);
     setErr("");
     try {
-      const data = await apiFetch(`/api/lessons/${encodeURIComponent(lessonId)}`, {
-        auth: true,
-      });
+      const data = await apiFetch(
+        `/api/lessons/${encodeURIComponent(lessonId)}`,
+        { auth: true }
+      );
       setLesson(normalize(data));
     } catch (e) {
       setErr(e.message || "Could not load lesson.");
@@ -162,8 +211,9 @@ export default function StudentLessonDetail() {
     () => (lesson ? durationEnd(lesson.start, lesson.duration) : null),
     [lesson]
   );
+
   const status = useMemo(
-    () => (lesson ? deriveStatus(lesson) : "booked"),
+    () => (lesson ? deriveStatus(lesson) : "pending_payment"),
     [lesson]
   );
 
@@ -171,12 +221,12 @@ export default function StudentLessonDetail() {
 
   async function onCancel() {
     if (MOCK) {
-      alert("Cancel is disabled in mock mode.");
+      alert("Cancel disabled in mock mode.");
       return;
     }
     if (!confirm("Cancel this lesson?")) return;
     try {
-      await apiFetch(`/api/lessons/${encodeURIComponent(lesson._id)}/cancel`, {
+      await apiFetch(`/api/lessons/${lesson._id}/cancel`, {
         method: "PATCH",
         auth: true,
         body: { reason: "user-cancel" },
@@ -189,7 +239,7 @@ export default function StudentLessonDetail() {
 
   function onWriteReview() {
     if (!lesson?.tutorId) return;
-    window.location.href = `/tutors/${encodeURIComponent(lesson.tutorId)}?review=1`;
+    window.location.href = `/tutors/${lesson.tutorId}?review=1`;
   }
 
   /* -------------------- render -------------------- */
@@ -204,29 +254,42 @@ export default function StudentLessonDetail() {
         </div>
       </div>
     );
-  if (err) return <div className="p-4 text-red-600">{err}</div>;
-  if (!lesson) return <div className="p-4">Not found.</div>;
+
+  if (err)
+    return <div className="p-4 text-red-600">{err}</div>;
+
+  if (!lesson)
+    return <div className="p-4">Not found.</div>;
 
   const isTrial = !!lesson.isTrial;
-  const isTerminal = ["completed", "cancelled", "expired"].includes(status);
+  const isTerminal =
+    ["completed", "cancelled", "expired"].includes(status);
 
-  const canPay = !MOCK && !isTrial && status === "booked";
-  const canCancel = !MOCK && ["booked", "paid", "confirmed"].includes(status);
+  const canPay = !MOCK && !isTrial && status === "pending_payment";
+  const canCancel =
+    !MOCK &&
+    ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
 
   const showCountdown =
-    ["booked", "paid", "confirmed", "reschedule_requested"].includes(status);
+    ["pending_payment", "paid_waiting_tutor", "confirmed", "reschedule_requested"].includes(
+      status
+    );
 
-  const yourTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const yourTZ =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  /* -------------------- UI -------------------- */
 
   return (
     <div className="p-4 space-y-4">
-      {/* Sticky header with status + countdown */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold">
-            Lesson with {lesson.tutorName || "Tutor"}
+            Lesson with {lesson.tutorName}
           </h1>
           <StatusPill status={status} />
+
           {showCountdown && (
             <span className="text-xs opacity-80 ml-auto">
               <TinyCountdown to={lesson.start} />
@@ -245,7 +308,7 @@ export default function StudentLessonDetail() {
           background: "#eff6ff",
         }}
       >
-        Times are shown in your timezone: {yourTZ}.
+        Times are shown in your timezone: {yourTZ}
       </div>
 
       {/* Back link */}
@@ -256,100 +319,94 @@ export default function StudentLessonDetail() {
         </Link>
       </div>
 
-      {/* Mock banner */}
-      {MOCK && (
+      {/* Trial banner */}
+      {isTrial && (
         <div
           style={{
-            background: "#ecfeff",
-            color: "#083344",
-            border: "1px solid #bae6fd",
-            borderRadius: 10,
             padding: "8px 12px",
+            borderRadius: 8,
+            background: "#d1fae5",
+            border: "1px solid #10b981",
+            marginTop: 12,
           }}
         >
-          Mock mode: trial bookings are confirmed instantly.
+          🎉 Trial booked! Your free 30-minute lesson is confirmed.
         </div>
       )}
 
+      {/* Payment required banner */}
+      {!isTrial && status === "pending_payment" && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#fef9c3",
+            border: "1px solid #facc15",
+            marginTop: 12,
+          }}
+        >
+          ⚠ Please complete payment to confirm this booking.
+        </div>
+      )}
+
+      {/* Paid waiting tutor */}
+      {!isTrial && status === "paid_waiting_tutor" && (
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#e0f2fe",
+            border: "1px solid #38bdf8",
+            marginTop: 12,
+          }}
+        >
+          💳 Payment complete! Waiting for the tutor to confirm.
+        </div>
+      )}
+
+      {/* Lesson details */}
       <div className="border rounded-2xl p-4 shadow-sm bg-white">
-        {/* Tutor */}
         <div className="flex flex-wrap items-baseline gap-2">
           <div className="text-lg font-semibold">{lesson.tutorName}</div>
-          <span className="text-xs opacity-70">({lesson.tutorId})</span>
           <Link
-            to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
-            className="ml-auto text-sm border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            to={`/tutors/${lesson.tutorId}`}
+            className="ml-auto text-sm border px-2 py-1 rounded-2xl"
           >
             View tutor →
           </Link>
         </div>
 
-        {/* Lifecycle banners */}
-        {isTrial && (
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: "#d1fae5",
-              border: "1px solid #10b981",
-              marginTop: 12,
-            }}
-          >
-            🎉 Trial booked! Your free 30-minute lesson is confirmed.
-          </div>
-        )}
-
-        {!isTrial && status === "booked" && (
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: "#fef9c3",
-              border: "1px solid #facc15",
-              marginTop: 12,
-            }}
-          >
-            ⚠ Please complete payment to confirm this booking.
-          </div>
-        )}
-
-        {status === "paid" && (
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: "#e0f2fe",
-              border: "1px solid #38bdf8",
-              marginTop: 12,
-            }}
-          >
-            💳 Payment complete! Waiting for the tutor to confirm.
-          </div>
-        )}
-
-        {/* Details */}
         <div className="mt-3 text-sm">
           <div>
             <b>Starts:</b> {fmtDateTime(lesson.start)}
             {showCountdown && <TinyCountdown to={lesson.start} />}
           </div>
+
           <div>
-            <b>Ends:</b> {endAt ? fmtDateTime(endAt.toISOString()) : "—"}
+            <b>Ends:</b>{" "}
+            {endAt ? fmtDateTime(endAt.toISOString()) : "—"}
           </div>
+
           <div>
             <b>Duration:</b> {lesson.duration} min
           </div>
+
           <div>
-            <b>Status:</b> {status} {lesson.isTrial ? "· Trial" : ""}
+            <b>Status:</b> {StatusPill({ status })}
           </div>
-          <div>
-            <b>Price:</b> € {euros(lesson.price)}
-          </div>
+
+          {!isTrial && (
+            <div>
+              <b>Price:</b> € {euros(lesson.price)}
+            </div>
+          )}
+
           {lesson.subject && (
             <div>
               <b>Subject:</b> {lesson.subject}
             </div>
           )}
+
           {lesson.notes && (
             <div className="mt-2">
               <b>Notes:</b>
@@ -362,9 +419,8 @@ export default function StudentLessonDetail() {
         <div className="mt-3 flex flex-wrap gap-2">
           {canPay && (
             <Link
-              to={`/pay/${encodeURIComponent(lesson._id)}`}
-              aria-label="Go to payment for this lesson"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+              to={`/pay/${lesson._id}`}
+              className="text-sm border px-3 py-1 rounded-2xl"
             >
               Pay
             </Link>
@@ -373,17 +429,15 @@ export default function StudentLessonDetail() {
           {canCancel && (
             <button
               onClick={onCancel}
-              aria-label="Cancel this lesson"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+              className="text-sm border px-3 py-1 rounded-2xl"
             >
               Cancel
             </button>
           )}
 
           <Link
-            to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
-            aria-label="Open tutor profile"
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            to={`/tutors/${lesson.tutorId}`}
+            className="text-sm border px-3 py-1 rounded-2xl"
           >
             Tutor
           </Link>
@@ -391,115 +445,12 @@ export default function StudentLessonDetail() {
           {isTerminal && (
             <button
               onClick={onWriteReview}
-              aria-label="Write a review for this tutor"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+              className="text-sm border px-3 py-1 rounded-2xl"
             >
               Write review
             </button>
           )}
         </div>
-
-        {/* Utilities */}
-        <div className="flex flex-wrap gap-2 mt-2">
-          <button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(window.location.href);
-                alert("Link copied!");
-              } catch {
-                alert("Copy failed");
-              }
-            }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-          >
-            Copy link
-          </button>
-
-          <button
-            onClick={async () => {
-              const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-              const start = new Date(lesson.start);
-              const when = start.toLocaleString([], {
-                dateStyle: "medium",
-                timeStyle: "short",
-                timeZone: tz,
-              });
-              const summary = [
-                `Tutor: ${lesson.tutorName || lesson.tutorId}`,
-                `When (${tz}): ${when}`,
-                `Duration: ${lesson.duration} min`,
-                `Type: ${lesson.isTrial ? "Trial" : "Paid"}`,
-                `Status: ${lesson.status || "booked"}`,
-                `Link: ${window.location.href}`,
-              ].join("\n");
-              try {
-                await navigator.clipboard.writeText(summary);
-                alert("Summary copied!");
-              } catch {
-                alert("Copy failed");
-              }
-            }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-          >
-            Copy summary
-          </button>
-
-          <button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(
-                  `${window.location.origin}/tutors/${encodeURIComponent(lesson.tutorId)}`
-                );
-                alert("Tutor link copied!");
-              } catch {
-                alert("Copy failed");
-              }
-            }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-          >
-            Copy tutor link
-          </button>
-
-          <button
-            onClick={() => {
-              const start = new Date(lesson.start);
-              const dtstart = start.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-              const dtstamp =
-                new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-              const url = `${window.location.origin}/student-lesson/${encodeURIComponent(
-                lesson._id
-              )}`;
-              const ics = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Lernitt//StudentLesson//EN
-BEGIN:VEVENT
-UID:${lesson._id}@lernitt
-SUMMARY:Lesson with ${lesson.tutorName || "Tutor"}
-DTSTART:${dtstart}
-DURATION:PT${lesson.duration}M
-DESCRIPTION:${lesson.isTrial ? "Trial lesson" : "Paid lesson"}
-DTSTAMP:${dtstamp}
-LOCATION:Online
-URL:${url}
-END:VEVENT
-END:VCALENDAR`;
-              const blob = new Blob([ics], { type: "text/calendar" });
-              const href = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = href;
-              a.download = `lesson-${lesson._id}.ics`;
-              a.click();
-              URL.revokeObjectURL(href);
-            }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-          >
-            Add to calendar
-          </button>
-        </div>
-
-        <p className="text-xs opacity-70 mt-1">
-          Tip: You can reschedule or cancel from here. (Policies may apply.)
-        </p>
       </div>
     </div>
   );
