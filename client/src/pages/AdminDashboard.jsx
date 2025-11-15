@@ -1,4 +1,4 @@
-// client/src/pages/AdminDashboard.jsx
+//client/src/pages/AdminDashboard.jsx
 // =====================================================================================================================
 // LERNITT — ADMIN DASHBOARD (MOCK + REAL READY)
 // ---------------------------------------------------------------------------------------------------------------------
@@ -520,22 +520,19 @@ export default function AdminDashboard({ initialTab = "users" }) {
         const val = flat[k];
 
         if (tab === "Lessons" && k === "status") {
-          const isTrial = row.status === "trial";
-          const count = Number(row.studentTrialCount ?? 0);
-          const limit = row.studentTrialLimit == null ? null : Number(row.studentTrialLimit);
-          const over = limit != null ? count > limit : false;
-          const atCap = limit != null ? count === limit : false;
+          const color =
+            val === "booked" ? "yellow" :
+            val === "paid" ? "blue" :
+            val === "confirmed" ? "green" :
+            val === "completed" ? "purple" :
+            val === "cancelled" ? "red" :
+            val === "expired" ? "slate" :
+            "gray";
+
           return (
-            <div className="space-x-1">
-              <Badge color={row.status==="booked"?"blue":row.status==="trial"?"purple":"gray"}>
-                {formatCell(val)}
-              </Badge>
-              {isTrial && (
-                <Badge color={over ? "red" : atCap ? "orange" : "green"} title="Trial usage">
-                  {`trial ${count}/${limit ?? "∞"}`}
-                </Badge>
-              )}
-            </div>
+            <Badge color={color}>
+              {formatCell(val)}
+            </Badge>
           );
         }
 
@@ -1150,22 +1147,20 @@ export default function AdminDashboard({ initialTab = "users" }) {
                           const val = flat[k];
 
                           if (isLesson && k === "status") {
-                            const isTrial = row.status === "trial";
-                            const count = Number(row.studentTrialCount ?? 0);
-                            const limit = row.studentTrialLimit == null ? null : Number(row.studentTrialLimit);
-                            const over = limit != null ? count > limit : false;
-                            const atCap = limit != null ? count === limit : false;
+                            const color =
+                              val === "booked" ? "yellow" :
+                              val === "paid" ? "blue" :
+                              val === "confirmed" ? "green" :
+                              val === "completed" ? "purple" :
+                              val === "cancelled" ? "red" :
+                              val === "expired" ? "slate" :
+                              "gray";
 
                             return (
                               <td key={k} className="px-3 py-2 border-b space-x-1">
-                                <Badge color={row.status === "booked" ? "blue" : "purple"}>
+                                <Badge color={color}>
                                   {formatCell(val)}
                                 </Badge>
-                                {isTrial && (
-                                  <Badge color={over ? "red" : atCap ? "orange" : "green"} title="Trial usage">
-                                    {`trial ${count}/${limit ?? "∞"}`}
-                                  </Badge>
-                                )}
                               </td>
                             );
                           }
@@ -1379,7 +1374,7 @@ function toCSV(rows) {
 function downloadCSV(rows, filename = "export.csv") {
   const csv = toCSV(rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(csv ? new Blob([csv], { type: "text/csv;charset=utf-8;" }) : new Blob());
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
