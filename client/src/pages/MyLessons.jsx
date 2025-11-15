@@ -14,12 +14,14 @@ function euros(priceCentsOrEur) {
   return (n >= 1000 ? n / 100 : n).toFixed(2);
 }
 
-/* STUDENT-FACING STATUS TRANSLATION (A1) */
+/* STUDENT-FACING STATUS TRANSLATION — NEW LIFECYCLE */
 function translateStatus(raw) {
   switch (raw) {
     case "booked":
+      // Lesson created but not paid yet
       return "pending_payment";
-    case "pending":
+    case "paid":
+      // Payment done, waiting for tutor confirmation
       return "paid_waiting_tutor";
     case "confirmed":
       return "confirmed";
@@ -29,9 +31,8 @@ function translateStatus(raw) {
       return "cancelled";
     case "expired":
       return "expired";
-    case "reschedule_pending":
-      return "reschedule_requested";
     default:
+      // Fallback: show something sensible even if backend sends unknown status
       return raw || "pending_payment";
   }
 }
@@ -57,7 +58,7 @@ function normalizeLesson(raw) {
     _id: id,
     start: startISO,
     duration,
-    status: raw.status, // raw backend status
+    status: raw.status, // raw backend lifecycle status: booked/paid/confirmed/completed/cancelled/expired
     isTrial: !!raw.isTrial,
     price,
     tutorId,
@@ -70,6 +71,8 @@ function deriveStatus(l) {
   const started = new Date(l.start).getTime() <= Date.now();
   const translated = translateStatus(l.status);
 
+  // If start time has passed and backend has not marked as completed/cancelled/expired,
+  // show "expired" in the student view.
   if (started && !["completed", "cancelled", "expired"].includes(translated)) {
     return "expired";
   }
@@ -347,12 +350,20 @@ export default function MyLessons() {
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-4">
             <label className="text-sm flex items-center gap-1">
-              <input type="checkbox" checked={hidePast} onChange={(e) => setHidePast(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={hidePast}
+                onChange={(e) => setHidePast(e.target.checked)}
+              />
               Hide past
             </label>
 
             <label className="text-sm flex items-center gap-1">
-              <input type="checkbox" checked={onlyTrials} onChange={(e) => setOnlyTrials(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={onlyTrials}
+                onChange={(e) => setOnlyTrials(e.target.checked)}
+              />
               Only trials
             </label>
 
@@ -367,7 +378,6 @@ export default function MyLessons() {
                 <option value="pending_payment">Payment required</option>
                 <option value="paid_waiting_tutor">Paid — awaiting tutor</option>
                 <option value="confirmed">Confirmed</option>
-                <option value="reschedule_requested">Reschedule requested</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="expired">Expired</option>
@@ -385,7 +395,6 @@ export default function MyLessons() {
             <StatusBadge status="pending_payment" />
             <StatusBadge status="paid_waiting_tutor" />
             <StatusBadge status="confirmed" />
-            <StatusBadge status="reschedule_requested" />
             <StatusBadge status="completed" />
             <StatusBadge status="cancelled" />
             <StatusBadge status="expired" />
@@ -427,7 +436,7 @@ export default function MyLessons() {
                   </div>
                   <div className="ml-auto text-xs flex gap-2 items-center">
                     <StatusBadge status={status} isTrial={l.isTrial} />
-                    {["pending_payment", "paid_waiting_tutor", "confirmed", "reschedule_requested"].includes(status) && (
+                    {["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status) && (
                       <TinyCountdown to={l.start} />
                     )}
                   </div>
