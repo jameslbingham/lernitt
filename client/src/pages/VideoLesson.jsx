@@ -34,8 +34,7 @@ export default function VideoLesson() {
     if (lessonId) loadRoom();
   }, [lessonId]);
 
-  // The NEW light grey colour (this replaces the purple)
-  const softGrey = "#d4d4d4";
+  const softGrey = "#d4d4d4"; // BORDER COLOUR YOU WANT
 
   return (
     <div
@@ -47,13 +46,13 @@ export default function VideoLesson() {
         flexDirection: "column",
       }}
     >
-      {/* HEADER (same grey as border, text white, slightly smaller) */}
+      {/* HEADER */}
       <div
         style={{
           background: softGrey,
           color: "white",
           padding: "14px",
-          fontSize: "18px",  // slightly smaller
+          fontSize: "18px",
           fontWeight: "bold",
           textAlign: "center",
         }}
@@ -61,7 +60,7 @@ export default function VideoLesson() {
         lernitt — Live Lesson
       </div>
 
-      {/* VIDEO WINDOW */}
+      {/* VIDEO AREA */}
       <div
         style={{
           flex: 1,
@@ -71,30 +70,42 @@ export default function VideoLesson() {
           background: "#eaeaea",
         }}
       >
-        {loading && (
-          <p style={{ fontSize: "18px" }}>Loading video room…</p>
-        )}
+        {/* WRAPPER WITH THE BORDER — THIS IS THE FIX */}
+        <div
+          style={{
+            width: "90%",
+            height: "90%",
+            border: `2px solid ${softGrey}`,   // ORIGINAL BORDER, EXACT SHAPE
+            borderRadius: "12px",              // ORIGINAL RADIUS
+            overflow: "hidden",                // ensures corners stay rounded
+            background: "black",               // original background
+          }}
+        >
+          {loading && (
+            <p style={{ fontSize: "18px", color: "white", padding: "20px" }}>
+              Loading video room…
+            </p>
+          )}
 
-        {!loading && roomUrl && (
-          <iframe
-            ref={iframeRef}
-            src={`${roomUrl}?embed=true&audioSource=mic&videoSource=camera&layout=custom&hideLogo=true`}
-            allow="camera; microphone; fullscreen; speaker; display-capture"
-            style={{
-              width: "90%",
-              height: "90%",
-              border: `2px solid ${softGrey}`,  // ORIGINAL border, only colour changed
-              borderRadius: "12px",             // EXACT original rounding
-              background: "black",
-            }}
-          />
-        )}
+          {!loading && roomUrl && (
+            <iframe
+              ref={iframeRef}
+              src={`${roomUrl}?embed=true&audioSource=mic&videoSource=camera&layout=custom&hideLogo=true`}
+              allow="camera; microphone; fullscreen; speaker; display-capture"
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none", // border is now on the WRAPPER (correct)
+              }}
+            />
+          )}
 
-        {!loading && !roomUrl && (
-          <p style={{ color: "red", fontSize: "18px" }}>
-            Could not load video room.
-          </p>
-        )}
+          {!loading && !roomUrl && (
+            <p style={{ color: "red", fontSize: "18px", padding: "20px" }}>
+              Could not load video room.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
