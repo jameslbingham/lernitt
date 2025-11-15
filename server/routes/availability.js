@@ -2,7 +2,6 @@
 const express = require("express");
 const Availability = require("../models/Availability");
 const Lesson = require("../models/Lesson");
-const { verifyToken } = require("../middleware/auth");
 const { DateTime } = require("luxon");
 
 const router = express.Router();
@@ -51,8 +50,12 @@ function sliceDaySlots(day, ranges, durMins, policy, interval) {
 /* ---------- routes: tutor self + admin ---------- */
 
 // GET /api/availability/me
-router.get("/me", verifyToken, async (req, res) => {
+router.get("/me", async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const av = await Availability.findOne({ tutor: req.user.id });
     res.json(av || {});
   } catch (err) {
@@ -62,9 +65,9 @@ router.get("/me", verifyToken, async (req, res) => {
 });
 
 // DELETE /api/availability/all  (admin only)
-router.delete("/all", verifyToken, async (req, res) => {
+router.delete("/all", async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
+    if (!req.user || req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -79,14 +82,16 @@ router.delete("/all", verifyToken, async (req, res) => {
 /* ---------- routes: exceptions ---------- */
 
 // POST /api/availability/exceptions
-router.post("/exceptions", verifyToken, async (req, res) => {
+router.post("/exceptions", async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const { date, open, ranges = [] } = req.body || {};
 
     if (!date || typeof open !== "boolean") {
-      return res
-        .status(400)
-        .json({ error: "date and open are required" });
+      return res.status(400).json({ error: "date and open are required" });
     }
 
     if (open && !Array.isArray(ranges)) {
@@ -112,8 +117,12 @@ router.post("/exceptions", verifyToken, async (req, res) => {
 });
 
 // DELETE /api/availability/exceptions/:date
-router.delete("/exceptions/:date", verifyToken, async (req, res) => {
+router.delete("/exceptions/:date", async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const { date } = req.params;
 
     const av = await Availability.findOne({ tutor: req.user.id });
@@ -249,8 +258,12 @@ router.get("/:tutorId", async (req, res) => {
 /* ---------- routes: update base availability ---------- */
 
 // PUT /api/availability
-router.put("/", verifyToken, async (req, res) => {
+router.put("/", async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const tutor = req.user.id;
     const {
       timezone,
@@ -278,8 +291,7 @@ router.put("/", verifyToken, async (req, res) => {
     doc.weekly = Array.isArray(weekly) ? weekly : [];
     doc.exceptions = Array.isArray(exceptions) ? exceptions : [];
     doc.slotInterval = Number(slotInterval) || 30;
-    doc.slotStartPolicy =
-      slotStartPolicy === "hourHalf" ? "hourHalf" : "hourHalf";
+    doc.slotStartPolicy = slotStartPolicy || "hourHalf";
 
     await doc.save();
     res.json(doc);
