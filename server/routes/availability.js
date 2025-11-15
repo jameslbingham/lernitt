@@ -45,12 +45,7 @@ function sliceDaySlots(day, ranges, durMins, policy, interval) {
   return out;
 }
 
-/* =====================================================================
-   CORRECT ROUTE ORDER
-   ===================================================================== */
-
-/* ---------- TUTOR'S OWN AVAILABILITY (specific) ---------- */
-// GET /api/availability/me
+/* ---------- ME (specific) ---------- */
 router.get("/me", verifyToken, async (req, res) => {
   try {
     const av = await Availability.findOne({ tutor: req.user.id });
@@ -61,8 +56,7 @@ router.get("/me", verifyToken, async (req, res) => {
   }
 });
 
-/* ---------- ADMIN CLEAR ALL ---------- */
-// DELETE /api/availability/all
+/* ---------- ADMIN CLEAR ---------- */
 router.delete("/all", verifyToken, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -75,8 +69,7 @@ router.delete("/all", verifyToken, async (req, res) => {
   }
 });
 
-/* ---------- EXCEPTIONS API ---------- */
-// POST /api/availability/exceptions
+/* ---------- EXCEPTIONS ---------- */
 router.post("/exceptions", verifyToken, async (req, res) => {
   try {
     const { date, open, ranges = [] } = req.body || {};
@@ -101,7 +94,6 @@ router.post("/exceptions", verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/availability/exceptions/:date
 router.delete("/exceptions/:date", verifyToken, async (req, res) => {
   try {
     const { date } = req.params;
@@ -122,8 +114,7 @@ router.delete("/exceptions/:date", verifyToken, async (req, res) => {
   }
 });
 
-/* ---------- SLOTS API (high specific) ---------- */
-// GET /api/availability/:tutorId/slots
+/* ---------- SLOTS (specific) ---------- */
 router.get("/:tutorId/slots", async (req, res) => {
   try {
     const { tutorId } = req.params;
@@ -199,8 +190,7 @@ router.get("/:tutorId/slots", async (req, res) => {
   }
 });
 
-/* ---------- GENERIC LOAD (must be last of GETs) ---------- */
-// GET /api/availability/:tutorId
+/* ---------- GENERIC LAST ---------- */
 router.get("/:tutorId", async (req, res) => {
   try {
     const doc = await Availability.findOne({ tutor: req.params.tutorId });
@@ -211,8 +201,7 @@ router.get("/:tutorId", async (req, res) => {
   }
 });
 
-/* ---------- UPDATE AVAILABILITY (PUT) ---------- */
-// PUT /api/availability
+/* ---------- UPDATE ---------- */
 router.put("/", verifyToken, async (req, res) => {
   try {
     const tutor = req.user.id;
@@ -238,7 +227,7 @@ router.put("/", verifyToken, async (req, res) => {
     doc.weekly = Array.isArray(weekly) ? weekly : [];
     doc.exceptions = Array.isArray(exceptions) ? exceptions : [];
     doc.slotInterval = Number(slotInterval) || 30;
-    doc.slotStartPolicy = slotStartPolicy === "hourHalf" ? "hourHalf" : "hourHalf";
+    doc.slotStartPolicy = slotStartPolicy;
 
     await doc.save();
     res.json(doc);
