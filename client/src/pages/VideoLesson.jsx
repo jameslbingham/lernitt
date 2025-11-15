@@ -21,6 +21,7 @@ export default function VideoLesson() {
             body: JSON.stringify({ lessonId }),
           }
         );
+
         const data = await res.json();
         if (data.roomUrl) setRoomUrl(data.roomUrl);
       } catch (err) {
@@ -33,8 +34,7 @@ export default function VideoLesson() {
     if (lessonId) loadRoom();
   }, [lessonId]);
 
-  // NEW soft light grey
-  const softGrey = "#d4d4d4";
+  const softGrey = "#d4d4d4"; // NEW COLOUR ONLY
 
   return (
     <div
@@ -46,13 +46,13 @@ export default function VideoLesson() {
         flexDirection: "column",
       }}
     >
-      {/* HEADER — same light grey, text white, slightly smaller */}
+      {/* HEADER (same grey as the border, text white, slightly smaller) */}
       <div
         style={{
           background: softGrey,
           color: "white",
-          padding: "12px",
-          fontSize: "18px",        // made slightly smaller
+          padding: "14px",
+          fontSize: "18px",     // slightly smaller
           fontWeight: "bold",
           textAlign: "center",
         }}
@@ -80,8 +80,8 @@ export default function VideoLesson() {
             style={{
               width: "90%",
               height: "90%",
-              border: `3px solid ${softGrey}`,   // SAME SIZE, NEW LIGHT GREY
-              borderRadius: "12px",              // unchanged
+              border: `3px solid ${softGrey}`,   // ORIGINAL BORDER SIZE, NEW COLOUR ONLY
+              borderRadius: "12px",              // original shape
               background: "black",
             }}
           />
