@@ -57,6 +57,12 @@ async function createLesson({
   const startTime = new Date(start);
   const endTime = new Date(startTime.getTime() + mins * 60000);
 
+  // 🔥 Normalize old statuses to new lifecycle
+  let newStatus = status;
+  if (status === "pending") newStatus = "booked";
+  if (status === "not_approved") newStatus = "cancelled";
+  if (status === "reschedule_pending") newStatus = "reschedule_requested";
+
   const lesson = await Lesson.create({
     tutor: tutor._id,
     student: student._id,
@@ -65,7 +71,7 @@ async function createLesson({
     endTime,
     price,             // integer cents
     currency,
-    status,
+    status: newStatus,
     notes: 'Seeded lesson',
     isPaid: !!paid,
     ...extras,
@@ -77,11 +83,11 @@ async function createLesson({
       user: student._id,
       tutor: tutor._id,
       lesson: lesson._id,
-      amount: price,             // integer cents
+      amount: price,
       currency,
-      provider: 'stripe',        // safe enum
+      provider: 'stripe',
       providerPaymentId: `seed_${Math.random().toString(36).slice(2)}`,
-      status: (status === 'completed' || status === 'confirmed') ? 'succeeded' : 'created',
+      status: (newStatus === 'completed' || newStatus === 'confirmed') ? 'succeeded' : 'created',
       refundAmount: 0,
       meta: { seedTag },
     });
@@ -89,7 +95,7 @@ async function createLesson({
     await lesson.save();
   }
 
-  if (status === 'completed') {
+  if (newStatus === 'completed') {
     await Payout.create({
       tutor: tutor._id,
       lesson: lesson._id,
@@ -101,7 +107,7 @@ async function createLesson({
     });
   }
 
-  console.log(`Created lesson ${lesson._id} (${status})`);
+  console.log(`Created lesson ${lesson._id} (${newStatus})`);
   return lesson;
 }
 
@@ -172,9 +178,10 @@ async function main() {
     isTutor: false,
   });
 
-  // LESSONS
+  // LESSON SEEDING
   const now = new Date();
 
+  // old "pending" → booked
   await createLesson({
     tutor: bob,
     student: alice,
@@ -182,7 +189,7 @@ async function main() {
     mins: 60,
     price: 3000,
     currency: 'eur',
-    status: 'pending',
+    status: 'booked',
     paid: false,
   });
 
@@ -225,6 +232,7 @@ async function main() {
     },
   });
 
+  // old "pending" → booked
   await createLesson({
     tutor: bob,
     student: alice,
@@ -232,7 +240,7 @@ async function main() {
     mins: 30,
     price: 1800,
     currency: 'eur',
-    status: 'pending',
+    status: 'booked',
     paid: false,
     extras: {
       rescheduledAt: new Date(),
