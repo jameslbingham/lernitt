@@ -27,18 +27,18 @@ const LessonSchema = new Schema(
     currency: { type: String, default: 'EUR', trim: true, uppercase: true },
 
     // Lesson status lifecycle
+    // New lifecycle: booked → paid → confirmed → completed → cancelled → expired
     status: {
       type: String,
       enum: [
-        'booked',     // ← NEW
-        'pending',
-        'confirmed',
-        'paid',       // ← NEW
-        'completed',
-        'cancelled',
-        'expired'     // ← NEW
+        'booked',     // student booked, payment required
+        'paid',       // payment succeeded
+        'confirmed',  // tutor confirmed
+        'completed',  // lesson finished
+        'cancelled',  // cancelled by student/tutor/admin
+        'expired'     // time passed without completion
       ],
-      default: 'pending',
+      default: 'booked',
       index: true,
     },
 
@@ -46,7 +46,7 @@ const LessonSchema = new Schema(
     payment:  { type: Schema.Types.ObjectId, ref: 'Payment' },
     payout:   { type: Schema.Types.ObjectId, ref: 'Payout' },
     isPaid:   { type: Boolean, default: false },
-    paidAt:   { type: Date },                      // ← NEW FIELD
+    paidAt:   { type: Date },
 
     // Free 30-minute trial
     isTrial:  { type: Boolean, default: false },
@@ -56,7 +56,7 @@ const LessonSchema = new Schema(
 
     // Cancellations / rescheduling
     rescheduledAt: { type: Date },
-    cancelledAt:   { type: Date },                 // (already existed)
+    cancelledAt:   { type: Date },
     cancelledBy:   { type: String, enum: ['student', 'tutor', 'admin'] },
     cancelReason:  { type: String, trim: true },
     reschedulable: { type: Boolean, default: false },
@@ -95,6 +95,8 @@ LessonSchema.methods.summary = function () {
     startTime: this.startTime,
     endTime: this.endTime,
     isTrial: this.isTrial,
+    isPaid: this.isPaid,
+    paidAt: this.paidAt,
   };
 };
 
