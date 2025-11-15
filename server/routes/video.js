@@ -1,6 +1,5 @@
 // /server/routes/video.js
 const express = require("express");
-const axios = require("axios");
 
 const router = express.Router();
 
@@ -24,7 +23,6 @@ router.post("/create-room", async (req, res) => {
       return res.status(400).json({ error: "lessonId is required" });
     }
 
-    // Daily room settings (customisable later)
     const body = {
       name: `lesson-${lessonId}`,
       properties: {
@@ -37,27 +35,35 @@ router.post("/create-room", async (req, res) => {
       privacy: "private",
     };
 
-    const response = await axios.post(
-      "https://api.daily.co/v1/rooms",
-      body,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${DAILY_API_KEY}`,
-        },
-      }
-    );
+    const response = await fetch("https://api.daily.co/v1/rooms", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${DAILY_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+    });
 
-    // Return the room URL for frontend use
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      console.error("Daily API error:", errData || response.statusText);
+      return res.status(500).json({
+        error: "Failed to create Daily room",
+        details: errData || { status: response.status },
+      });
+    }
+
+    const data = await response.json();
+
     res.json({
-      roomUrl: response.data.url,
-      roomName: response.data.name,
+      roomUrl: data.url,
+      roomName: data.name,
     });
   } catch (err) {
-    console.error("Daily room creation error:", err.response?.data || err);
+    console.error("Daily room creation error:", err);
     res.status(500).json({
       error: "Failed to create Daily room",
-      details: err.response?.data || err.message,
+      details: err.message,
     });
   }
 });
