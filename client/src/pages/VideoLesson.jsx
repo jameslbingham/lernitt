@@ -21,7 +21,6 @@ export default function VideoLesson() {
             body: JSON.stringify({ lessonId }),
           }
         );
-
         const data = await res.json();
         if (data.roomUrl) setRoomUrl(data.roomUrl);
       } catch (err) {
@@ -34,7 +33,7 @@ export default function VideoLesson() {
     if (lessonId) loadRoom();
   }, [lessonId]);
 
-  const softGrey = "#d4d4d4"; // NEW COLOUR ONLY
+  const softGrey = "#d4d4d4"; // *** NEW LIGHT GREY ***
 
   return (
     <div
@@ -46,13 +45,13 @@ export default function VideoLesson() {
         flexDirection: "column",
       }}
     >
-      {/* HEADER (same grey as the border, text white, slightly smaller) */}
+      {/* HEADER */}
       <div
         style={{
-          background: softGrey,
-          color: "white",
+          background: softGrey,   // same colour as border
+          color: "white",         // as requested
           padding: "14px",
-          fontSize: "18px",     // slightly smaller
+          fontSize: "18px",       // slightly smaller
           fontWeight: "bold",
           textAlign: "center",
         }}
@@ -60,7 +59,7 @@ export default function VideoLesson() {
         lernitt — Live Lesson
       </div>
 
-      {/* VIDEO AREA */}
+      {/* VIDEO */}
       <div
         style={{
           flex: 1,
@@ -80,8 +79,8 @@ export default function VideoLesson() {
             style={{
               width: "90%",
               height: "90%",
-              border: `3px solid ${softGrey}`,   // ORIGINAL BORDER SIZE, NEW COLOUR ONLY
-              borderRadius: "12px",              // original shape
+              border: `3px solid ${softGrey}`,  // *** ORIGINAL BORDER, NEW COLOUR ONLY ***
+              borderRadius: "12px",             // unchanged
               background: "black",
             }}
           />
