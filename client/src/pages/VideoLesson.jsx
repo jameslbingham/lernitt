@@ -33,7 +33,7 @@ export default function VideoLesson() {
     if (lessonId) loadRoom();
   }, [lessonId]);
 
-  const softGrey = "#d4d4d4"; // *** NEW LIGHT GREY ***
+  const softGrey = "#d4d4d4"; // NEW LIGHT GREY
 
   return (
     <div
@@ -45,13 +45,13 @@ export default function VideoLesson() {
         flexDirection: "column",
       }}
     >
-      {/* HEADER */}
+      {/* HEADER — same grey as border, white text, slightly smaller */}
       <div
         style={{
-          background: softGrey,   // same colour as border
-          color: "white",         // as requested
+          background: softGrey,
+          color: "white",
           padding: "14px",
-          fontSize: "18px",       // slightly smaller
+          fontSize: "18px",    // slightly smaller
           fontWeight: "bold",
           textAlign: "center",
         }}
@@ -79,8 +79,8 @@ export default function VideoLesson() {
             style={{
               width: "90%",
               height: "90%",
-              border: `3px solid ${softGrey}`,  // *** ORIGINAL BORDER, NEW COLOUR ONLY ***
-              borderRadius: "12px",             // unchanged
+              border: `2px solid ${softGrey}`,  // ORIGINAL BORDER SIZE, NEW COLOUR
+              borderRadius: "12px",             // ORIGINAL RADIUS
               background: "black",
             }}
           />
