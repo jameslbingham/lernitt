@@ -7,14 +7,12 @@ export default function VideoLesson() {
   const [roomUrl, setRoomUrl] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // We get ?lessonId=123 from the URL
   const [params] = useSearchParams();
   const lessonId = params.get("lessonId");
 
   useEffect(() => {
     async function loadRoom() {
       try {
-        // Ask backend to create/get a room
         const res = await fetch(
           `${import.meta.env.VITE_API}/api/video/create-room`,
           {
@@ -35,9 +33,7 @@ export default function VideoLesson() {
       }
     }
 
-    if (lessonId) {
-      loadRoom();
-    }
+    if (lessonId) loadRoom();
   }, [lessonId]);
 
   return (
@@ -61,7 +57,7 @@ export default function VideoLesson() {
           textAlign: "center",
         }}
       >
-        Lernitt — Live Lesson
+        lernitt — Live Lesson
       </div>
 
       {/* Main video area */}
@@ -84,7 +80,7 @@ export default function VideoLesson() {
             style={{
               width: "90%",
               height: "90%",
-              border: "3px solid #4f46e5",
+              border: "2px solid #d4d4d4", // soft light grey
               borderRadius: "12px",
               background: "black",
             }}
