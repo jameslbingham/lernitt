@@ -8,14 +8,40 @@ const auth = require('../middleware/auth');
 const { canReschedule } = require('../utils/policies');
 const validateSlot = require("../utils/validateSlot");
 
-/* Small helper: is this status terminal? */
+/* --------------------------
+   Normalize old/legacy statuses
+   -------------------------- */
+function normalizeStatus(status) {
+  const raw = (status || "").toLowerCase();
+
+  // Valid new statuses
+  const allowed = [
+    "booked",
+    "paid",
+    "confirmed",
+    "completed",
+    "cancelled",
+    "expired",
+    "reschedule_requested"
+  ];
+  if (allowed.includes(raw)) return raw;
+
+  // Legacy → new mappings
+  if (raw === "pending") return "booked";
+  if (raw === "not_approved") return "cancelled";
+  if (raw === "reschedule_pending") return "reschedule_requested";
+
+  // Default fallback
+  return "booked";
+}
+
+/* Terminal helper */
 function isTerminalStatus(status) {
   return ['cancelled', 'completed', 'expired'].includes(status);
 }
 
 /* ============================================
-   GET /api/lessons/tutor  
-   All lessons for the logged-in tutor
+   GET /api/lessons/tutor
    ============================================ */
 router.get('/tutor', auth, async (req, res) => {
   try {
@@ -23,7 +49,6 @@ router.get('/tutor', auth, async (req, res) => {
       .populate('student', 'name avatar')
       .sort({ startTime: 1 });
 
-    // Normalized structure for frontend
     const out = lessons.map((l) => ({
       _id: String(l._id),
       studentName: l.student?.name || "Student",
@@ -33,7 +58,7 @@ router.get('/tutor', auth, async (req, res) => {
       startTime: l.startTime,
       end: l.endTime,
       duration: l.durationMins,
-      status: l.status,
+      status: normalizeStatus(l.status),
       price: l.price,
       currency: l.currency,
       isTrial: l.isTrial,
@@ -50,7 +75,7 @@ router.get('/tutor', auth, async (req, res) => {
 
 /* ============================================
    Create a lesson (student booking)
-   status: 'booked' (pending payment)
+   status: 'booked' (student booked; payment required)
    ============================================ */
 router.post('/', auth, async (req, res) => {
   try {
@@ -105,7 +130,7 @@ router.post('/', auth, async (req, res) => {
       currency,
       notes,
       isTrial,
-      status: 'booked', // pending payment
+      status: 'booked', // student booked; payment required
     });
 
     await lesson.save();
@@ -133,7 +158,13 @@ router.get('/mine', auth, async (req, res) => {
     const lessons = await Lesson.find({ student: req.user.id })
       .populate('tutor', 'name avatar')
       .sort({ startTime: -1 });
-    res.json(lessons);
+
+    const out = lessons.map((l) => ({
+      ...l.toObject(),
+      status: normalizeStatus(l.status),
+    }));
+
+    res.json(out);
   } catch (err) {
     console.error('[LESSONS][mine] error:', err);
     res.status(500).json({ message: 'Server error' });
@@ -150,7 +181,11 @@ router.get('/:id', auth, async (req, res) => {
     if (l.student.toString() !== req.user.id && l.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
     }
-    res.json(l);
+
+    const out = l.toObject();
+    out.status = normalizeStatus(out.status);
+
+    res.json(out);
   } catch (err) {
     console.error('[LESSONS][getOne] error:', err);
     res.status(500).json({ message: 'Server error' });
@@ -158,10 +193,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 /* ============================================
-   Tutor confirm (must be paid first)
-   PATCH /api/lessons/:id/confirm
-   Transitions: paid → confirmed
-   (or trial → confirmed)
+   Tutor confirm (paid → confirmed)
    ============================================ */
 router.patch('/:id/confirm', auth, async (req, res) => {
   try {
@@ -178,22 +210,14 @@ router.patch('/:id/confirm', auth, async (req, res) => {
 
     let paid = lesson.isPaid === true;
 
-    if (lesson.isTrial) {
-      paid = true;
-    }
+    if (lesson.isTrial) paid = true;
+    if (!lesson.isTrial && lesson.status === 'paid') paid = true;
 
-    // Normal path: status already "paid"
-    if (!lesson.isTrial && lesson.status === 'paid') {
-      paid = true;
-    }
-
-    // Fallback: check Payment record if not already marked paid
-    if (!paid && !lesson.isTrial) {
+    if (!paid) {
       const succeededPayment = await Payment.findOne({
         lesson: lesson._id,
         status: 'succeeded',
       }).lean();
-
       if (!succeededPayment) {
         return res.status(400).json({ message: 'Lesson must be paid before confirmation' });
       }
@@ -201,11 +225,6 @@ router.patch('/:id/confirm', auth, async (req, res) => {
       lesson.isPaid = true;
       lesson.paidAt = lesson.paidAt || new Date();
       if (succeededPayment._id) lesson.payment = succeededPayment._id;
-      paid = true;
-    }
-
-    if (!paid) {
-      return res.status(400).json({ message: 'Lesson must be paid before confirmation' });
     }
 
     lesson.status = 'confirmed';
@@ -227,9 +246,7 @@ router.patch('/:id/confirm', auth, async (req, res) => {
 });
 
 /* ============================================
-   Tutor rejects a paid booking
-   PATCH /api/lessons/:id/reject
-   Typical: paid → cancelled (tutor-reject)
+   Tutor rejects → cancelled
    ============================================ */
 router.patch('/:id/reject', auth, async (req, res) => {
   try {
@@ -244,7 +261,6 @@ router.patch('/:id/reject', auth, async (req, res) => {
       return res.status(400).json({ message: `Cannot reject a ${lesson.status} lesson` });
     }
 
-    // We assume payment has already been taken (status "paid")
     lesson.status = 'cancelled';
     lesson.cancelledAt = new Date();
     lesson.cancelledBy = 'tutor';
@@ -257,7 +273,7 @@ router.patch('/:id/reject', auth, async (req, res) => {
       lesson.student,
       'cancel',
       'Lesson cancelled by tutor',
-      'Your lesson was cancelled by the tutor. Support will handle any refund if applicable.',
+      'Your lesson was cancelled by the tutor.',
       { lesson: lesson._id }
     );
 
@@ -269,8 +285,7 @@ router.patch('/:id/reject', auth, async (req, res) => {
 });
 
 /* ============================================
-   Cancel (student or tutor)
-   PATCH /api/lessons/:id/cancel
+   Cancel lesson
    ============================================ */
 router.patch('/:id/cancel', auth, async (req, res) => {
   try {
@@ -321,9 +336,7 @@ router.patch('/:id/cancel', auth, async (req, res) => {
 });
 
 /* ============================================
-   Complete (tutor only)
-   PATCH /api/lessons/:id/complete
-   confirmed → completed (+ queue payout)
+   Complete → completed
    ============================================ */
 router.patch('/:id/complete', auth, async (req, res) => {
   try {
@@ -373,10 +386,8 @@ router.patch('/:id/complete', auth, async (req, res) => {
 });
 
 /* ============================================
-   Request reschedule (student or tutor)
-   PATCH /api/lessons/:id/reschedule
-   Marks status → 'reschedule_requested'
-   (tutor later approves / rejects)
+   Request reschedule
+   → reschedule_requested
    ============================================ */
 router.patch('/:id/reschedule', auth, async (req, res) => {
   try {
@@ -400,7 +411,7 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
       return res.status(400).json({ message: `Cannot reschedule a ${lesson.status} lesson` });
     }
 
-    // validate slot for new time
+    // validate slot
     const durMins = Math.max(
       15,
       Math.round((new Date(newEndTime) - new Date(newStartTime)) / 60000)
@@ -413,7 +424,6 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
     });
     if (!chk.ok) return res.status(400).json({ error: `slot-invalid:${chk.reason}` });
 
-    // clash guard
     const clash = await Lesson.findOne({
       tutor: lesson.tutor,
       _id: { $ne: lesson._id },
@@ -423,7 +433,6 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
     });
     if (clash) return res.status(400).json({ message: 'Tutor has a clash at new time' });
 
-    // Store requested times; actual lesson time will be updated on approval.
     lesson.pendingStartTime = new Date(newStartTime);
     lesson.pendingEndTime = new Date(newEndTime);
     lesson.status = 'reschedule_requested';
@@ -455,9 +464,8 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
 });
 
 /* ============================================
-   Tutor approves reschedule
-   PATCH /api/lessons/:id/reschedule-approve
-   reschedule_requested → confirmed (new time)
+   Approve reschedule
+   reschedule_requested → confirmed
    ============================================ */
 router.patch('/:id/reschedule-approve', auth, async (req, res) => {
   try {
@@ -504,8 +512,7 @@ router.patch('/:id/reschedule-approve', auth, async (req, res) => {
 });
 
 /* ============================================
-   Tutor rejects reschedule
-   PATCH /api/lessons/:id/reschedule-reject
+   Reject reschedule
    reschedule_requested → confirmed (original time)
    ============================================ */
 router.patch('/:id/reschedule-reject', auth, async (req, res) => {
@@ -525,7 +532,6 @@ router.patch('/:id/reschedule-reject', auth, async (req, res) => {
     lesson.pendingEndTime = undefined;
     lesson.rescheduleRequestedAt = undefined;
     lesson.rescheduleRequestedBy = undefined;
-    // keep original start/end; revert status to confirmed (or paid if you prefer)
     lesson.status = 'confirmed';
 
     await lesson.save();
@@ -546,9 +552,7 @@ router.patch('/:id/reschedule-reject', auth, async (req, res) => {
 });
 
 /* ============================================
-   Expire overdue lessons for this tutor
-   PATCH /api/lessons/expire-overdue
-   Any past lessons that are not terminal → expired
+   Expire overdue
    ============================================ */
 router.patch('/expire-overdue', auth, async (req, res) => {
   try {
