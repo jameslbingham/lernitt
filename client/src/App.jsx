@@ -2,11 +2,22 @@
 console.log("App.jsx loaded");
 
 import { useEffect, useState, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link,
+  useNavigate,
+  Navigate,
+  useLocation
+} from "react-router-dom";
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
 import { useAuth } from "./hooks/useAuth.jsx";
+
+// NEW import
+import VideoLesson from "./pages/VideoLesson.jsx";
 
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -32,7 +43,7 @@ import TutorDashboard from "./pages/TutorDashboard";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
-// ---- Admin Guard (real login) ---------------------------------------------
+// ---- Admin Guard --------------------------------------------------------
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
   const loc = useLocation();
@@ -46,7 +57,7 @@ function AdminGuard({ children }) {
   }
   return children;
 }
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 
 function Nav() {
   const nav = useNavigate();
@@ -60,7 +71,7 @@ function Nav() {
       const list = await apiFetch(`${API}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-        setUnread(Array.isArray(list) ? list.filter((n) => !n.read).length : 0);
+      setUnread(Array.isArray(list) ? list.filter((n) => !n.read).length : 0);
     } catch {
       setUnread(0);
     }
@@ -93,7 +104,11 @@ function Nav() {
       {isAuthed ? (
         <>
           {" | "}
-          <button type="button" onClick={() => logout()} style={{ cursor: "pointer" }}>
+          <button
+            type="button"
+            onClick={() => logout()}
+            style={{ cursor: "pointer" }}
+          >
             Logout
           </button>
         </>
@@ -172,18 +187,23 @@ export default function App({ mockMode }) {
               }
             />
 
-            {/* Auth-protected */}
+            {/* Auth-protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/availability" element={<Availability />} />
               <Route path="/my-lessons" element={<MyLessons />} />
               <Route path="/tutor-lessons" element={<TutorLessons />} />
-              <Route path="/student-lesson/:lessonId" element={<StudentLessonDetail />} />
+              <Route
+                path="/student-lesson/:lessonId"
+                element={<StudentLessonDetail />}
+              />
               <Route path="/payouts" element={<Payouts />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/notifications" element={<Notifications />} />
-              {/* NEW protected Tutor Dashboard */}
               <Route path="/tutor" element={<TutorDashboard />} />
+
+              {/* NEW VIDEO ROUTE */}
+              <Route path="/video" element={<VideoLesson />} />
             </Route>
 
             {/* Fallback */}
