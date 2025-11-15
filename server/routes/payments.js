@@ -1,3 +1,4 @@
+// server/routes/payments.js
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -145,6 +146,16 @@ router.patch('/:id/status', auth, async (req, res) => {
 
     payment.status = status;
     await payment.save();
+
+    // NEW: when payment succeeds, mark lesson as paid in lifecycle
+    if (status === 'succeeded' && payment.lesson) {
+      const lesson = payment.lesson;
+      lesson.status = 'paid';
+      lesson.isPaid = true;
+      lesson.paidAt = new Date();
+      await lesson.save();
+    }
+
     return res.json(payment);
   } catch (err) {
     console.error('[PAY][status] error:', err);
@@ -282,6 +293,7 @@ router.post("/stripe/mark-paid", async (req, res) => {
     if (!lesson) return res.status(404).json({ message: "Lesson not found" });
 
     lesson.status = "paid";
+    lesson.isPaid = true;
     lesson.paidAt = new Date();
     await lesson.save();
 
@@ -301,6 +313,7 @@ router.post("/paypal/mark-paid", async (req, res) => {
     if (!lesson) return res.status(404).json({ message: "Lesson not found" });
 
     lesson.status = "paid";
+    lesson.isPaid = true;
     lesson.paidAt = new Date();
     await lesson.save();
 
