@@ -23,9 +23,7 @@ export default function VideoLesson() {
         );
 
         const data = await res.json();
-        if (data.roomUrl) {
-          setRoomUrl(data.roomUrl);
-        }
+        if (data.roomUrl) setRoomUrl(data.roomUrl);
       } catch (err) {
         console.error("Video load error:", err);
       } finally {
@@ -35,6 +33,9 @@ export default function VideoLesson() {
 
     if (lessonId) loadRoom();
   }, [lessonId]);
+
+  // Soft grey that matches your request
+  const softGrey = "#d4d4d4";
 
   return (
     <div
@@ -49,12 +50,13 @@ export default function VideoLesson() {
       {/* Header */}
       <div
         style={{
-          background: "#4f46e5",
-          color: "white",
+          background: softGrey,      // changed from purple to soft grey
+          color: "#333",              // darker text for readability
           padding: "14px",
           fontSize: "20px",
           fontWeight: "bold",
           textAlign: "center",
+          borderBottom: `2px solid ${softGrey}`,
         }}
       >
         lernitt — Live Lesson
@@ -80,7 +82,7 @@ export default function VideoLesson() {
             style={{
               width: "90%",
               height: "90%",
-              border: "2px solid #d4d4d4", // soft light grey
+              border: `2px solid ${softGrey}`,   // border kept AND updated
               borderRadius: "12px",
               background: "black",
             }}
