@@ -97,6 +97,13 @@ export default function Home() {
     const tutorName = upcoming.tutorName || upcoming.tutor?.name || "Tutor";
     const id = upcoming._id || upcoming.id;
     const tutorId = String(upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || "");
+
+    // FIXED: Remove old "pending" fallback → use "booked"
+    const status =
+      upcoming.status
+        ? upcoming.status.toLowerCase()
+        : "booked";
+
     return {
       id,
       tutorName,
@@ -109,7 +116,7 @@ export default function Home() {
         ) || 0,
       isTrial: !!upcoming.isTrial,
       price: typeof upcoming.price === "number" ? upcoming.price : Number(upcoming.price) || 0,
-      status: (upcoming.status || "pending").toLowerCase(),
+      status,
     };
   }, [upcoming]);
 
@@ -117,7 +124,6 @@ export default function Home() {
     return (
       <div className="p-4 space-y-4">
         <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
-        {/* Keep search visible even during loading */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -142,7 +148,7 @@ export default function Home() {
   return (
     <div className="p-4 space-y-6">
 
-      {/* ✅ NEW welcome section */}
+      {/* NEW welcome section */}
       <div style={{ paddingBottom: 16 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
           Welcome to Lernitt
@@ -152,7 +158,7 @@ export default function Home() {
         </p>
       </div>
 
-      {/* ✅ Existing content below (unchanged) */}
+      {/* Search bar */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -171,8 +177,6 @@ export default function Home() {
         </button>
       </form>
 
-      {/* --- The rest of the page stays exactly the same --- */}
-      {/* Status + calls to action */}
       {err && <div className="text-red-600 text-sm">{err}</div>}
 
       <div className="grid gap-3 md:grid-cols-3">
