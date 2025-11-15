@@ -31,30 +31,29 @@ function durationEnd(iso, minutes) {
   return new Date(d.getTime() + Number(minutes) * 60000);
 }
 
-/* NEW: lifecycle rules */
+/* -------------------- lifecycle rules -------------------- */
+
+// New statuses only: booked → paid → confirmed → completed → cancelled → expired
 function deriveStatus(l) {
-  const raw = l.status || "booked";
+  const raw = (l.status || "booked").toLowerCase();
   const started = new Date(l.start).getTime() <= Date.now();
   const terminal = ["completed", "cancelled", "expired"];
 
-  // Auto-expire anything that has started but never reached a terminal state
   if (started && !terminal.includes(raw)) return "expired";
-
   return raw;
 }
 
-/* Student-friendly labels (Option A with B for confirmed) */
+// Student-friendly names
 const STATUS_LABELS = {
   booked: "Pending — payment needed",
-  paid: "Paid — awaiting tutor approval",
-  confirmed: "Tutor confirmed – lesson is now fully booked",
+  paid: "Paid — awaiting tutor confirmation",
+  confirmed: "Tutor confirmed — lesson is booked",
   completed: "Completed",
   cancelled: "Cancelled",
   expired: "Expired",
-  // keep old key for potential future use
-  reschedule_requested: "Reschedule requested",
 };
 
+/* -------------------- normalize incoming data -------------------- */
 function normalize(raw) {
   return {
     _id: raw._id || raw.id,
@@ -65,10 +64,12 @@ function normalize(raw) {
       Number(
         raw.duration ||
           (raw.endTime
-            ? (new Date(raw.endTime) - new Date(raw.startTime || raw.start)) / 60000
+            ? (new Date(raw.endTime) -
+                new Date(raw.startTime || raw.start)) /
+              60000
             : 0)
       ) || 0,
-    status: raw.status || "booked",
+    status: raw.status ? raw.status.toLowerCase() : "booked",
     isTrial: !!raw.isTrial,
     price: typeof raw.price === "number" ? raw.price : Number(raw.price) || 0,
     subject: raw.subject || "",
@@ -82,19 +83,25 @@ function normalize(raw) {
 function TinyCountdown({ to }) {
   const [left, setLeft] = useState(() => new Date(to).getTime() - Date.now());
   useEffect(() => {
-    const id = setInterval(() => setLeft(new Date(to).getTime() - Date.now()), 1000);
+    const id = setInterval(
+      () => setLeft(new Date(to).getTime() - Date.now()),
+      1000
+    );
     return () => clearInterval(id);
   }, [to]);
 
   if (!to || left <= 0)
     return (
-      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>• started</span>
+      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>
+        • started
+      </span>
     );
 
   const s = Math.floor(left / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
+
   return (
     <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.85 }}>
       • starts in {h}h {m}m {sec}s
@@ -108,17 +115,17 @@ function StatusPill({ status }) {
     booked: { bg: "#fff7e6", color: "#ad6800" },
     paid: { bg: "#e6f7ff", color: "#0050b3" },
     confirmed: { bg: "#e6fffb", color: "#006d75" },
-    reschedule_requested: { bg: "#f0f5ff", color: "#1d39c4" },
     completed: { bg: "#f6ffed", color: "#237804" },
     cancelled: { bg: "#fff1f0", color: "#a8071a" },
     expired: { bg: "#fafafa", color: "#595959" },
   };
-  const s = map[status] || map.booked;
+  const style = map[status] || map.booked;
+
   return (
     <span
       style={{
-        background: s.bg,
-        color: s.color,
+        background: style.bg,
+        color: style.color,
         padding: "2px 8px",
         borderRadius: 999,
         fontSize: 12,
@@ -137,28 +144,37 @@ export default function StudentLessonDetail() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
   const passed = loc.state?.lesson || null;
 
-  const [lesson, setLesson] = useState(passed ? normalize(passed) : null);
+  const [lesson, setLesson] = useState(
+    passed ? normalize(passed) : null
+  );
   const [loading, setLoading] = useState(!passed);
   const [err, setErr] = useState("");
 
   async function load() {
     if (!token) {
-      nav(`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`, {
-        replace: true,
-      });
+      nav(
+        `/login?next=${encodeURIComponent(
+          loc.pathname + loc.search
+        )}`,
+        { replace: true }
+      );
       return;
     }
     if (!lessonId) return;
+
     setLoading(true);
     setErr("");
+
     try {
-      // Use apiFetch so 401 auto-redirects to login
-      const data = await apiFetch(`/api/lessons/${encodeURIComponent(lessonId)}`, {
-        auth: true,
-      });
+      const data = await apiFetch(
+        `/api/lessons/${encodeURIComponent(lessonId)}`,
+        { auth: true }
+      );
       setLesson(normalize(data));
     } catch (e) {
       setErr(e.message || "Could not load lesson.");
@@ -176,25 +192,45 @@ export default function StudentLessonDetail() {
     () => (lesson ? durationEnd(lesson.start, lesson.duration) : null),
     [lesson]
   );
+
   const status = useMemo(
     () => (lesson ? deriveStatus(lesson) : "booked"),
     [lesson]
   );
 
+  /* -------------------- permissions -------------------- */
+
+  const isTrial = !!lesson?.isTrial;
+  const isTerminal = ["completed", "cancelled", "expired"].includes(status);
+
+  const canPay = !MOCK && !isTrial && status === "booked";
+  const canCancel = !MOCK && ["booked", "paid", "confirmed"].includes(status);
+
+  const showCountdown = ["booked", "paid", "confirmed"].includes(status);
+
+  const yourTZ =
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  const friendlyStatus = STATUS_LABELS[status] || STATUS_LABELS.booked;
+
   /* -------------------- actions -------------------- */
 
   async function onCancel() {
     if (MOCK) {
-      alert("Cancel is disabled in mock mode.");
+      alert("Cancel disabled in mock mode.");
       return;
     }
     if (!confirm("Cancel this lesson?")) return;
+
     try {
-      await apiFetch(`/api/lessons/${encodeURIComponent(lesson._id)}/cancel`, {
-        method: "PATCH",
-        auth: true,
-        body: { reason: "user-cancel" },
-      });
+      await apiFetch(
+        `/api/lessons/${encodeURIComponent(lesson._id)}/cancel`,
+        {
+          method: "PATCH",
+          auth: true,
+          body: { reason: "user-cancel" },
+        }
+      );
       await load();
     } catch (e) {
       alert(e.message || "Cancel failed");
@@ -203,7 +239,9 @@ export default function StudentLessonDetail() {
 
   function onWriteReview() {
     if (!lesson?.tutorId) return;
-    window.location.href = `/tutors/${encodeURIComponent(lesson.tutorId)}?review=1`;
+    window.location.href = `/tutors/${encodeURIComponent(
+      lesson.tutorId
+    )}?review=1`;
   }
 
   /* -------------------- render -------------------- */
@@ -218,27 +256,14 @@ export default function StudentLessonDetail() {
         </div>
       </div>
     );
+
   if (err) return <div className="p-4 text-red-600">{err}</div>;
   if (!lesson) return <div className="p-4">Not found.</div>;
 
-  const isTrial = !!lesson.isTrial;
-  const isTerminal = ["completed", "cancelled", "expired"].includes(status);
-
-  // New lifecycle-aware permissions
-  const canPay = !MOCK && !isTrial && status === "booked";
-  const canCancel = !MOCK && ["booked", "paid", "confirmed"].includes(status);
-
-  const showCountdown =
-    ["booked", "paid", "confirmed", "reschedule_requested"].includes(status);
-
-  const yourTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-
-  const friendlyStatus = STATUS_LABELS[status] || STATUS_LABELS.booked;
-
   return (
     <div className="p-4 space-y-4">
-      {/* Sticky header with status + live countdown */}
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold">
             Lesson with {lesson.tutorName || "Tutor"}
@@ -252,7 +277,7 @@ export default function StudentLessonDetail() {
         </div>
       </div>
 
-      {/* Times are shown in your timezone */}
+      {/* Timezone bar */}
       <div
         style={{
           padding: "6px 8px",
@@ -265,7 +290,7 @@ export default function StudentLessonDetail() {
         Times are shown in your timezone: {yourTZ}.
       </div>
 
-      {/* Top bar back link */}
+      {/* Back link */}
       <div className="flex items-center justify-between">
         <span />
         <Link to="/my-lessons" className="text-sm underline">
@@ -291,17 +316,21 @@ export default function StudentLessonDetail() {
       <div className="border rounded-2xl p-4 shadow-sm bg-white">
         {/* Tutor row */}
         <div className="flex flex-wrap items-baseline gap-2">
-          <div className="text-lg font-semibold">{lesson.tutorName}</div>
-          <span className="text-xs opacity-70">({lesson.tutorId})</span>
+          <div className="text-lg font-semibold">
+            {lesson.tutorName}
+          </div>
+          <span className="text-xs opacity-70">
+            ({lesson.tutorId})
+          </span>
           <Link
             to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
-            className="ml-auto text-sm border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            className="ml-auto text-sm border px-2 py-1 rounded-2xl shadow-sm"
           >
             View tutor →
           </Link>
         </div>
 
-        {/* Reminder / success banners */}
+        {/* Banners */}
         {isTrial && (
           <div
             style={{
@@ -348,16 +377,20 @@ export default function StudentLessonDetail() {
         <div className="mt-3 text-sm">
           <div>
             <b>Starts:</b> {fmtDateTime(lesson.start)}
-            {showCountdown && <TinyCountdown to={lesson.start} />}
+            {showCountdown && (
+              <TinyCountdown to={lesson.start} />
+            )}
           </div>
           <div>
-            <b>Ends:</b> {endAt ? fmtDateTime(endAt.toISOString()) : "—"}
+            <b>Ends:</b>{" "}
+            {endAt ? fmtDateTime(endAt.toISOString()) : "—"}
           </div>
           <div>
             <b>Duration:</b> {lesson.duration} min
           </div>
           <div>
-            <b>Status:</b> {friendlyStatus} {lesson.isTrial ? "· Trial" : ""}
+            <b>Status:</b> {friendlyStatus}{" "}
+            {isTrial ? "· Trial" : ""}
           </div>
           <div>
             <b>Price:</b> € {euros(lesson.price)}
@@ -370,7 +403,9 @@ export default function StudentLessonDetail() {
           {lesson.notes && (
             <div className="mt-2">
               <b>Notes:</b>
-              <div className="text-sm whitespace-pre-wrap">{lesson.notes}</div>
+              <div className="text-sm whitespace-pre-wrap">
+                {lesson.notes}
+              </div>
             </div>
           )}
         </div>
@@ -380,8 +415,7 @@ export default function StudentLessonDetail() {
           {canPay && (
             <Link
               to={`/pay/${encodeURIComponent(lesson._id)}`}
-              aria-label="Go to payment for this lesson"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
             >
               Pay
             </Link>
@@ -390,8 +424,7 @@ export default function StudentLessonDetail() {
           {canCancel && (
             <button
               onClick={onCancel}
-              aria-label="Cancel this lesson"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
             >
               Cancel
             </button>
@@ -399,8 +432,7 @@ export default function StudentLessonDetail() {
 
           <Link
             to={`/tutors/${encodeURIComponent(lesson.tutorId)}`}
-            aria-label="Open tutor profile"
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
           >
             Tutor
           </Link>
@@ -408,33 +440,36 @@ export default function StudentLessonDetail() {
           {isTerminal && (
             <button
               onClick={onWriteReview}
-              aria-label="Write a review for this tutor"
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
             >
               Write review
             </button>
           )}
         </div>
 
-        {/* Copy + ICS utilities */}
+        {/* Copy utilities */}
         <div className="flex flex-wrap gap-2 mt-2">
           <button
             onClick={async () => {
               try {
-                await navigator.clipboard.writeText(window.location.href);
+                await navigator.clipboard.writeText(
+                  window.location.href
+                );
                 alert("Link copied!");
               } catch {
                 alert("Copy failed");
               }
             }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
           >
             Copy link
           </button>
 
           <button
             onClick={async () => {
-              const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+              const tz =
+                Intl.DateTimeFormat().resolvedOptions().timeZone ||
+                "UTC";
               const start = new Date(lesson.start);
               const when = start.toLocaleString([], {
                 dateStyle: "medium",
@@ -456,7 +491,7 @@ export default function StudentLessonDetail() {
                 alert("Copy failed");
               }
             }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
           >
             Copy summary
           </button>
@@ -465,14 +500,16 @@ export default function StudentLessonDetail() {
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(
-                  `${window.location.origin}/tutors/${encodeURIComponent(lesson.tutorId)}`
+                  `${window.location.origin}/tutors/${encodeURIComponent(
+                    lesson.tutorId
+                  )}`
                 );
-              alert("Tutor link copied!");
+                alert("Tutor link copied!");
               } catch {
                 alert("Copy failed");
               }
             }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
           >
             Copy tutor link
           </button>
@@ -480,12 +517,16 @@ export default function StudentLessonDetail() {
           <button
             onClick={() => {
               const start = new Date(lesson.start);
-              const dtstart = start
-                .toISOString()
-                .replace(/[-:]/g, "")
-                .split(".")[0] + "Z";
+              const dtstart =
+                start
+                  .toISOString()
+                  .replace(/[-:]/g, "")
+                  .split(".")[0] + "Z";
               const dtstamp =
-                new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+                new Date()
+                  .toISOString()
+                  .replace(/[-:]/g, "")
+                  .split(".")[0] + "Z";
               const url = `${window.location.origin}/student-lesson/${encodeURIComponent(
                 lesson._id
               )}`;
@@ -511,14 +552,15 @@ END:VCALENDAR`;
               a.click();
               URL.revokeObjectURL(href);
             }}
-            className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+            className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
           >
             Add to calendar
           </button>
         </div>
 
         <p className="text-xs opacity-70 mt-1">
-          Tip: You can reschedule or cancel from here. (Policies may apply.)
+          Tip: You can reschedule or cancel from here. (Policies may
+          apply.)
         </p>
       </div>
     </div>
