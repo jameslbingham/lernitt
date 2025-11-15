@@ -22,26 +22,35 @@ function downloadIcs(filename, content) {
 }
 
 /* ---------------- Lifecycle Translation (A1) ---------------- */
-// Map backend statuses → student-friendly lifecycle
-// DB: booked (unpaid), paid (waiting tutor), confirmed, completed, cancelled, expired
+// New lifecycle: booked → paid → confirmed → completed → cancelled → expired
 function translateStatus(raw) {
   switch ((raw || "").toLowerCase()) {
     case "booked":               // unpaid booking
       return "pending_payment";
-    case "pending":              // legacy / safety
+
+    // Legacy: remove old "pending" status, treat as unpaid booking
+    case "pending":
       return "pending_payment";
+
     case "paid":                 // paid, waiting tutor confirm
       return "paid_waiting_tutor";
+
     case "confirmed":
       return "confirmed";
+
     case "completed":
       return "completed";
+
     case "cancelled":
       return "cancelled";
+
     case "expired":
       return "expired";
+
+    // Legacy: remove old reschedule_pending
     case "reschedule_pending":
       return "reschedule_requested";
+
     default:
       return "pending_payment";
   }
@@ -88,7 +97,6 @@ export default function BookingConfirmation() {
             });
           } catch (e) {
             console.error("[BookingConfirmation] mark-paid failed:", e);
-            // continue anyway; we will still load the lesson
           }
         }
 
@@ -117,7 +125,6 @@ export default function BookingConfirmation() {
         setError(e.message || "Failed to load lesson");
       }
     })();
-    // re-run if lessonId or query string changes (e.g. from /confirm?paid=1)
   }, [lessonId, loc.search]);
 
   /* -------------------- Load tutor timezone ------------------- */
