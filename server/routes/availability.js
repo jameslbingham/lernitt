@@ -45,102 +45,13 @@ function sliceDaySlots(day, ranges, durMins, policy, interval) {
   return out;
 }
 
-/* ---------- basic load/update ---------- */
-// GET /api/availability/:tutorId
-router.get("/:tutorId", async (req, res) => {
-  try {
-    const doc = await Availability.findOne({ tutor: req.params.tutorId });
-    res.json(doc || {});
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Failed to load availability" });
-  }
-});
+/* ============================================================
+   IMPORTANT: Route ordering fix
+   Specific routes BEFORE generic "/:tutorId"
+   ============================================================ */
 
-// PUT /api/availability  (protected)
-router.put("/", verifyToken, async (req, res) => {
-  try {
-    const tutor = req.user.id;
-    const {
-      timezone,
-      weekly = [],
-      exceptions = [],
-      slotInterval = 30,
-      slotStartPolicy = "hourHalf",
-    } = req.body || {};
-
-    let doc = await Availability.findOne({ tutor });
-    if (!doc) {
-      doc = new Availability({
-        tutor,
-        timezone: timezone || "UTC",
-        weekly: [],
-        exceptions: [],
-      });
-    }
-
-    if (timezone) doc.timezone = timezone;
-    doc.weekly = Array.isArray(weekly) ? weekly : [];
-    doc.exceptions = Array.isArray(exceptions) ? exceptions : [];
-    doc.slotInterval = Number(slotInterval) || 30;
-    doc.slotStartPolicy = slotStartPolicy === "hourHalf" ? "hourHalf" : "hourHalf";
-
-    await doc.save();
-    console.log("✅ Availability updated for tutor", tutor);
-    res.json(doc);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Failed to save availability" });
-  }
-});
-
-/* ---------- exceptions API ---------- */
-router.post("/exceptions", verifyToken, async (req, res) => {
-  try {
-    const { date, open, ranges = [] } = req.body || {};
-    if (!date || typeof open !== "boolean") {
-      return res.status(400).json({ error: "date and open are required" });
-    }
-    if (open && !Array.isArray(ranges)) {
-      return res.status(400).json({ error: "ranges must be an array" });
-    }
-
-    const av = await Availability.findOne({ tutor: req.user.id });
-    if (!av) return res.status(404).json({ error: "Availability not found" });
-
-    av.exceptions = (av.exceptions || []).filter((e) => e.date !== date);
-    av.exceptions.push({ date, open, ranges: open ? ranges : [] });
-    await av.save();
-
-    console.log("✅ Exception updated for tutor", req.user.id);
-    res.json({ ok: true, availability: av });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to save exception" });
-  }
-});
-
-router.delete("/exceptions/:date", verifyToken, async (req, res) => {
-  try {
-    const { date } = req.params;
-    const av = await Availability.findOne({ tutor: req.user.id });
-    if (!av) return res.status(404).json({ error: "Availability not found" });
-
-    const before = (av.exceptions || []).length;
-    av.exceptions = (av.exceptions || []).filter((e) => e.date !== date);
-    if (av.exceptions.length === before) {
-      return res.status(404).json({ error: "Exception not found" });
-    }
-
-    await av.save();
-    res.json({ ok: true, availability: av });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to delete exception" });
-  }
-});
-
-/* ---------- slots API ---------- */
+/* ---------- SLOTS API (must be FIRST) ---------- */
+// GET /api/availability/:tutorId/slots
 router.get("/:tutorId/slots", async (req, res) => {
   try {
     const { tutorId } = req.params;
@@ -190,7 +101,6 @@ router.get("/:tutorId/slots", async (req, res) => {
             e: DateTime.fromJSDate(l.endTime).toUTC(),
           }));
 
-          // Strict overlap check
           for (const b of dayBlocks) {
             const slotUTCs = { s: b.toUTC(), e: b.plus({ minutes: dur }).toUTC() };
             const overlaps = blocked.some(
@@ -217,8 +127,104 @@ router.get("/:tutorId/slots", async (req, res) => {
   }
 });
 
-/* ---------- extra tutor + admin endpoints ---------- */
-// GET /api/availability/me → current tutor's own availability
+/* ---------- BASIC LOAD ---------- */
+// GET /api/availability/:tutorId  (must be AFTER slots)
+router.get("/:tutorId", async (req, res) => {
+  try {
+    const doc = await Availability.findOne({ tutor: req.params.tutorId });
+    res.json(doc || {});
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to load availability" });
+  }
+});
+
+/* ---------- UPDATE AVAILABILITY ---------- */
+// PUT /api/availability  (protected)
+router.put("/", verifyToken, async (req, res) => {
+  try {
+    const tutor = req.user.id;
+    const {
+      timezone,
+      weekly = [],
+      exceptions = [],
+      slotInterval = 30,
+      slotStartPolicy = "hourHalf",
+    } = req.body || {};
+
+    let doc = await Availability.findOne({ tutor });
+    if (!doc) {
+      doc = new Availability({
+        tutor,
+        timezone: timezone || "UTC",
+        weekly: [],
+        exceptions: [],
+      });
+    }
+
+    if (timezone) doc.timezone = timezone;
+    doc.weekly = Array.isArray(weekly) ? weekly : [];
+    doc.exceptions = Array.isArray(exceptions) ? exceptions : [];
+    doc.slotInterval = Number(slotInterval) || 30;
+    doc.slotStartPolicy = slotStartPolicy === "hourHalf" ? "hourHalf" : "hourHalf";
+
+    await doc.save();
+    console.log("✅ Availability updated for tutor", tutor);
+    res.json(doc);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to save availability" });
+  }
+});
+
+/* ---------- EXCEPTIONS API ---------- */
+router.post("/exceptions", verifyToken, async (req, res) => {
+  try {
+    const { date, open, ranges = [] } = req.body || {};
+    if (!date || typeof open !== "boolean") {
+      return res.status(400).json({ error: "date and open are required" });
+    }
+    if (open && !Array.isArray(ranges)) {
+      return res.status(400).json({ error: "ranges must be an array" });
+    }
+
+    const av = await Availability.findOne({ tutor: req.user.id });
+    if (!av) return res.status(404).json({ error: "Availability not found" });
+
+    av.exceptions = (av.exceptions || []).filter((e) => e.date !== date);
+    av.exceptions.push({ date, open, ranges: open ? ranges : [] });
+    await av.save();
+
+    console.log("✅ Exception updated for tutor", req.user.id);
+    res.json({ ok: true, availability: av });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to save exception" });
+  }
+});
+
+router.delete("/exceptions/:date", verifyToken, async (req, res) => {
+  try {
+    const { date } = req.params;
+    const av = await Availability.findOne({ tutor: req.user.id });
+    if (!av) return res.status(404).json({ error: "Availability not found" });
+
+    const before = (av.exceptions || []).length;
+    av.exceptions = (av.exceptions || []).filter((e) => e.date !== date);
+    if (av.exceptions.length === before) {
+      return res.status(404).json({ error: "Exception not found" });
+    }
+
+    await av.save();
+    res.json({ ok: true, availability: av });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete exception" });
+  }
+});
+
+/* ---------- EXTRA ENDPOINTS ---------- */
+// GET /api/availability/me
 router.get("/me", verifyToken, async (req, res) => {
   try {
     const av = await Availability.findOne({ tutor: req.user.id });
@@ -229,7 +235,7 @@ router.get("/me", verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/availability/all → admin only
+// DELETE /api/availability/all (admin)
 router.delete("/all", verifyToken, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
