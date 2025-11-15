@@ -6,13 +6,38 @@ const User = require('../models/User');
 
 const router = express.Router();
 
+/* --------------------------
+   Normalize old/legacy statuses
+   -------------------------- */
+function normalizeStatus(status) {
+  const raw = (status || "").toLowerCase();
+
+  const allowed = [
+    "booked",
+    "paid",
+    "confirmed",
+    "reschedule_requested",
+    "completed",
+    "cancelled",
+    "expired"
+  ];
+  if (allowed.includes(raw)) return raw;
+
+  // Legacy → new
+  if (raw === "pending") return "booked";
+  if (raw === "not_approved") return "cancelled";
+  if (raw === "reschedule_pending") return "reschedule_requested";
+
+  return "booked";
+}
+
 /**
  * GET /api/tutors/lessons
- * Query: status=pending|confirmed|completed|cancelled, from=ISO, to=ISO, page=1, limit=10
+ * Query: status=booked|paid|confirmed|reschedule_requested|completed|cancelled|expired
  */
 router.get('/', auth, async (req, res) => {
   try {
-    // ensure user exists
+    // ensure user is a valid tutor
     const tutor = await User.findById(req.user.id).select('_id');
     if (!tutor) return res.status(404).json({ error: 'Tutor not found' });
 
@@ -24,7 +49,17 @@ router.get('/', auth, async (req, res) => {
     const limit = Math.min(limitRaw, 100);
     const skip = (page - 1) * limit;
 
-    const allowedStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+    // UPDATED lifecycle statuses
+    const allowedStatuses = [
+      "booked",
+      "paid",
+      "confirmed",
+      "reschedule_requested",
+      "completed",
+      "cancelled",
+      "expired"
+    ];
+
     const filter = { tutor: req.user.id };
 
     // status filter
@@ -32,7 +67,7 @@ router.get('/', auth, async (req, res) => {
       filter.status = status;
     }
 
-    // date range filter on startTime
+    // date range filter
     if (from || to) {
       filter.startTime = {};
       if (from) filter.startTime.$gte = new Date(from);
@@ -41,11 +76,18 @@ router.get('/', auth, async (req, res) => {
 
     const total = await Lesson.countDocuments(filter);
 
-    const lessons = await Lesson.find(filter)
+    const lessonsRaw = await Lesson.find(filter)
       .populate('student', 'name avatar')
       .sort({ startTime: -1 })
       .skip(skip)
       .limit(limit);
+
+    // APPLY STATUS NORMALISATION
+    const lessons = lessonsRaw.map(l => {
+      const o = l.toObject();
+      o.status = normalizeStatus(o.status);
+      return o;
+    });
 
     res.json({
       page,
