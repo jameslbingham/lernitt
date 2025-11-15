@@ -25,6 +25,7 @@ app.use("/api/lessons", require("./routes/lessons"));
 app.use("/api/tutor-lessons", require("./routes/tutorLessons"));
 app.use("/api/students", require("./routes/students"));
 app.use("/api/availability", require("./routes/availability"));
+app.use("/api/video", require("./routes/video"));
 app.use("/api/reviews", require("./routes/reviews"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/payments", require("./routes/payments"));
