@@ -6,6 +6,31 @@ const Lesson = require('../models/Lesson');
 
 const router = express.Router();
 
+/* --------------------------
+   Normalize old/legacy statuses
+   -------------------------- */
+function normalizeStatus(status) {
+  const raw = (status || "").toLowerCase();
+
+  const allowed = [
+    "booked",
+    "paid",
+    "confirmed",
+    "reschedule_requested",
+    "completed",
+    "cancelled",
+    "expired"
+  ];
+  if (allowed.includes(raw)) return raw;
+
+  // Legacy → new
+  if (raw === "pending") return "booked";
+  if (raw === "not_approved") return "cancelled";
+  if (raw === "reschedule_pending") return "reschedule_requested";
+
+  return "booked";
+}
+
 /**
  * GET /api/students/me
  * Get my student profile
@@ -45,13 +70,24 @@ router.get('/lessons', auth, async (req, res) => {
   try {
     const { status, from, to, page = 1, limit = 10 } = req.query;
 
-    const ALLOWED = ['pending', 'confirmed', 'completed', 'cancelled'];
+    // UPDATED: Allowed lifecycle statuses
+    const ALLOWED = [
+      "booked",
+      "paid",
+      "confirmed",
+      "reschedule_requested",
+      "completed",
+      "cancelled",
+      "expired"
+    ];
+
     if (status && !ALLOWED.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
     const filters = { student: req.user.id };
     if (status) filters.status = status;
+
     if (from || to) {
       filters.startTime = {};
       if (from) filters.startTime.$gte = new Date(from);
@@ -62,7 +98,7 @@ router.get('/lessons', auth, async (req, res) => {
     const lim = Math.min(Math.max(parseInt(limit) || 10, 1), 100);
     const skip = (pageNum - 1) * lim;
 
-    const [items, total] = await Promise.all([
+    const [itemsRaw, total] = await Promise.all([
       Lesson.find(filters)
         .sort({ startTime: -1 })
         .skip(skip)
@@ -71,6 +107,13 @@ router.get('/lessons', auth, async (req, res) => {
       Lesson.countDocuments(filters),
     ]);
 
+    // APPLY STATUS NORMALISATION
+    const items = itemsRaw.map(l => {
+      const o = l.toObject();
+      o.status = normalizeStatus(o.status);
+      return o;
+    });
+
     res.json({
       page: pageNum,
       limit: lim,
@@ -78,7 +121,7 @@ router.get('/lessons', auth, async (req, res) => {
       totalPages: Math.max(Math.ceil(total / lim), 1),
       items,
     });
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
