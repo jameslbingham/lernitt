@@ -21,6 +21,7 @@ export default function VideoLesson() {
             body: JSON.stringify({ lessonId }),
           }
         );
+
         const data = await res.json();
         if (data.roomUrl) setRoomUrl(data.roomUrl);
       } catch (err) {
@@ -33,7 +34,8 @@ export default function VideoLesson() {
     if (lessonId) loadRoom();
   }, [lessonId]);
 
-  const softGrey = "#d4d4d4"; // NEW LIGHT GREY
+  // The NEW light grey colour (this replaces the purple)
+  const softGrey = "#d4d4d4";
 
   return (
     <div
@@ -45,13 +47,13 @@ export default function VideoLesson() {
         flexDirection: "column",
       }}
     >
-      {/* HEADER — same grey as border, white text, slightly smaller */}
+      {/* HEADER (same grey as border, text white, slightly smaller) */}
       <div
         style={{
           background: softGrey,
           color: "white",
           padding: "14px",
-          fontSize: "18px",    // slightly smaller
+          fontSize: "18px",  // slightly smaller
           fontWeight: "bold",
           textAlign: "center",
         }}
@@ -59,7 +61,7 @@ export default function VideoLesson() {
         lernitt — Live Lesson
       </div>
 
-      {/* VIDEO */}
+      {/* VIDEO WINDOW */}
       <div
         style={{
           flex: 1,
@@ -69,7 +71,9 @@ export default function VideoLesson() {
           background: "#eaeaea",
         }}
       >
-        {loading && <p style={{ fontSize: "18px" }}>Loading video room…</p>}
+        {loading && (
+          <p style={{ fontSize: "18px" }}>Loading video room…</p>
+        )}
 
         {!loading && roomUrl && (
           <iframe
@@ -79,8 +83,8 @@ export default function VideoLesson() {
             style={{
               width: "90%",
               height: "90%",
-              border: `2px solid ${softGrey}`,  // ORIGINAL BORDER SIZE, NEW COLOUR
-              borderRadius: "12px",             // ORIGINAL RADIUS
+              border: `2px solid ${softGrey}`,  // ORIGINAL border, only colour changed
+              borderRadius: "12px",             // EXACT original rounding
               background: "black",
             }}
           />
