@@ -17,13 +17,21 @@ export default function VideoLesson() {
   const [camOn, setCamOn] = useState(true);
   const [sharing, setSharing] = useState(false);
 
+  const [showDevices, setShowDevices] = useState(false);
+  const [mics, setMics] = useState([]);
+  const [cams, setCams] = useState([]);
+  const [speakers, setSpeakers] = useState([]);
+
+  const [selectedMic, setSelectedMic] = useState("");
+  const [selectedCam, setSelectedCam] = useState("");
+  const [selectedSpeaker, setSelectedSpeaker] = useState("");
+
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const lessonId = params.get("lessonId");
 
   const { user, getToken } = useAuth();
   const token = getToken();
-
   const API = import.meta.env.VITE_API;
 
   // ---------------------------------------------------
@@ -33,7 +41,7 @@ export default function VideoLesson() {
     async function loadLesson() {
       try {
         const res = await fetch(`${API}/api/lessons/${lessonId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
         setLesson(data);
@@ -48,7 +56,7 @@ export default function VideoLesson() {
   const isStudent = lesson && user?._id === lesson.student;
 
   // ---------------------------------------------------
-  // 2️⃣ Create Room via Backend
+  // 2️⃣ Load Room URL
   // ---------------------------------------------------
   useEffect(() => {
     if (!lesson || (!isTutor && !isStudent)) return;
@@ -58,7 +66,7 @@ export default function VideoLesson() {
         const res = await fetch(`${API}/api/video/create-room`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lessonId }),
+          body: JSON.stringify({ lessonId })
         });
 
         const data = await res.json();
@@ -70,17 +78,12 @@ export default function VideoLesson() {
       }
     }
 
-    if (isTutor) {
-      if (hasStarted) loadRoom();
-      return;
-    }
-
-    if (isStudent) loadRoom();
-
-  }, [lesson, isTutor, isStudent, hasStarted, lessonId, API]);
+    if (isTutor && !hasStarted) return;
+    loadRoom();
+  }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
   // ---------------------------------------------------
-  // 3️⃣ DAILY SDK — Join Call
+  // 3️⃣ JOIN CALL + Device enumeration
   // ---------------------------------------------------
   useEffect(() => {
     if (!roomUrl) return;
@@ -90,20 +93,35 @@ export default function VideoLesson() {
       iframeStyle: {
         width: "100%",
         height: "100%",
-        border: "none",
-      },
+        border: "none"
+      }
     });
 
     callRef.current = call;
 
     call.join({ url: roomUrl });
 
-    // sync initial states
     call.setLocalAudio(micOn);
     call.setLocalVideo(camOn);
 
     call.on("screen-share-started", () => setSharing(true));
     call.on("screen-share-stopped", () => setSharing(false));
+
+    // DEVICE ENUMERATION
+    async function loadDevices() {
+      const devices = await call.enumerateDevices();
+
+      setMics(devices.mics || []);
+      setCams(devices.cameras || []);
+      setSpeakers(devices.speakers || []);
+
+      if (devices.mics[0]) setSelectedMic(devices.mics[0].deviceId);
+      if (devices.cameras[0]) setSelectedCam(devices.cameras[0].deviceId);
+      if (devices.speakers && devices.speakers[0])
+        setSelectedSpeaker(devices.speakers[0].deviceId);
+    }
+
+    loadDevices();
 
     return () => {
       call.leave();
@@ -112,7 +130,7 @@ export default function VideoLesson() {
   }, [roomUrl]);
 
   // ---------------------------------------------------
-  // 4️⃣ Mic / Camera Toggle
+  // 4️⃣ Toggle Mic / Cam
   // ---------------------------------------------------
   function toggleMic() {
     if (!callRef.current) return;
@@ -129,20 +147,18 @@ export default function VideoLesson() {
   }
 
   // ---------------------------------------------------
-  // 5️⃣ Screen Sharing
+  // 5️⃣ Screen Share
   // ---------------------------------------------------
   async function toggleScreenShare() {
     if (!callRef.current) return;
 
     if (!sharing) {
-      // start
       try {
         await callRef.current.startScreenShare();
       } catch (e) {
         console.error("Screen share failed:", e);
       }
     } else {
-      // stop
       try {
         await callRef.current.stopScreenShare();
       } catch (e) {
@@ -152,7 +168,33 @@ export default function VideoLesson() {
   }
 
   // ---------------------------------------------------
-  // 6️⃣ Leave Lesson
+  // 6️⃣ Device Settings apply
+  // ---------------------------------------------------
+  async function applyDeviceChanges() {
+    if (!callRef.current) return;
+
+    // mic
+    if (selectedMic) {
+      await callRef.current.setInputDevicesAsync({ audioDeviceId: selectedMic });
+    }
+
+    // camera
+    if (selectedCam) {
+      await callRef.current.setInputDevicesAsync({ videoDeviceId: selectedCam });
+    }
+
+    // speaker (may fail silently if unsupported)
+    if (selectedSpeaker) {
+      try {
+        await callRef.current.setOutputDevice({ speakerDeviceId: selectedSpeaker });
+      } catch {}
+    }
+
+    setShowDevices(false);
+  }
+
+  // ---------------------------------------------------
+  // 7️⃣ Leave Lesson
   // ---------------------------------------------------
   function leaveLesson() {
     if (callRef.current) {
@@ -173,6 +215,9 @@ export default function VideoLesson() {
 
   const softGrey = "#d4d4d4";
 
+  // ---------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------
   return (
     <div
       style={{
@@ -180,7 +225,7 @@ export default function VideoLesson() {
         height: "100vh",
         background: "#f7f7f7",
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "column"
       }}
     >
       {/* HEADER */}
@@ -191,7 +236,7 @@ export default function VideoLesson() {
           padding: "14px",
           fontSize: "18px",
           fontWeight: "bold",
-          textAlign: "center",
+          textAlign: "center"
         }}
       >
         lernitt — Live Lesson
@@ -204,7 +249,7 @@ export default function VideoLesson() {
           background: "#eaeaea",
           display: "flex",
           justifyContent: "center",
-          alignItems: "center",
+          alignItems: "center"
         }}
       >
         {/* BORDER */}
@@ -218,7 +263,7 @@ export default function VideoLesson() {
             overflow: "hidden",
             background: "black",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "column"
           }}
         >
           {/* LEAVE BUTTON */}
@@ -234,10 +279,29 @@ export default function VideoLesson() {
               border: "none",
               padding: "8px 14px",
               borderRadius: "8px",
-              cursor: "pointer",
+              cursor: "pointer"
             }}
           >
             Leave Lesson
+          </button>
+
+          {/* DEVICE SETTINGS BUTTON */}
+          <button
+            onClick={() => setShowDevices(true)}
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: "12px",
+              zIndex: 20,
+              background: "#4f46e5",
+              color: "white",
+              border: "none",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              cursor: "pointer"
+            }}
+          >
+            Device Settings
           </button>
 
           {/* CONTROL BAR */}
@@ -249,7 +313,7 @@ export default function VideoLesson() {
               transform: "translateX(-50%)",
               display: "flex",
               gap: "12px",
-              zIndex: 20,
+              zIndex: 20
             }}
           >
             <button
@@ -260,7 +324,7 @@ export default function VideoLesson() {
                 border: "none",
                 background: micOn ? "#4f46e5" : "#9ca3af",
                 color: "white",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               {micOn ? "Mute Mic" : "Unmute Mic"}
@@ -274,7 +338,7 @@ export default function VideoLesson() {
                 border: "none",
                 background: camOn ? "#4f46e5" : "#9ca3af",
                 color: "white",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               {camOn ? "Turn Camera Off" : "Turn Camera On"}
@@ -288,7 +352,7 @@ export default function VideoLesson() {
                 border: "none",
                 background: sharing ? "#ef4444" : "#4f46e5",
                 color: "white",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               {sharing ? "Stop Sharing" : "Share Screen"}
@@ -304,7 +368,7 @@ export default function VideoLesson() {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                alignItems: "center",
+                alignItems: "center"
               }}
             >
               <p style={{ fontSize: "18px", marginBottom: "10px" }}>
@@ -322,7 +386,7 @@ export default function VideoLesson() {
                   background: "#4f46e5",
                   color: "white",
                   cursor: "pointer",
-                  fontSize: "16px",
+                  fontSize: "16px"
                 }}
               >
                 Start Lesson
@@ -338,23 +402,114 @@ export default function VideoLesson() {
                 color: "white",
                 display: "flex",
                 justifyContent: "center",
-                alignItems: "center",
+                alignItems: "center"
               }}
             >
               Waiting for tutor…
             </div>
           )}
 
-          {/* DAILY VIDEO MOUNT */}
+          {/* DAILY VIDEO AREA */}
           <div
             ref={containerRef}
             style={{
               flex: 1,
               width: "100%",
-              height: "100%",
-              position: "relative",
+              height: "100%"
             }}
           />
+
+          {/* DEVICE SETTINGS POPUP */}
+          {showDevices && (
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                background: "white",
+                padding: "20px",
+                borderRadius: "12px",
+                border: `2px solid ${softGrey}`,
+                zIndex: 30,
+                width: "320px"
+              }}
+            >
+              <h3 style={{ marginBottom: "12px" }}>Device Settings</h3>
+
+              {/* MIC LIST */}
+              <label>Microphone:</label>
+              <select
+                value={selectedMic}
+                onChange={(e) => setSelectedMic(e.target.value)}
+                style={{ width: "100%", marginBottom: "10px" }}
+              >
+                {mics.map((mic) => (
+                  <option key={mic.deviceId} value={mic.deviceId}>
+                    {mic.label || "Microphone"}
+                  </option>
+                ))}
+              </select>
+
+              {/* CAMERA LIST */}
+              <label>Camera:</label>
+              <select
+                value={selectedCam}
+                onChange={(e) => setSelectedCam(e.target.value)}
+                style={{ width: "100%", marginBottom: "10px" }}
+              >
+                {cams.map((cam) => (
+                  <option key={cam.deviceId} value={cam.deviceId}>
+                    {cam.label || "Camera"}
+                  </option>
+                ))}
+              </select>
+
+              {/* SPEAKERS LIST */}
+              <label>Speakers:</label>
+              <select
+                value={selectedSpeaker}
+                onChange={(e) => setSelectedSpeaker(e.target.value)}
+                style={{ width: "100%", marginBottom: "10px" }}
+              >
+                {speakers.map((sp) => (
+                  <option key={sp.deviceId} value={sp.deviceId}>
+                    {sp.label || "Speakers"}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <button
+                  onClick={() => setShowDevices(false)}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#9ca3af",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={applyDeviceChanges}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#4f46e5",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
