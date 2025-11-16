@@ -44,6 +44,10 @@ export default function LessonEnded() {
     navigate(dashboardPath);
   }
 
+  function viewRecordings() {
+    navigate(`/lesson-recordings?lessonId=${lessonId}`);
+  }
+
   function formatDate(dateStr) {
     if (!dateStr) return "";
     const d = new Date(dateStr);
@@ -168,9 +172,8 @@ export default function LessonEnded() {
             marginBottom: 20,
           }}
         >
-          If this lesson was recorded, you may be able to download the
-          recording from your lernitt account or via a link shared by your
-          tutor, typically within the next 30 days.
+          If this lesson was recorded, you can view and download any recordings
+          using the button below.
         </div>
 
         <div
@@ -180,21 +183,21 @@ export default function LessonEnded() {
             gap: 10,
           }}
         >
+          {/* NEW BUTTON — View Recordings */}
           <button
             type="button"
-            disabled
-            title="Recording download links will be added in a later step."
+            onClick={viewRecordings}
             style={{
               padding: "8px 14px",
               borderRadius: 8,
               border: "none",
-              background: "#9ca3af",
+              background: "#2563eb",
               color: "white",
-              cursor: "not-allowed",
+              cursor: "pointer",
               fontSize: 14,
             }}
           >
-            Download Recording (coming soon)
+            View Recordings
           </button>
 
           <button
