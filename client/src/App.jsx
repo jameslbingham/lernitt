@@ -11,14 +11,16 @@ import {
   Navigate,
   useLocation
 } from "react-router-dom";
+
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
 import { useAuth } from "./hooks/useAuth.jsx";
 
-// NEW import
+// NEW (static import)
 import VideoLesson from "./pages/VideoLesson.jsx";
 
+// ---- Lazy imports -------------------------------------------------------
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -33,12 +35,14 @@ const Availability = lazy(() => import("./pages/Availability.jsx"));
 const MyLessons = lazy(() => import("./pages/MyLessons.jsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
+// NEW — lazy import LessonEnded
+const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
+
 import TutorLessons from "./pages/TutorLessons.jsx";
 import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
 import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
 
-// NEW: Tutor Dashboard
 import TutorDashboard from "./pages/TutorDashboard";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
@@ -98,7 +102,9 @@ function Nav() {
       <Link to="/availability">Availability</Link> |{" "}
       <Link to="/payouts">Payouts</Link> | <Link to="/profile">Profile</Link> |{" "}
       <Link to="/settings">Settings</Link> |{" "}
-      <Link to="/notifications">Notifications{unread ? ` (${unread})` : ""}</Link>{" "}
+      <Link to="/notifications">
+        Notifications{unread ? ` (${unread})` : ""}
+      </Link>{" "}
       {user?.role === "admin" && <> | <Link to="/admin">Admin</Link></>}
       {" | "} <Link to="/tutor">Tutor Dashboard</Link>
       {isAuthed ? (
@@ -202,8 +208,11 @@ export default function App({ mockMode }) {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/tutor" element={<TutorDashboard />} />
 
-              {/* NEW VIDEO ROUTE */}
+              {/* NEW — Video lesson route */}
               <Route path="/video" element={<VideoLesson />} />
+
+              {/* NEW — Lesson ended summary page */}
+              <Route path="/lesson-ended" element={<LessonEnded />} />
             </Route>
 
             {/* Fallback */}
