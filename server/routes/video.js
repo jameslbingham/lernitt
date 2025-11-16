@@ -67,7 +67,7 @@ router.post("/create-room", async (req, res) => {
 
 /* ---------------- START RECORDING ---------------- */
 router.post("/start-recording", async (req, res) => {
-  try:
+  try {
     const { roomUrl } = req.body || {};
     if (!roomUrl) {
       return res.status(400).json({ error: "roomUrl is required" });
@@ -118,7 +118,6 @@ router.post("/complete-lesson", async (req, res) => {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    // Mark completed and set endTime to now
     lesson.status = "completed";
     lesson.endTime = new Date();
     await lesson.save();
