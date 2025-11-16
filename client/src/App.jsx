@@ -37,6 +37,8 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
 // NEW — lazy import LessonEnded
 const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
+// NEW — lazy import LessonRecordings
+const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
 
 import TutorLessons from "./pages/TutorLessons.jsx";
 import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
@@ -213,6 +215,12 @@ export default function App({ mockMode }) {
 
               {/* NEW — Lesson ended summary page */}
               <Route path="/lesson-ended" element={<LessonEnded />} />
+
+              {/* NEW — Lesson recordings page */}
+              <Route
+                path="/lesson-recordings"
+                element={<LessonRecordings />}
+              />
             </Route>
 
             {/* Fallback */}
