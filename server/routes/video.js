@@ -91,9 +91,9 @@ router.post("/start-recording", async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    // ✅ Save metadata
+    // Save metadata
     lesson.recordingId = recording.id || null;
-    lesson.recordingStartedBy = req.user?.id || null; // optional (no auth middleware yet)
+    lesson.recordingStartedBy = req.user?.id || null; // no auth yet
     await lesson.save();
 
     res.json({ recording });
@@ -120,7 +120,7 @@ router.post("/stop-recording", async (req, res) => {
       method: "POST",
     });
 
-    // ✅ Clear metadata
+    // Clear metadata
     lesson.recordingId = null;
     lesson.recordingStartedBy = null;
     await lesson.save();
@@ -129,6 +129,33 @@ router.post("/stop-recording", async (req, res) => {
   } catch (err) {
     console.error("stop-recording error:", err.message || err);
     res.status(500).json({ error: "Could not stop recording" });
+  }
+});
+
+/* ---------------- GET RECORDINGS FOR LESSON ---------------- */
+router.get("/recordings/:lessonId", async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    // No recording ever started
+    if (!lesson.recordingId) {
+      return res.json({ recordings: [] });
+    }
+
+    // Fetch from Daily
+    const recording = await dailyFetch(`/recordings/${lesson.recordingId}`);
+
+    res.json({
+      recordings: [recording],
+    });
+  } catch (err) {
+    console.error("get-recordings error:", err.message || err);
+    res.status(500).json({ error: "Could not fetch recordings" });
   }
 });
 
