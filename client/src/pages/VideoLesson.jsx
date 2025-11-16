@@ -1,14 +1,19 @@
 // /client/src/pages/VideoLesson.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth.jsx";
 
 export default function VideoLesson() {
   const iframeRef = useRef(null);
   const [roomUrl, setRoomUrl] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasStarted, setHasStarted] = useState(false);
 
   const [params] = useSearchParams();
   const lessonId = params.get("lessonId");
+
+  const { user } = useAuth();
+  const isTutor = user?.role === "tutor";
 
   useEffect(() => {
     async function loadRoom() {
@@ -31,10 +36,21 @@ export default function VideoLesson() {
       }
     }
 
-    if (lessonId) loadRoom();
-  }, [lessonId]);
+    if (!lessonId) return;
 
-  const softGrey = "#d4d4d4"; // BORDER COLOUR YOU WANT
+    // Tutor: only load after "Start Lesson"
+    if (isTutor) {
+      if (hasStarted) {
+        loadRoom();
+      }
+      return;
+    }
+
+    // Student (not tutor): load immediately
+    loadRoom();
+  }, [lessonId, isTutor, hasStarted]);
+
+  const softGrey = "#d4d4d4";
 
   return (
     <div
@@ -70,23 +86,71 @@ export default function VideoLesson() {
           background: "#eaeaea",
         }}
       >
-        {/* WRAPPER WITH THE BORDER — THIS IS THE FIX */}
+        {/* WRAPPER WITH BORDER (unchanged shape) */}
         <div
           style={{
             width: "90%",
             height: "90%",
-            border: `2px solid ${softGrey}`,   // ORIGINAL BORDER, EXACT SHAPE
-            borderRadius: "12px",              // ORIGINAL RADIUS
-            overflow: "hidden",                // ensures corners stay rounded
-            background: "black",               // original background
+            border: `2px solid ${softGrey}`, // original border, light grey
+            borderRadius: "12px",
+            overflow: "hidden",
+            background: "black",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {loading && (
-            <p style={{ fontSize: "18px", color: "white", padding: "20px" }}>
-              Loading video room…
-            </p>
+          {/* Tutor pre-start screen */}
+          {isTutor && !hasStarted && (
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+              }}
+            >
+              <p style={{ fontSize: "18px", marginBottom: "16px" }}>
+                When you are ready, start the lesson.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setHasStarted(true);
+                }}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "16px",
+                  borderRadius: "999px",
+                  border: "none",
+                  background: "#4f46e5",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Start Lesson
+              </button>
+            </div>
           )}
 
+          {/* Student waiting screen (before room loads) */}
+          {!isTutor && !roomUrl && loading && (
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+              }}
+            >
+              <p style={{ fontSize: "18px" }}>Joining the lesson…</p>
+            </div>
+          )}
+
+          {/* Video iframe */}
           {!loading && roomUrl && (
             <iframe
               ref={iframeRef}
@@ -95,15 +159,27 @@ export default function VideoLesson() {
               style={{
                 width: "100%",
                 height: "100%",
-                border: "none", // border is now on the WRAPPER (correct)
+                border: "none", // border is on wrapper
               }}
             />
           )}
 
+          {/* Error state */}
           {!loading && !roomUrl && (
-            <p style={{ color: "red", fontSize: "18px", padding: "20px" }}>
-              Could not load video room.
-            </p>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "red",
+                background: "black",
+              }}
+            >
+              <p style={{ fontSize: "18px" }}>
+                Could not load video room.
+              </p>
+            </div>
           )}
         </div>
       </div>
