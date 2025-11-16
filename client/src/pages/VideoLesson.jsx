@@ -26,6 +26,11 @@ export default function VideoLesson() {
   const [selectedCam, setSelectedCam] = useState("");
   const [selectedSpeaker, setSelectedSpeaker] = useState("");
 
+  // NEW — Chat State
+  const [chatOpen, setChatOpen] = useState(true);
+  const [messages, setMessages] = useState([]);
+  const [msgText, setMsgText] = useState("");
+
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const lessonId = params.get("lessonId");
@@ -83,7 +88,7 @@ export default function VideoLesson() {
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
   // ---------------------------------------------------
-  // 3️⃣ JOIN CALL + Device enumeration
+  // 3️⃣ DAILY Call + Device Enumeration
   // ---------------------------------------------------
   useEffect(() => {
     if (!roomUrl) return;
@@ -107,7 +112,6 @@ export default function VideoLesson() {
     call.on("screen-share-started", () => setSharing(true));
     call.on("screen-share-stopped", () => setSharing(false));
 
-    // DEVICE ENUMERATION
     async function loadDevices() {
       const devices = await call.enumerateDevices();
 
@@ -130,7 +134,7 @@ export default function VideoLesson() {
   }, [roomUrl]);
 
   // ---------------------------------------------------
-  // 4️⃣ Toggle Mic / Cam
+  // 4️⃣ Mic / Camera / Screen Share Toggles
   // ---------------------------------------------------
   function toggleMic() {
     if (!callRef.current) return;
@@ -146,9 +150,6 @@ export default function VideoLesson() {
     callRef.current.setLocalVideo(next);
   }
 
-  // ---------------------------------------------------
-  // 5️⃣ Screen Share
-  // ---------------------------------------------------
   async function toggleScreenShare() {
     if (!callRef.current) return;
 
@@ -168,22 +169,17 @@ export default function VideoLesson() {
   }
 
   // ---------------------------------------------------
-  // 6️⃣ Device Settings apply
+  // 5️⃣ Device Settings Apply
   // ---------------------------------------------------
   async function applyDeviceChanges() {
     if (!callRef.current) return;
 
-    // mic
     if (selectedMic) {
       await callRef.current.setInputDevicesAsync({ audioDeviceId: selectedMic });
     }
-
-    // camera
     if (selectedCam) {
       await callRef.current.setInputDevicesAsync({ videoDeviceId: selectedCam });
     }
-
-    // speaker (may fail silently if unsupported)
     if (selectedSpeaker) {
       try {
         await callRef.current.setOutputDevice({ speakerDeviceId: selectedSpeaker });
@@ -194,7 +190,7 @@ export default function VideoLesson() {
   }
 
   // ---------------------------------------------------
-  // 7️⃣ Leave Lesson
+  // 6️⃣ Leave Lesson
   // ---------------------------------------------------
   function leaveLesson() {
     if (callRef.current) {
@@ -205,67 +201,180 @@ export default function VideoLesson() {
     else navigate("/my-lessons");
   }
 
-  if (!lesson) {
-    return <p style={{ padding: 20 }}>Loading lesson…</p>;
+  // ---------------------------------------------------
+  // 7️⃣ Chat Send
+  // ---------------------------------------------------
+  function sendMessage() {
+    if (!msgText.trim()) return;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        sender: user._id,
+        text: msgText.trim()
+      }
+    ]);
+
+    setMsgText("");
+
+    setTimeout(() => {
+      const box = document.getElementById("chat-box");
+      if (box) box.scrollTop = box.scrollHeight;
+    }, 50);
   }
 
-  if (!isTutor && !isStudent) {
+  // ---------------------------------------------------
+  // 8️⃣ Render Begins
+  // ---------------------------------------------------
+  if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
+
+  if (!isTutor && !isStudent)
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
-  }
 
   const softGrey = "#d4d4d4";
 
-  // ---------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100vh",
-        background: "#f7f7f7",
-        display: "flex",
-        flexDirection: "column"
-      }}
-    >
+    <div style={{ width: "100%", height: "100vh", background: "#f7f7f7", display: "flex", flexDirection: "column" }}>
+      
       {/* HEADER */}
-      <div
-        style={{
-          background: softGrey,
-          color: "white",
-          padding: "14px",
-          fontSize: "18px",
-          fontWeight: "bold",
-          textAlign: "center"
-        }}
-      >
+      <div style={{
+        background: softGrey, color: "white", padding: "14px",
+        fontSize: "18px", fontWeight: "bold", textAlign: "center"
+      }}>
         lernitt — Live Lesson
       </div>
 
-      {/* MAIN AREA */}
-      <div
-        style={{
-          flex: 1,
-          background: "#eaeaea",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center"
-        }}
-      >
-        {/* BORDER */}
+      {/* MAIN */}
+      <div style={{
+        flex: 1, background: "#eaeaea", display: "flex",
+        justifyContent: "center", alignItems: "center"
+      }}>
+
+        {/* OUTER BORDER */}
         <div
           style={{
-            width: "90%",
-            height: "90%",
-            border: `2px solid ${softGrey}`,
-            borderRadius: "12px",
-            position: "relative",
-            overflow: "hidden",
-            background: "black",
-            display: "flex",
-            flexDirection: "column"
+            width: "90%", height: "90%", border: `2px solid ${softGrey}`,
+            borderRadius: "12px", position: "relative",
+            overflow: "hidden", background: "black",
+            display: "flex", flexDirection: "row"
           }}
         >
+
+          {/* CHAT SIDEBAR */}
+          {chatOpen && (
+            <div
+              style={{
+                width: "300px",
+                background: "#ffffff",
+                borderLeft: `2px solid ${softGrey}`,
+                display: "flex",
+                flexDirection: "column",
+                zIndex: 30
+              }}
+            >
+              <div
+                style={{
+                  padding: "10px",
+                  background: softGrey,
+                  color: "white",
+                  fontWeight: "bold",
+                  textAlign: "center"
+                }}
+              >
+                Chat
+              </div>
+
+              <div
+                id="chat-box"
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  overflowY: "auto",
+                  background: "#f9f9f9"
+                }}
+              >
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    style={{
+                      marginBottom: "8px",
+                      textAlign: m.sender === user._id ? "right" : "left"
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "8px 12px",
+                        borderRadius: "10px",
+                        background: m.sender === user._id ? "#4f46e5" : "#d1d5db",
+                        color: m.sender === user._id ? "white" : "black",
+                        maxWidth: "80%",
+                        wordBreak: "break-word"
+                      }}
+                    >
+                      {m.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  padding: "8px",
+                  borderTop: `1px solid ${softGrey}`,
+                  display: "flex",
+                  gap: "6px"
+                }}
+              >
+                <input
+                  type="text"
+                  value={msgText}
+                  onChange={(e) => setMsgText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  style={{
+                    flex: 1,
+                    padding: "8px",
+                    borderRadius: "6px",
+                    border: `1px solid ${softGrey}`
+                  }}
+                />
+                <button
+                  onClick={sendMessage}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#4f46e5",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: "white",
+                    cursor: "pointer"
+                  }}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* CHAT TOGGLE BUTTON */}
+          <button
+            onClick={() => setChatOpen(!chatOpen)}
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: chatOpen ? "320px" : "12px",
+              zIndex: 40,
+              background: "#4f46e5",
+              color: "white",
+              border: "none",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              cursor: "pointer"
+            }}
+          >
+            {chatOpen ? "Close Chat" : "Open Chat"}
+          </button>
+
           {/* LEAVE BUTTON */}
           <button
             onClick={leaveLesson}
@@ -273,7 +382,7 @@ export default function VideoLesson() {
               position: "absolute",
               top: "12px",
               right: "12px",
-              zIndex: 20,
+              zIndex: 40,
               background: "#ff4d4f",
               color: "white",
               border: "none",
@@ -291,8 +400,8 @@ export default function VideoLesson() {
             style={{
               position: "absolute",
               top: "12px",
-              left: "12px",
-              zIndex: 20,
+              right: "120px",
+              zIndex: 40,
               background: "#4f46e5",
               color: "white",
               border: "none",
@@ -313,7 +422,7 @@ export default function VideoLesson() {
               transform: "translateX(-50%)",
               display: "flex",
               gap: "12px",
-              zIndex: 20
+              zIndex: 40
             }}
           >
             <button
@@ -359,7 +468,7 @@ export default function VideoLesson() {
             </button>
           </div>
 
-          {/* TUTOR START */}
+          {/* TUTOR WAITING */}
           {isTutor && !hasStarted && !roomUrl && (
             <div
               style={{
@@ -409,7 +518,7 @@ export default function VideoLesson() {
             </div>
           )}
 
-          {/* DAILY VIDEO AREA */}
+          {/* DAILY VIDEO */}
           <div
             ref={containerRef}
             style={{
@@ -431,13 +540,12 @@ export default function VideoLesson() {
                 padding: "20px",
                 borderRadius: "12px",
                 border: `2px solid ${softGrey}`,
-                zIndex: 30,
+                zIndex: 50,
                 width: "320px"
               }}
             >
               <h3 style={{ marginBottom: "12px" }}>Device Settings</h3>
 
-              {/* MIC LIST */}
               <label>Microphone:</label>
               <select
                 value={selectedMic}
@@ -451,7 +559,6 @@ export default function VideoLesson() {
                 ))}
               </select>
 
-              {/* CAMERA LIST */}
               <label>Camera:</label>
               <select
                 value={selectedCam}
@@ -465,7 +572,6 @@ export default function VideoLesson() {
                 ))}
               </select>
 
-              {/* SPEAKERS LIST */}
               <label>Speakers:</label>
               <select
                 value={selectedSpeaker}
@@ -493,7 +599,6 @@ export default function VideoLesson() {
                 >
                   Cancel
                 </button>
-
                 <button
                   onClick={applyDeviceChanges}
                   style={{
@@ -510,6 +615,7 @@ export default function VideoLesson() {
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>
