@@ -8,6 +8,9 @@ export default function VideoLesson() {
   const containerRef = useRef(null);
   const callRef = useRef(null);
 
+  // -------------------------------
+  // CORE STATE
+  // -------------------------------
   const [roomUrl, setRoomUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lesson, setLesson] = useState(null);
@@ -26,10 +29,19 @@ export default function VideoLesson() {
   const [selectedCam, setSelectedCam] = useState("");
   const [selectedSpeaker, setSelectedSpeaker] = useState("");
 
-  // NEW — Chat State
+  // -------------------------------
+  // CHAT
+  // -------------------------------
   const [chatOpen, setChatOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [msgText, setMsgText] = useState("");
+
+  // -------------------------------
+  // RECORDING STATE
+  // -------------------------------
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingOwner, setRecordingOwner] = useState(null); 
+  const [recordingId, setRecordingId] = useState(null);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -39,9 +51,9 @@ export default function VideoLesson() {
   const token = getToken();
   const API = import.meta.env.VITE_API;
 
-  // ---------------------------------------------------
-  // 1️⃣ Load Lesson
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 1) Load Lesson
+  // ---------------------------------------------
   useEffect(() => {
     async function loadLesson() {
       try {
@@ -60,9 +72,9 @@ export default function VideoLesson() {
   const isTutor = lesson && user?._id === lesson.tutor;
   const isStudent = lesson && user?._id === lesson.student;
 
-  // ---------------------------------------------------
-  // 2️⃣ Load Room URL
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 2) Load Room URL (Tutor must click Start)
+  // ---------------------------------------------
   useEffect(() => {
     if (!lesson || (!isTutor && !isStudent)) return;
 
@@ -83,13 +95,13 @@ export default function VideoLesson() {
       }
     }
 
-    if (isTutor && !hasStarted) return;
+    if (isTutor && !hasStarted) return; 
     loadRoom();
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
-  // ---------------------------------------------------
-  // 3️⃣ DAILY Call + Device Enumeration
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 3) Daily Call + Devices
+  // ---------------------------------------------
   useEffect(() => {
     if (!roomUrl) return;
     if (!containerRef.current) return;
@@ -114,7 +126,6 @@ export default function VideoLesson() {
 
     async function loadDevices() {
       const devices = await call.enumerateDevices();
-
       setMics(devices.mics || []);
       setCams(devices.cameras || []);
       setSpeakers(devices.speakers || []);
@@ -133,9 +144,9 @@ export default function VideoLesson() {
     };
   }, [roomUrl]);
 
-  // ---------------------------------------------------
-  // 4️⃣ Mic / Camera / Screen Share Toggles
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 4) Toggles (Mic, Cam, Share)
+  // ---------------------------------------------
   function toggleMic() {
     if (!callRef.current) return;
     const next = !micOn;
@@ -152,7 +163,6 @@ export default function VideoLesson() {
 
   async function toggleScreenShare() {
     if (!callRef.current) return;
-
     if (!sharing) {
       try {
         await callRef.current.startScreenShare();
@@ -168,9 +178,9 @@ export default function VideoLesson() {
     }
   }
 
-  // ---------------------------------------------------
-  // 5️⃣ Device Settings Apply
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 5) Device Settings Apply
+  // ---------------------------------------------
   async function applyDeviceChanges() {
     if (!callRef.current) return;
 
@@ -189,9 +199,9 @@ export default function VideoLesson() {
     setShowDevices(false);
   }
 
-  // ---------------------------------------------------
-  // 6️⃣ Leave Lesson
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 6) Leave Lesson
+  // ---------------------------------------------
   function leaveLesson() {
     if (callRef.current) {
       callRef.current.leave();
@@ -201,9 +211,9 @@ export default function VideoLesson() {
     else navigate("/my-lessons");
   }
 
-  // ---------------------------------------------------
-  // 7️⃣ Chat Send
-  // ---------------------------------------------------
+  // ---------------------------------------------
+  // 7) Chat Send
+  // ---------------------------------------------
   function sendMessage() {
     if (!msgText.trim()) return;
 
@@ -224,9 +234,51 @@ export default function VideoLesson() {
     }, 50);
   }
 
-  // ---------------------------------------------------
-  // 8️⃣ Render Begins
-  // ---------------------------------------------------
+  // --------------------------------------------------
+  // RECORDING BUTTONS
+  // --------------------------------------------------
+  async function startRecording() {
+    if (!roomUrl) return;
+
+    try {
+      const res = await fetch(`${API}/api/video/start-recording`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomUrl })
+      });
+
+      const data = await res.json();
+      if (data.recording) {
+        setIsRecording(true);
+        setRecordingOwner(user._id);
+        setRecordingId(data.recording.id || null);
+      }
+    } catch (err) {
+      console.error("Start recording error:", err);
+    }
+  }
+
+  async function stopRecording() {
+    if (!isRecording) return;
+    if (recordingOwner !== user._id) return; // safety
+
+    try {
+      const res = await fetch(`${API}/api/video/stop-recording`, {
+        method: "POST"
+      });
+
+      const data = await res.json();
+
+      setIsRecording(false);
+      setRecordingOwner(null);
+      setRecordingId(null);
+    } catch (err) {
+      console.error("Stop recording error:", err);
+    }
+  }
+  // --------------------------------------------------
+  // RENDER BEGINS
+  // --------------------------------------------------
   if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
 
   if (!isTutor && !isStudent)
@@ -235,32 +287,53 @@ export default function VideoLesson() {
   const softGrey = "#d4d4d4";
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#f7f7f7", display: "flex", flexDirection: "column" }}>
-      
+    <div
+      style={{
+        width: "100%",
+        height: "100vh",
+        background: "#f7f7f7",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* HEADER */}
-      <div style={{
-        background: softGrey, color: "white", padding: "14px",
-        fontSize: "18px", fontWeight: "bold", textAlign: "center"
-      }}>
+      <div
+        style={{
+          background: softGrey,
+          color: "white",
+          padding: "14px",
+          fontSize: "18px",
+          fontWeight: "bold",
+          textAlign: "center",
+        }}
+      >
         lernitt — Live Lesson
       </div>
 
       {/* MAIN */}
-      <div style={{
-        flex: 1, background: "#eaeaea", display: "flex",
-        justifyContent: "center", alignItems: "center"
-      }}>
-
+      <div
+        style={{
+          flex: 1,
+          background: "#eaeaea",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
         {/* OUTER BORDER */}
         <div
           style={{
-            width: "90%", height: "90%", border: `2px solid ${softGrey}`,
-            borderRadius: "12px", position: "relative",
-            overflow: "hidden", background: "black",
-            display: "flex", flexDirection: "row"
+            width: "90%",
+            height: "90%",
+            border: `2px solid ${softGrey}`,
+            borderRadius: "12px",
+            position: "relative",
+            overflow: "hidden",
+            background: "black",
+            display: "flex",
+            flexDirection: "row",
           }}
         >
-
           {/* CHAT SIDEBAR */}
           {chatOpen && (
             <div
@@ -270,7 +343,7 @@ export default function VideoLesson() {
                 borderLeft: `2px solid ${softGrey}`,
                 display: "flex",
                 flexDirection: "column",
-                zIndex: 30
+                zIndex: 30,
               }}
             >
               <div
@@ -279,7 +352,7 @@ export default function VideoLesson() {
                   background: softGrey,
                   color: "white",
                   fontWeight: "bold",
-                  textAlign: "center"
+                  textAlign: "center",
                 }}
               >
                 Chat
@@ -291,7 +364,7 @@ export default function VideoLesson() {
                   flex: 1,
                   padding: "10px",
                   overflowY: "auto",
-                  background: "#f9f9f9"
+                  background: "#f9f9f9",
                 }}
               >
                 {messages.map((m) => (
@@ -299,7 +372,7 @@ export default function VideoLesson() {
                     key={m.id}
                     style={{
                       marginBottom: "8px",
-                      textAlign: m.sender === user._id ? "right" : "left"
+                      textAlign: m.sender === user._id ? "right" : "left",
                     }}
                   >
                     <span
@@ -307,10 +380,11 @@ export default function VideoLesson() {
                         display: "inline-block",
                         padding: "8px 12px",
                         borderRadius: "10px",
-                        background: m.sender === user._id ? "#4f46e5" : "#d1d5db",
+                        background:
+                          m.sender === user._id ? "#4f46e5" : "#d1d5db",
                         color: m.sender === user._id ? "white" : "black",
                         maxWidth: "80%",
-                        wordBreak: "break-word"
+                        wordBreak: "break-word",
                       }}
                     >
                       {m.text}
@@ -324,7 +398,7 @@ export default function VideoLesson() {
                   padding: "8px",
                   borderTop: `1px solid ${softGrey}`,
                   display: "flex",
-                  gap: "6px"
+                  gap: "6px",
                 }}
               >
                 <input
@@ -336,7 +410,7 @@ export default function VideoLesson() {
                     flex: 1,
                     padding: "8px",
                     borderRadius: "6px",
-                    border: `1px solid ${softGrey}`
+                    border: `1px solid ${softGrey}`,
                   }}
                 />
                 <button
@@ -347,7 +421,7 @@ export default function VideoLesson() {
                     border: "none",
                     borderRadius: "6px",
                     color: "white",
-                    cursor: "pointer"
+                    cursor: "pointer",
                   }}
                 >
                   Send
@@ -369,7 +443,7 @@ export default function VideoLesson() {
               border: "none",
               padding: "8px 14px",
               borderRadius: "8px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             {chatOpen ? "Close Chat" : "Open Chat"}
@@ -388,7 +462,7 @@ export default function VideoLesson() {
               border: "none",
               padding: "8px 14px",
               borderRadius: "8px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Leave Lesson
@@ -407,11 +481,86 @@ export default function VideoLesson() {
               border: "none",
               padding: "8px 14px",
               borderRadius: "8px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Device Settings
           </button>
+
+          {/* RECORDING CONTROLS */}
+          <div
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: chatOpen ? "150px" : "12px",
+              display: "flex",
+              gap: "8px",
+              zIndex: 40,
+            }}
+          >
+            {/* START RECORDING */}
+            {!isRecording && (
+              <button
+                onClick={startRecording}
+                style={{
+                  padding: "8px 14px",
+                  background: "#4f46e5",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                Start Recording
+              </button>
+            )}
+
+            {/* STOP RECORDING — enabled ONLY for owner */}
+            {isRecording && (
+              <button
+                onClick={
+                  recordingOwner === user._id
+                    ? stopRecording
+                    : undefined
+                }
+                disabled={recordingOwner !== user._id}
+                title={
+                  recordingOwner !== user._id
+                    ? "Only the person who started the recording can stop it."
+                    : ""
+                }
+                style={{
+                  padding: "8px 14px",
+                  background:
+                    recordingOwner === user._id ? "#ef4444" : "#9ca3af",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor:
+                    recordingOwner === user._id
+                      ? "pointer"
+                      : "not-allowed",
+                }}
+              >
+                Stop Recording
+              </button>
+            )}
+
+            {/* LIVE BADGE */}
+            {isRecording && (
+              <div
+                style={{
+                  padding: "8px 14px",
+                  background: "#ef4444",
+                  color: "white",
+                  borderRadius: "8px",
+                  fontWeight: "bold",
+                }}
+              >
+                ● Recording
+              </div>
+            )}
+          </div>
 
           {/* CONTROL BAR */}
           <div
@@ -422,7 +571,7 @@ export default function VideoLesson() {
               transform: "translateX(-50%)",
               display: "flex",
               gap: "12px",
-              zIndex: 40
+              zIndex: 40,
             }}
           >
             <button
@@ -433,7 +582,7 @@ export default function VideoLesson() {
                 border: "none",
                 background: micOn ? "#4f46e5" : "#9ca3af",
                 color: "white",
-                cursor: "pointer"
+                cursor: "pointer",
               }}
             >
               {micOn ? "Mute Mic" : "Unmute Mic"}
@@ -447,7 +596,7 @@ export default function VideoLesson() {
                 border: "none",
                 background: camOn ? "#4f46e5" : "#9ca3af",
                 color: "white",
-                cursor: "pointer"
+                cursor: "pointer",
               }}
             >
               {camOn ? "Turn Camera Off" : "Turn Camera On"}
@@ -461,7 +610,7 @@ export default function VideoLesson() {
                 border: "none",
                 background: sharing ? "#ef4444" : "#4f46e5",
                 color: "white",
-                cursor: "pointer"
+                cursor: "pointer",
               }}
             >
               {sharing ? "Stop Sharing" : "Share Screen"}
@@ -477,7 +626,7 @@ export default function VideoLesson() {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                alignItems: "center"
+                alignItems: "center",
               }}
             >
               <p style={{ fontSize: "18px", marginBottom: "10px" }}>
@@ -495,7 +644,7 @@ export default function VideoLesson() {
                   background: "#4f46e5",
                   color: "white",
                   cursor: "pointer",
-                  fontSize: "16px"
+                  fontSize: "16px",
                 }}
               >
                 Start Lesson
@@ -511,7 +660,7 @@ export default function VideoLesson() {
                 color: "white",
                 display: "flex",
                 justifyContent: "center",
-                alignItems: "center"
+                alignItems: "center",
               }}
             >
               Waiting for tutor…
@@ -524,7 +673,7 @@ export default function VideoLesson() {
             style={{
               flex: 1,
               width: "100%",
-              height: "100%"
+              height: "100%",
             }}
           />
 
@@ -541,7 +690,7 @@ export default function VideoLesson() {
                 borderRadius: "12px",
                 border: `2px solid ${softGrey}`,
                 zIndex: 50,
-                width: "320px"
+                width: "320px",
               }}
             >
               <h3 style={{ marginBottom: "12px" }}>Device Settings</h3>
@@ -594,7 +743,7 @@ export default function VideoLesson() {
                     border: "none",
                     borderRadius: "8px",
                     color: "white",
-                    cursor: "pointer"
+                    cursor: "pointer",
                   }}
                 >
                   Cancel
@@ -607,7 +756,7 @@ export default function VideoLesson() {
                     border: "none",
                     borderRadius: "8px",
                     color: "white",
-                    cursor: "pointer"
+                    cursor: "pointer",
                   }}
                 >
                   Save
@@ -615,7 +764,6 @@ export default function VideoLesson() {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>
