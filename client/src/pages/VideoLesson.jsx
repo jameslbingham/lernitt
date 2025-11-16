@@ -180,9 +180,7 @@ export default function VideoLesson() {
     }
     if (selectedSpeaker) {
       try {
-        await callRef.current.setOutputDevice({
-          speakerDeviceId: selectedSpeaker,
-        });
+        await callRef.current.setOutputDevice({ speakerDeviceId: selectedSpeaker });
       } catch {}
     }
 
@@ -220,21 +218,24 @@ export default function VideoLesson() {
     }, 50);
   }
 
-  // *** UPDATED RECORDING LOGIC ***
+  // *** 8) UPDATED RECORDING LOGIC (AUTH, SEND lessonId) ***
   async function startRecording() {
     if (!roomUrl) return;
 
     try {
       const res = await fetch(`${API}/api/video/start-recording`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomUrl }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ roomUrl, lessonId }),
       });
 
       const data = await res.json();
       if (data.recording) {
         setIsRecording(true);
-        setRecordingOwner(user._id); // whoever pressed start
+        setRecordingOwner(user._id);
         setRecordingId(data.recording.id || null);
       }
     } catch (err) {
@@ -253,6 +254,11 @@ export default function VideoLesson() {
     try {
       await fetch(`${API}/api/video/stop-recording`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ lessonId }),
       });
 
       setIsRecording(false);
@@ -276,7 +282,9 @@ export default function VideoLesson() {
       mins = Math.max(0, Math.round((end - start) / 60000));
     }
 
-    if (!mins) mins = 60;
+    if (!mins) {
+      mins = 60;
+    }
 
     setTimeLeftSecs(mins * 60);
     setTimerStarted(true);
@@ -555,7 +563,7 @@ export default function VideoLesson() {
             Device Settings
           </button>
 
-          {/* *** UPDATED RECORDING BUTTONS *** */}
+          {/* RECORDING CONTROLS */}
           <div
             style={{
               position: "absolute",
@@ -588,7 +596,7 @@ export default function VideoLesson() {
                 disabled={recordingOwner !== user._id}
                 title={
                   recordingOwner !== user._id
-                    ? "Only the person who started recording can stop it."
+                    ? "Only the person who started the recording can stop it."
                     : ""
                 }
                 style={{
