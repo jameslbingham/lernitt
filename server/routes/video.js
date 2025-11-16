@@ -1,5 +1,7 @@
 // /server/routes/video.js
 const express = require("express");
+const Lesson = require("../models/Lesson");
+const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -32,10 +34,7 @@ async function dailyFetch(path, options = {}) {
   return data;
 }
 
-// -------------------------------------------------------
 // POST /api/video/create-room
-// Creates a room for this lesson (30-day expiry)
-// -------------------------------------------------------
 router.post("/create-room", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
@@ -51,9 +50,9 @@ router.post("/create-room", async (req, res) => {
         enable_screenshare: true,
         start_video_off: false,
         start_audio_off: false,
-        eject_after_elapsed_seconds: 7200, // 2 hours safety
+        eject_after_elapsed_seconds: 7200,
       },
-      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 days
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
     };
 
     const data = await dailyFetch("/rooms", {
@@ -68,10 +67,7 @@ router.post("/create-room", async (req, res) => {
   }
 });
 
-// -------------------------------------------------------
 // POST /api/video/start-recording
-// Tutor OR student can start
-// -------------------------------------------------------
 router.post("/start-recording", async (req, res) => {
   try {
     const { roomUrl } = req.body || {};
@@ -97,10 +93,7 @@ router.post("/start-recording", async (req, res) => {
   }
 });
 
-// -------------------------------------------------------
 // POST /api/video/stop-recording
-// Backend allows stop; frontend enforces owner-only
-// -------------------------------------------------------
 router.post("/stop-recording", async (_req, res) => {
   try {
     const recording = await dailyFetch("/recordings/stop", {
@@ -111,6 +104,42 @@ router.post("/stop-recording", async (_req, res) => {
   } catch (err) {
     console.error("Stop recording error:", err.message || err);
     return res.status(500).json({ error: "Could not stop recording" });
+  }
+});
+
+// POST /api/video/complete-lesson
+router.post("/complete-lesson", verifyToken, async (req, res) => {
+  try {
+    const { lessonId } = req.body || {};
+    if (!lessonId) {
+      return res.status(400).json({ error: "lessonId is required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    const userId = req.user.id;
+    const isTutor = String(lesson.tutor) === String(userId);
+    const isStudent = String(lesson.student) === String(userId);
+    const isAdmin = req.user.role === "admin";
+
+    if (!isTutor && !isStudent && !isAdmin) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    lesson.status = "completed";
+    lesson.endTime = new Date();
+    await lesson.save();
+
+    return res.json({
+      ok: true,
+      lesson: lesson.summary ? lesson.summary() : lesson,
+    });
+  } catch (err) {
+    console.error("complete-lesson error:", err.message || err);
+    return res.status(500).json({ error: "Failed to complete lesson" });
   }
 });
 
