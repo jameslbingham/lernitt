@@ -2,6 +2,7 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
+const auth = require("../middleware/auth");   // ✅ NEW
 
 const router = express.Router();
 
@@ -66,7 +67,7 @@ router.post("/create-room", async (req, res) => {
 });
 
 /* ---------------- START RECORDING ---------------- */
-router.post("/start-recording", async (req, res) => {
+router.post("/start-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
   try {
     const { roomUrl, lessonId } = req.body || {};
     if (!roomUrl) {
@@ -91,9 +92,9 @@ router.post("/start-recording", async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    // Save metadata
+    // ✅ Save metadata with a real authenticated user
     lesson.recordingId = recording.id || null;
-    lesson.recordingStartedBy = req.user?.id || null; // no auth yet
+    lesson.recordingStartedBy = req.user.id;
     await lesson.save();
 
     res.json({ recording });
@@ -104,7 +105,7 @@ router.post("/start-recording", async (req, res) => {
 });
 
 /* ---------------- STOP RECORDING ---------------- */
-router.post("/stop-recording", async (req, res) => {
+router.post("/stop-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
   try {
     const { lessonId } = req.body || {};
     if (!lessonId) {
@@ -120,7 +121,7 @@ router.post("/stop-recording", async (req, res) => {
       method: "POST",
     });
 
-    // Clear metadata
+    // ✅ Clear metadata
     lesson.recordingId = null;
     lesson.recordingStartedBy = null;
     await lesson.save();
@@ -142,12 +143,10 @@ router.get("/recordings/:lessonId", async (req, res) => {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    // No recording ever started
     if (!lesson.recordingId) {
       return res.json({ recordings: [] });
     }
 
-    // Fetch from Daily
     const recording = await dailyFetch(`/recordings/${lesson.recordingId}`);
 
     res.json({
