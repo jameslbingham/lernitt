@@ -1,70 +1,81 @@
 // /server/routes/video.js
 const express = require("express");
+const axios = require("axios");
 
 const router = express.Router();
 
-// Load Daily API key from env
 const DAILY_API_KEY = process.env.DAILY_API_KEY;
+const API_BASE = "https://api.daily.co/v1";
 
-// Safety check
-if (!DAILY_API_KEY) {
-  console.warn("⚠️ DAILY_API_KEY is missing in environment variables.");
+// -------------------------------------------------------
+// Helper: Daily API Client
+// -------------------------------------------------------
+function daily() {
+  return axios.create({
+    baseURL: API_BASE,
+    headers: { Authorization: `Bearer ${DAILY_API_KEY}` }
+  });
 }
 
-/**
- * POST /api/video/create-room
- * Creates a Daily room for a lesson.
- */
+// -------------------------------------------------------
+// POST /api/video/create-room
+// Creates a room for this lesson (30-day expiry)
+// -------------------------------------------------------
 router.post("/create-room", async (req, res) => {
   try {
-    const { lessonId } = req.body || {};
+    const { lessonId } = req.body;
 
-    if (!lessonId) {
-      return res.status(400).json({ error: "lessonId is required" });
-    }
-
-    const body = {
-      name: `lesson-${lessonId}`,
+    const response = await daily().post("/rooms", {
+      name: `lesson-${lessonId}-${Date.now()}`,
       properties: {
         enable_chat: true,
         enable_screenshare: true,
         start_video_off: false,
         start_audio_off: false,
-        lang: "en",
+        eject_after_elapsed_seconds: 7200
       },
-      privacy: "private",
-    };
-
-    const response = await fetch("https://api.daily.co/v1/rooms", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${DAILY_API_KEY}`,
-      },
-      body: JSON.stringify(body),
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 // 30 days
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => null);
-      console.error("Daily API error:", errData || response.statusText);
-      return res.status(500).json({
-        error: "Failed to create Daily room",
-        details: errData || { status: response.status },
-      });
-    }
-
-    const data = await response.json();
-
-    res.json({
-      roomUrl: data.url,
-      roomName: data.name,
-    });
+    return res.json({ roomUrl: response.data.url });
   } catch (err) {
-    console.error("Daily room creation error:", err);
-    res.status(500).json({
-      error: "Failed to create Daily room",
-      details: err.message,
+    console.error("create-room error", err.response?.data || err.message);
+    return res.status(500).json({ error: "Failed to create room" });
+  }
+});
+
+// -------------------------------------------------------
+// POST /api/video/start-recording
+// Tutor OR student can start
+// -------------------------------------------------------
+router.post("/start-recording", async (req, res) => {
+  try {
+    const { roomUrl } = req.body;
+
+    const result = await daily().post("/recordings/start", {
+      room_url: roomUrl,
+      layout: { preset: "default" }
     });
+
+    return res.json({ recording: result.data });
+  } catch (err) {
+    console.error("Start recording error:", err.response?.data || err.message);
+    return res.status(500).json({ error: "Could not start recording" });
+  }
+});
+
+// -------------------------------------------------------
+// POST /api/video/stop-recording
+// Tutor OR student can attempt to stop
+// (frontend enforces owner-only rule)
+// -------------------------------------------------------
+router.post("/stop-recording", async (_req, res) => {
+  try {
+    const result = await daily().post("/recordings/stop");
+    return res.json({ recording: result.data });
+  } catch (err) {
+    console.error("Stop recording error:", err.response?.data || err.message);
+    return res.status(500).json({ error: "Could not stop recording" });
   }
 });
 
