@@ -1,6 +1,6 @@
 // /server/routes/video.js
 const express = require("express");
-const fetch = require("node-fetch"); // ← REQUIRED LINE
+const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
 const { verifyToken } = require("../middleware/auth");
 
@@ -9,7 +9,7 @@ const router = express.Router();
 const DAILY_API_KEY = process.env.DAILY_API_KEY;
 const API_BASE = "https://api.daily.co/v1";
 
-// Simple helper for Daily API using built-in fetch
+/* ---------------- DAILY API HELPER ---------------- */
 async function dailyFetch(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -28,18 +28,16 @@ async function dailyFetch(path, options = {}) {
   }
 
   if (!res.ok) {
-    const msg = data || { status: res.status, statusText: res.statusText };
-    throw new Error(JSON.stringify(msg));
+    throw new Error(JSON.stringify(data || { status: res.status }));
   }
 
   return data;
 }
 
-// POST /api/video/create-room
+/* ---------------- CREATE ROOM ---------------- */
 router.post("/create-room", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
-
     if (!lessonId) {
       return res.status(400).json({ error: "lessonId is required" });
     }
@@ -61,18 +59,17 @@ router.post("/create-room", async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    return res.json({ roomUrl: data.url });
+    res.json({ roomUrl: data.url });
   } catch (err) {
-    console.error("create-room error", err.message || err);
-    return res.status(500).json({ error: "Failed to create room" });
+    console.error("create-room error:", err.message);
+    res.status(500).json({ error: "Failed to create room" });
   }
 });
 
-// POST /api/video/start-recording
+/* ---------------- START RECORDING ---------------- */
 router.post("/start-recording", async (req, res) => {
   try {
     const { roomUrl } = req.body || {};
-
     if (!roomUrl) {
       return res.status(400).json({ error: "roomUrl is required" });
     }
@@ -87,28 +84,28 @@ router.post("/start-recording", async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    return res.json({ recording });
+    res.json({ recording });
   } catch (err) {
-    console.error("Start recording error:", err.message || err);
-    return res.status(500).json({ error: "Could not start recording" });
+    console.error("start-recording error:", err.message);
+    res.status(500).json({ error: "Could not start recording" });
   }
 });
 
-// POST /api/video/stop-recording
+/* ---------------- STOP RECORDING ---------------- */
 router.post("/stop-recording", async (_req, res) => {
   try {
     const recording = await dailyFetch("/recordings/stop", {
       method: "POST",
     });
 
-    return res.json({ recording });
+    res.json({ recording });
   } catch (err) {
-    console.error("Stop recording error:", err.message || err);
-    return res.status(500).json({ error: "Could not stop recording" });
+    console.error("stop-recording error:", err.message);
+    res.status(500).json({ error: "Could not stop recording" });
   }
 });
 
-// POST /api/video/complete-lesson
+/* ---------------- COMPLETE LESSON ---------------- */
 router.post("/complete-lesson", verifyToken, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
@@ -134,13 +131,14 @@ router.post("/complete-lesson", verifyToken, async (req, res) => {
     lesson.endTime = new Date();
     await lesson.save();
 
-    return res.json({
+    res.json({
       ok: true,
       lesson: lesson.summary ? lesson.summary() : lesson,
     });
+
   } catch (err) {
-    console.error("complete-lesson error:", err.message || err);
-    return res.status(500).json({ error: "Failed to complete lesson" });
+    console.error("complete-lesson error:", err.message);
+    res.status(500).json({ error: "Failed to complete lesson" });
   }
 });
 
