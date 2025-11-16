@@ -8,9 +8,7 @@ export default function VideoLesson() {
   const containerRef = useRef(null);
   const callRef = useRef(null);
 
-  // -------------------------------
   // CORE STATE
-  // -------------------------------
   const [roomUrl, setRoomUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lesson, setLesson] = useState(null);
@@ -20,28 +18,28 @@ export default function VideoLesson() {
   const [camOn, setCamOn] = useState(true);
   const [sharing, setSharing] = useState(false);
 
+  // Devices
   const [showDevices, setShowDevices] = useState(false);
   const [mics, setMics] = useState([]);
   const [cams, setCams] = useState([]);
   const [speakers, setSpeakers] = useState([]);
-
   const [selectedMic, setSelectedMic] = useState("");
   const [selectedCam, setSelectedCam] = useState("");
   const [selectedSpeaker, setSelectedSpeaker] = useState("");
 
-  // -------------------------------
-  // CHAT
-  // -------------------------------
+  // Chat
   const [chatOpen, setChatOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [msgText, setMsgText] = useState("");
 
-  // -------------------------------
-  // RECORDING STATE
-  // -------------------------------
+  // Recording
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingOwner, setRecordingOwner] = useState(null); 
+  const [recordingOwner, setRecordingOwner] = useState(null);
   const [recordingId, setRecordingId] = useState(null);
+
+  // Timer / auto-end
+  const [timeLeftSecs, setTimeLeftSecs] = useState(null);
+  const [timerStarted, setTimerStarted] = useState(false);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -51,14 +49,12 @@ export default function VideoLesson() {
   const token = getToken();
   const API = import.meta.env.VITE_API;
 
-  // ---------------------------------------------
   // 1) Load Lesson
-  // ---------------------------------------------
   useEffect(() => {
     async function loadLesson() {
       try {
         const res = await fetch(`${API}/api/lessons/${lessonId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         setLesson(data);
@@ -66,15 +62,13 @@ export default function VideoLesson() {
         setLesson(null);
       }
     }
-    if (lessonId) loadLesson();
+    if (lessonId && token) loadLesson();
   }, [lessonId, API, token]);
 
   const isTutor = lesson && user?._id === lesson.tutor;
   const isStudent = lesson && user?._id === lesson.student;
 
-  // ---------------------------------------------
   // 2) Load Room URL (Tutor must click Start)
-  // ---------------------------------------------
   useEffect(() => {
     if (!lesson || (!isTutor && !isStudent)) return;
 
@@ -83,7 +77,7 @@ export default function VideoLesson() {
         const res = await fetch(`${API}/api/video/create-room`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lessonId })
+          body: JSON.stringify({ lessonId }),
         });
 
         const data = await res.json();
@@ -95,13 +89,11 @@ export default function VideoLesson() {
       }
     }
 
-    if (isTutor && !hasStarted) return; 
+    if (isTutor && !hasStarted) return;
     loadRoom();
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
-  // ---------------------------------------------
   // 3) Daily Call + Devices
-  // ---------------------------------------------
   useEffect(() => {
     if (!roomUrl) return;
     if (!containerRef.current) return;
@@ -110,8 +102,8 @@ export default function VideoLesson() {
       iframeStyle: {
         width: "100%",
         height: "100%",
-        border: "none"
-      }
+        border: "none",
+      },
     });
 
     callRef.current = call;
@@ -144,9 +136,7 @@ export default function VideoLesson() {
     };
   }, [roomUrl]);
 
-  // ---------------------------------------------
-  // 4) Toggles (Mic, Cam, Share)
-  // ---------------------------------------------
+  // 4) Toggles
   function toggleMic() {
     if (!callRef.current) return;
     const next = !micOn;
@@ -178,9 +168,7 @@ export default function VideoLesson() {
     }
   }
 
-  // ---------------------------------------------
   // 5) Device Settings Apply
-  // ---------------------------------------------
   async function applyDeviceChanges() {
     if (!callRef.current) return;
 
@@ -199,9 +187,7 @@ export default function VideoLesson() {
     setShowDevices(false);
   }
 
-  // ---------------------------------------------
   // 6) Leave Lesson
-  // ---------------------------------------------
   function leaveLesson() {
     if (callRef.current) {
       callRef.current.leave();
@@ -211,9 +197,7 @@ export default function VideoLesson() {
     else navigate("/my-lessons");
   }
 
-  // ---------------------------------------------
   // 7) Chat Send
-  // ---------------------------------------------
   function sendMessage() {
     if (!msgText.trim()) return;
 
@@ -222,8 +206,8 @@ export default function VideoLesson() {
       {
         id: Date.now(),
         sender: user._id,
-        text: msgText.trim()
-      }
+        text: msgText.trim(),
+      },
     ]);
 
     setMsgText("");
@@ -234,9 +218,7 @@ export default function VideoLesson() {
     }, 50);
   }
 
-  // --------------------------------------------------
-  // RECORDING BUTTONS
-  // --------------------------------------------------
+  // 8) Recording
   async function startRecording() {
     if (!roomUrl) return;
 
@@ -244,7 +226,7 @@ export default function VideoLesson() {
       const res = await fetch(`${API}/api/video/start-recording`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomUrl })
+        body: JSON.stringify({ roomUrl }),
       });
 
       const data = await res.json();
@@ -260,14 +242,12 @@ export default function VideoLesson() {
 
   async function stopRecording() {
     if (!isRecording) return;
-    if (recordingOwner !== user._id) return; // safety
+    if (recordingOwner !== user._id) return;
 
     try {
-      const res = await fetch(`${API}/api/video/stop-recording`, {
-        method: "POST"
+      await fetch(`${API}/api/video/stop-recording`, {
+        method: "POST",
       });
-
-      const data = await res.json();
 
       setIsRecording(false);
       setRecordingOwner(null);
@@ -276,15 +256,77 @@ export default function VideoLesson() {
       console.error("Stop recording error:", err);
     }
   }
-  // --------------------------------------------------
-  // RENDER BEGINS
-  // --------------------------------------------------
+
+  // 9) Auto-end logic
+  useEffect(() => {
+    if (!lesson || !roomUrl || timerStarted === true) return;
+
+    let mins = 0;
+    if (typeof lesson.durationMins === "number" && lesson.durationMins > 0) {
+      mins = lesson.durationMins;
+    } else if (lesson.startTime && lesson.endTime) {
+      const start = new Date(lesson.startTime);
+      const end = new Date(lesson.endTime);
+      mins = Math.max(0, Math.round((end - start) / 60000));
+    }
+
+    if (!mins) {
+      mins = 60;
+    }
+
+    setTimeLeftSecs(mins * 60);
+    setTimerStarted(true);
+  }, [lesson, roomUrl, timerStarted]);
+
+  useEffect(() => {
+    if (!timerStarted) return;
+
+    const id = setInterval(() => {
+      setTimeLeftSecs((prev) => {
+        if (prev === null) return prev;
+        if (prev <= 1) {
+          clearInterval(id);
+          handleAutoEnd();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerStarted]);
+
+  async function handleAutoEnd() {
+    try {
+      if (lesson && token) {
+        await fetch(`${API}/api/video/complete-lesson`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ lessonId }),
+        });
+      }
+    } catch (err) {
+      console.error("Auto-complete lesson error:", err);
+    } finally {
+      navigate(`/lesson-ended?lessonId=${lessonId}`);
+    }
+  }
+
+  // RENDER
   if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
 
   if (!isTutor && !isStudent)
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
 
   const softGrey = "#d4d4d4";
+  const minutesLeft =
+    timeLeftSecs !== null ? Math.floor(timeLeftSecs / 60) : null;
+  const secondsLeft =
+    timeLeftSecs !== null ? timeLeftSecs % 60 : null;
 
   return (
     <div
@@ -334,6 +376,29 @@ export default function VideoLesson() {
             flexDirection: "row",
           }}
         >
+          {/* 5-minute countdown bar */}
+          {timeLeftSecs !== null && timeLeftSecs <= 5 * 60 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "50px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "6px 12px",
+                background: "#fef3c7",
+                color: "#92400e",
+                borderRadius: 999,
+                fontSize: 13,
+                zIndex: 50,
+              }}
+            >
+              Lesson ends in{" "}
+              {minutesLeft !== null && secondsLeft !== null
+                ? `${minutesLeft}:${String(secondsLeft).padStart(2, "0")}`
+                : "a few minutes"}
+            </div>
+          )}
+
           {/* CHAT SIDEBAR */}
           {chatOpen && (
             <div
@@ -430,7 +495,7 @@ export default function VideoLesson() {
             </div>
           )}
 
-          {/* CHAT TOGGLE BUTTON */}
+          {/* CHAT TOGGLE */}
           <button
             onClick={() => setChatOpen(!chatOpen)}
             style={{
@@ -498,7 +563,6 @@ export default function VideoLesson() {
               zIndex: 40,
             }}
           >
-            {/* START RECORDING */}
             {!isRecording && (
               <button
                 onClick={startRecording}
@@ -515,14 +579,9 @@ export default function VideoLesson() {
               </button>
             )}
 
-            {/* STOP RECORDING — enabled ONLY for owner */}
             {isRecording && (
               <button
-                onClick={
-                  recordingOwner === user._id
-                    ? stopRecording
-                    : undefined
-                }
+                onClick={recordingOwner === user._id ? stopRecording : undefined}
                 disabled={recordingOwner !== user._id}
                 title={
                   recordingOwner !== user._id
@@ -537,16 +596,13 @@ export default function VideoLesson() {
                   border: "none",
                   borderRadius: "8px",
                   cursor:
-                    recordingOwner === user._id
-                      ? "pointer"
-                      : "not-allowed",
+                    recordingOwner === user._id ? "pointer" : "not-allowed",
                 }}
               >
                 Stop Recording
               </button>
             )}
 
-            {/* LIVE BADGE */}
             {isRecording && (
               <div
                 style={{
@@ -617,7 +673,7 @@ export default function VideoLesson() {
             </button>
           </div>
 
-          {/* TUTOR WAITING */}
+          {/* TUTOR WAIT */}
           {isTutor && !hasStarted && !roomUrl && (
             <div
               style={{
