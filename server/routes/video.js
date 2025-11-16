@@ -1,5 +1,6 @@
 // /server/routes/video.js
 const express = require("express");
+const fetch = require("node-fetch"); // ✅ FIX FOR NODE 20
 const Lesson = require("../models/Lesson");
 const { verifyToken } = require("../middleware/auth");
 
