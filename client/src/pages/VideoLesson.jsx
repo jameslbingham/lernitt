@@ -5,8 +5,8 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import DailyIframe from "@daily-co/daily-js";
 
 export default function VideoLesson() {
-  const containerRef = useRef(null);     // Daily video mount point
-  const callRef = useRef(null);          // Daily call object
+  const containerRef = useRef(null);
+  const callRef = useRef(null);
 
   const [roomUrl, setRoomUrl] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +15,7 @@ export default function VideoLesson() {
 
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
+  const [sharing, setSharing] = useState(false);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -47,7 +48,7 @@ export default function VideoLesson() {
   const isStudent = lesson && user?._id === lesson.student;
 
   // ---------------------------------------------------
-  // 2️⃣ Create Room (Server)
+  // 2️⃣ Create Room via Backend
   // ---------------------------------------------------
   useEffect(() => {
     if (!lesson || (!isTutor && !isStudent)) return;
@@ -61,9 +62,7 @@ export default function VideoLesson() {
         });
 
         const data = await res.json();
-        if (data.roomUrl) {
-          setRoomUrl(data.roomUrl);
-        }
+        if (data.roomUrl) setRoomUrl(data.roomUrl);
       } catch (err) {
         console.error("Room load error:", err);
       } finally {
@@ -76,20 +75,17 @@ export default function VideoLesson() {
       return;
     }
 
-    if (isStudent) {
-      loadRoom();
-    }
+    if (isStudent) loadRoom();
 
   }, [lesson, isTutor, isStudent, hasStarted, lessonId, API]);
 
   // ---------------------------------------------------
-  // 3️⃣ DAILY SDK — Join the call
+  // 3️⃣ DAILY SDK — Join Call
   // ---------------------------------------------------
   useEffect(() => {
     if (!roomUrl) return;
     if (!containerRef.current) return;
 
-    // Create Daily Call
     const call = DailyIframe.createFrame(containerRef.current, {
       iframeStyle: {
         width: "100%",
@@ -102,9 +98,12 @@ export default function VideoLesson() {
 
     call.join({ url: roomUrl });
 
-    // Sync mic/cam state
+    // sync initial states
     call.setLocalAudio(micOn);
     call.setLocalVideo(camOn);
+
+    call.on("screen-share-started", () => setSharing(true));
+    call.on("screen-share-stopped", () => setSharing(false));
 
     return () => {
       call.leave();
@@ -113,7 +112,7 @@ export default function VideoLesson() {
   }, [roomUrl]);
 
   // ---------------------------------------------------
-  // 4️⃣ Toggle Mic / Cam
+  // 4️⃣ Mic / Camera Toggle
   // ---------------------------------------------------
   function toggleMic() {
     if (!callRef.current) return;
@@ -130,7 +129,30 @@ export default function VideoLesson() {
   }
 
   // ---------------------------------------------------
-  // 5️⃣ Leave Lesson
+  // 5️⃣ Screen Sharing
+  // ---------------------------------------------------
+  async function toggleScreenShare() {
+    if (!callRef.current) return;
+
+    if (!sharing) {
+      // start
+      try {
+        await callRef.current.startScreenShare();
+      } catch (e) {
+        console.error("Screen share failed:", e);
+      }
+    } else {
+      // stop
+      try {
+        await callRef.current.stopScreenShare();
+      } catch (e) {
+        console.error("Stop screen share failed:", e);
+      }
+    }
+  }
+
+  // ---------------------------------------------------
+  // 6️⃣ Leave Lesson
   // ---------------------------------------------------
   function leaveLesson() {
     if (callRef.current) {
@@ -218,7 +240,7 @@ export default function VideoLesson() {
             Leave Lesson
           </button>
 
-          {/* MIC/CAM BUTTONS */}
+          {/* CONTROL BAR */}
           <div
             style={{
               position: "absolute",
@@ -256,6 +278,20 @@ export default function VideoLesson() {
               }}
             >
               {camOn ? "Turn Camera Off" : "Turn Camera On"}
+            </button>
+
+            <button
+              onClick={toggleScreenShare}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "10px",
+                border: "none",
+                background: sharing ? "#ef4444" : "#4f46e5",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              {sharing ? "Stop Sharing" : "Share Screen"}
             </button>
           </div>
 
