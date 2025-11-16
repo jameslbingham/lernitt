@@ -8,7 +8,7 @@ const DAILY_API_KEY = process.env.DAILY_API_KEY;
 const API_BASE = "https://api.daily.co/v1";
 
 // -------------------------------------------------------
-// Helper: Daily API Client
+// Daily API Client Helper
 // -------------------------------------------------------
 function daily() {
   return axios.create({
@@ -25,6 +25,10 @@ router.post("/create-room", async (req, res) => {
   try {
     const { lessonId } = req.body;
 
+    if (!lessonId) {
+      return res.status(400).json({ error: "lessonId is required" });
+    }
+
     const response = await daily().post("/rooms", {
       name: `lesson-${lessonId}-${Date.now()}`,
       properties: {
@@ -32,7 +36,7 @@ router.post("/create-room", async (req, res) => {
         enable_screenshare: true,
         start_video_off: false,
         start_audio_off: false,
-        eject_after_elapsed_seconds: 7200
+        eject_after_elapsed_seconds: 7200 // 2 hours safety
       },
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30 // 30 days
     });
@@ -52,9 +56,15 @@ router.post("/start-recording", async (req, res) => {
   try {
     const { roomUrl } = req.body;
 
+    if (!roomUrl) {
+      return res.status(400).json({ error: "roomUrl is required" });
+    }
+
     const result = await daily().post("/recordings/start", {
       room_url: roomUrl,
-      layout: { preset: "default" }
+      layout: {
+        preset: "default"
+      }
     });
 
     return res.json({ recording: result.data });
@@ -66,8 +76,8 @@ router.post("/start-recording", async (req, res) => {
 
 // -------------------------------------------------------
 // POST /api/video/stop-recording
-// Tutor OR student can attempt to stop
-// (frontend enforces owner-only rule)
+// Backend allows anyone to stop,
+// FRONTEND enforces *owner-only* stopping
 // -------------------------------------------------------
 router.post("/stop-recording", async (_req, res) => {
   try {
