@@ -2,13 +2,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
+import DailyIframe from "@daily-co/daily-js";
 
 export default function VideoLesson() {
-  const iframeRef = useRef(null);
+  const containerRef = useRef(null);     // Daily video mount point
+  const callRef = useRef(null);          // Daily call object
+
   const [roomUrl, setRoomUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lesson, setLesson] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
+
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -20,13 +26,13 @@ export default function VideoLesson() {
   const API = import.meta.env.VITE_API;
 
   // ---------------------------------------------------
-  // 1️⃣ LOAD REAL LESSON
+  // 1️⃣ Load Lesson
   // ---------------------------------------------------
   useEffect(() => {
     async function loadLesson() {
       try {
         const res = await fetch(`${API}/api/lessons/${lessonId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         setLesson(data);
@@ -37,40 +43,32 @@ export default function VideoLesson() {
     if (lessonId) loadLesson();
   }, [lessonId, API, token]);
 
+  const isTutor = lesson && user?._id === lesson.tutor;
+  const isStudent = lesson && user?._id === lesson.student;
+
   // ---------------------------------------------------
-  // 2️⃣ LOAD VIDEO ROOM
+  // 2️⃣ Create Room (Server)
   // ---------------------------------------------------
   useEffect(() => {
-    if (!lessonId) return;
+    if (!lesson || (!isTutor && !isStudent)) return;
 
     async function loadRoom() {
       try {
-        const res = await fetch(
-          `${API}/api/video/create-room`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lessonId })
-          }
-        );
+        const res = await fetch(`${API}/api/video/create-room`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lessonId }),
+        });
 
         const data = await res.json();
-        if (data.roomUrl) setRoomUrl(data.roomUrl);
+        if (data.roomUrl) {
+          setRoomUrl(data.roomUrl);
+        }
       } catch (err) {
-        console.error("Video load error:", err);
+        console.error("Room load error:", err);
       } finally {
         setLoading(false);
       }
-    }
-
-    if (!lesson) return;
-
-    const isTutor = user?._id === lesson.tutor;
-    const isStudent = user?._id === lesson.student;
-
-    if (!isTutor && !isStudent) {
-      setLoading(false);
-      return;
     }
 
     if (isTutor) {
@@ -80,38 +78,78 @@ export default function VideoLesson() {
 
     if (isStudent) {
       loadRoom();
-      return;
     }
 
-  }, [lessonId, lesson, user, hasStarted, API]);
+  }, [lesson, isTutor, isStudent, hasStarted, lessonId, API]);
 
   // ---------------------------------------------------
-  // 3️⃣ ROLE VALIDATION
+  // 3️⃣ DAILY SDK — Join the call
   // ---------------------------------------------------
-  if (lesson === null) {
-    return <p style={{ padding: 20 }}>Loading lesson…</p>;
+  useEffect(() => {
+    if (!roomUrl) return;
+    if (!containerRef.current) return;
+
+    // Create Daily Call
+    const call = DailyIframe.createFrame(containerRef.current, {
+      iframeStyle: {
+        width: "100%",
+        height: "100%",
+        border: "none",
+      },
+    });
+
+    callRef.current = call;
+
+    call.join({ url: roomUrl });
+
+    // Sync mic/cam state
+    call.setLocalAudio(micOn);
+    call.setLocalVideo(camOn);
+
+    return () => {
+      call.leave();
+      call.destroy();
+    };
+  }, [roomUrl]);
+
+  // ---------------------------------------------------
+  // 4️⃣ Toggle Mic / Cam
+  // ---------------------------------------------------
+  function toggleMic() {
+    if (!callRef.current) return;
+    const next = !micOn;
+    setMicOn(next);
+    callRef.current.setLocalAudio(next);
   }
 
-  const isTutor = user?._id === lesson.tutor;
-  const isStudent = user?._id === lesson.student;
-
-  if (!isTutor && !isStudent) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>You are not part of this lesson.</h2>
-      </div>
-    );
+  function toggleCam() {
+    if (!callRef.current) return;
+    const next = !camOn;
+    setCamOn(next);
+    callRef.current.setLocalVideo(next);
   }
 
-  const softGrey = "#d4d4d4";
-
   // ---------------------------------------------------
-  // 4️⃣ LEAVE LESSON button handler
+  // 5️⃣ Leave Lesson
   // ---------------------------------------------------
   function leaveLesson() {
+    if (callRef.current) {
+      callRef.current.leave();
+      callRef.current.destroy();
+    }
     if (isTutor) navigate("/tutor-lessons");
     else navigate("/my-lessons");
   }
+
+  if (!lesson) {
+    return <p style={{ padding: 20 }}>Loading lesson…</p>;
+  }
+
+  if (!isTutor && !isStudent) {
+    return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
+  }
+
+  const softGrey = "#d4d4d4";
 
   return (
     <div
@@ -120,7 +158,7 @@ export default function VideoLesson() {
         height: "100vh",
         background: "#f7f7f7",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
       }}
     >
       {/* HEADER */}
@@ -131,86 +169,124 @@ export default function VideoLesson() {
           padding: "14px",
           fontSize: "18px",
           fontWeight: "bold",
-          textAlign: "center"
+          textAlign: "center",
         }}
       >
         lernitt — Live Lesson
       </div>
 
-      {/* VIDEO AREA */}
+      {/* MAIN AREA */}
       <div
         style={{
           flex: 1,
+          background: "#eaeaea",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          background: "#eaeaea"
         }}
       >
-        {/* BORDER WRAPPER */}
+        {/* BORDER */}
         <div
           style={{
             width: "90%",
             height: "90%",
             border: `2px solid ${softGrey}`,
             borderRadius: "12px",
+            position: "relative",
             overflow: "hidden",
             background: "black",
-            position: "relative",   // ⭐ required for button positioning
             display: "flex",
-            flexDirection: "column"
+            flexDirection: "column",
           }}
         >
-          {/* ⭐ LEAVE LESSON BUTTON — TOP RIGHT */}
+          {/* LEAVE BUTTON */}
           <button
-            type="button"
             onClick={leaveLesson}
             style={{
               position: "absolute",
               top: "12px",
               right: "12px",
-              zIndex: 10,
+              zIndex: 20,
               background: "#ff4d4f",
               color: "white",
               border: "none",
-              borderRadius: "8px",
               padding: "8px 14px",
-              fontSize: "14px",
-              cursor: "pointer"
+              borderRadius: "8px",
+              cursor: "pointer",
             }}
           >
             Leave Lesson
           </button>
 
-          {/* Tutor pre-start */}
-          {isTutor && !hasStarted && (
+          {/* MIC/CAM BUTTONS */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: "12px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              gap: "12px",
+              zIndex: 20,
+            }}
+          >
+            <button
+              onClick={toggleMic}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "10px",
+                border: "none",
+                background: micOn ? "#4f46e5" : "#9ca3af",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              {micOn ? "Mute Mic" : "Unmute Mic"}
+            </button>
+
+            <button
+              onClick={toggleCam}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "10px",
+                border: "none",
+                background: camOn ? "#4f46e5" : "#9ca3af",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              {camOn ? "Turn Camera Off" : "Turn Camera On"}
+            </button>
+          </div>
+
+          {/* TUTOR START */}
+          {isTutor && !hasStarted && !roomUrl && (
             <div
               style={{
                 flex: 1,
+                color: "white",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
                 justifyContent: "center",
-                color: "white"
+                alignItems: "center",
               }}
             >
-              <p style={{ fontSize: "18px", marginBottom: "16px" }}>
+              <p style={{ fontSize: "18px", marginBottom: "10px" }}>
                 When you are ready, start the lesson.
               </p>
               <button
-                type="button"
                 onClick={() => {
                   setLoading(true);
                   setHasStarted(true);
                 }}
                 style={{
                   padding: "10px 20px",
-                  fontSize: "16px",
-                  borderRadius: "999px",
                   border: "none",
+                  borderRadius: "12px",
                   background: "#4f46e5",
                   color: "white",
-                  cursor: "pointer"
+                  cursor: "pointer",
+                  fontSize: "16px",
                 }}
               >
                 Start Lesson
@@ -218,50 +294,31 @@ export default function VideoLesson() {
             </div>
           )}
 
-          {/* Student waiting */}
+          {/* STUDENT WAIT */}
           {isStudent && !roomUrl && loading && (
             <div
               style={{
                 flex: 1,
                 color: "white",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-            >
-              <p style={{ fontSize: "18px" }}>Waiting for tutor…</p>
-            </div>
-          )}
-
-          {/* Video iframe */}
-          {!loading && roomUrl && (
-            <iframe
-              ref={iframeRef}
-              src={`${roomUrl}?embed=true&audioSource=mic&videoSource=camera&layout=custom&hideLogo=true`}
-              allow="camera; microphone; fullscreen; speaker; display-capture"
-              style={{
-                width: "100%",
-                height: "100%",
-                border: "none"
-              }}
-            />
-          )}
-
-          {/* Error */}
-          {!loading && !roomUrl && (
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
                 justifyContent: "center",
-                color: "red",
-                background: "black"
+                alignItems: "center",
               }}
             >
-              <p style={{ fontSize: "18px" }}>Could not load video room.</p>
+              Waiting for tutor…
             </div>
           )}
+
+          {/* DAILY VIDEO MOUNT */}
+          <div
+            ref={containerRef}
+            style={{
+              flex: 1,
+              width: "100%",
+              height: "100%",
+              position: "relative",
+            }}
+          />
         </div>
       </div>
     </div>
