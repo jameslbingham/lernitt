@@ -31,12 +31,12 @@ const LessonSchema = new Schema(
     status: {
       type: String,
       enum: [
-        'booked',     // student booked, payment required
-        'paid',       // payment succeeded
-        'confirmed',  // tutor confirmed
-        'completed',  // lesson finished
-        'cancelled',  // cancelled by student/tutor/admin
-        'expired'     // time passed without completion
+        'booked',
+        'paid',
+        'confirmed',
+        'completed',
+        'cancelled',
+        'expired'
       ],
       default: 'booked',
       index: true,
@@ -61,8 +61,12 @@ const LessonSchema = new Schema(
     cancelReason:  { type: String, trim: true },
     reschedulable: { type: Boolean, default: false },
 
-    // Duration for analytics
+    // Duration
     durationMins: { type: Number, default: 0 },
+
+    // 🔴 ADDED FOR RECORDINGS
+    recordingId:        { type: String, default: null },
+    recordingStartedBy: { type: String, default: null },
   },
   { timestamps: true }
 );
@@ -73,7 +77,6 @@ LessonSchema.index({ student: 1, startTime: 1 });
 LessonSchema.index({ status: 1, createdAt: -1 });
 
 /* ------------------------ Hooks and Helpers ------------------------ */
-// Automatically compute duration if not set
 LessonSchema.pre('save', function (next) {
   if (this.startTime && this.endTime) {
     const mins = Math.max(0, (this.endTime - this.startTime) / 60000);
@@ -82,7 +85,6 @@ LessonSchema.pre('save', function (next) {
   next();
 });
 
-// Format helper for analytics
 LessonSchema.methods.summary = function () {
   return {
     id: String(this._id),
