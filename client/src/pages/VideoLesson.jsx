@@ -180,7 +180,9 @@ export default function VideoLesson() {
     }
     if (selectedSpeaker) {
       try {
-        await callRef.current.setOutputDevice({ speakerDeviceId: selectedSpeaker });
+        await callRef.current.setOutputDevice({
+          speakerDeviceId: selectedSpeaker,
+        });
       } catch {}
     }
 
@@ -218,7 +220,7 @@ export default function VideoLesson() {
     }, 50);
   }
 
-  // 8) Recording
+  // *** UPDATED RECORDING LOGIC ***
   async function startRecording() {
     if (!roomUrl) return;
 
@@ -232,7 +234,7 @@ export default function VideoLesson() {
       const data = await res.json();
       if (data.recording) {
         setIsRecording(true);
-        setRecordingOwner(user._id);
+        setRecordingOwner(user._id); // whoever pressed start
         setRecordingId(data.recording.id || null);
       }
     } catch (err) {
@@ -242,7 +244,11 @@ export default function VideoLesson() {
 
   async function stopRecording() {
     if (!isRecording) return;
-    if (recordingOwner !== user._id) return;
+
+    if (recordingOwner !== user._id) {
+      console.warn("Only the person who started recording can stop it.");
+      return;
+    }
 
     try {
       await fetch(`${API}/api/video/stop-recording`, {
@@ -270,9 +276,7 @@ export default function VideoLesson() {
       mins = Math.max(0, Math.round((end - start) / 60000));
     }
 
-    if (!mins) {
-      mins = 60;
-    }
+    if (!mins) mins = 60;
 
     setTimeLeftSecs(mins * 60);
     setTimerStarted(true);
@@ -294,7 +298,6 @@ export default function VideoLesson() {
     }, 1000);
 
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerStarted]);
 
   async function handleAutoEnd() {
@@ -552,7 +555,7 @@ export default function VideoLesson() {
             Device Settings
           </button>
 
-          {/* RECORDING CONTROLS */}
+          {/* *** UPDATED RECORDING BUTTONS *** */}
           <div
             style={{
               position: "absolute",
@@ -585,7 +588,7 @@ export default function VideoLesson() {
                 disabled={recordingOwner !== user._id}
                 title={
                   recordingOwner !== user._id
-                    ? "Only the person who started the recording can stop it."
+                    ? "Only the person who started recording can stop it."
                     : ""
                 }
                 style={{
