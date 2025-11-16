@@ -68,9 +68,17 @@ router.post("/create-room", async (req, res) => {
 /* ---------------- START RECORDING ---------------- */
 router.post("/start-recording", async (req, res) => {
   try {
-    const { roomUrl } = req.body || {};
+    const { roomUrl, lessonId } = req.body || {};
     if (!roomUrl) {
       return res.status(400).json({ error: "roomUrl is required" });
+    }
+    if (!lessonId) {
+      return res.status(400).json({ error: "lessonId is required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
     }
 
     const body = {
@@ -83,6 +91,11 @@ router.post("/start-recording", async (req, res) => {
       body: JSON.stringify(body),
     });
 
+    // ✅ Save metadata
+    lesson.recordingId = recording.id || null;
+    lesson.recordingStartedBy = req.user?.id || null; // optional (no auth middleware yet)
+    await lesson.save();
+
     res.json({ recording });
   } catch (err) {
     console.error("start-recording error:", err.message || err);
@@ -91,11 +104,26 @@ router.post("/start-recording", async (req, res) => {
 });
 
 /* ---------------- STOP RECORDING ---------------- */
-router.post("/stop-recording", async (_req, res) => {
+router.post("/stop-recording", async (req, res) => {
   try {
+    const { lessonId } = req.body || {};
+    if (!lessonId) {
+      return res.status(400).json({ error: "lessonId is required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
     const recording = await dailyFetch("/recordings/stop", {
       method: "POST",
     });
+
+    // ✅ Clear metadata
+    lesson.recordingId = null;
+    lesson.recordingStartedBy = null;
+    await lesson.save();
 
     res.json({ recording });
   } catch (err) {
@@ -105,7 +133,6 @@ router.post("/stop-recording", async (_req, res) => {
 });
 
 /* ---------------- COMPLETE LESSON ---------------- */
-// NOTE: temporarily no auth middleware, to avoid handler errors.
 router.post("/complete-lesson", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
