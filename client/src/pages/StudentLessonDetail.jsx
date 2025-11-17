@@ -33,7 +33,6 @@ function durationEnd(iso, minutes) {
 
 /* -------------------- lifecycle rules -------------------- */
 
-// New statuses only: booked → paid → confirmed → completed → cancelled → expired
 function deriveStatus(l) {
   const raw = (l.status || "booked").toLowerCase();
   const started = new Date(l.start).getTime() <= Date.now();
@@ -43,7 +42,6 @@ function deriveStatus(l) {
   return raw;
 }
 
-// Student-friendly names
 const STATUS_LABELS = {
   booked: "Pending — payment needed",
   paid: "Paid — awaiting tutor confirmation",
@@ -155,6 +153,7 @@ export default function StudentLessonDetail() {
   const [loading, setLoading] = useState(!passed);
   const [err, setErr] = useState("");
 
+  /* -------------------- LOAD LESSON -------------------- */
   async function load() {
     if (!token) {
       nav(
@@ -187,6 +186,19 @@ export default function StudentLessonDetail() {
     if (!passed) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
+
+  /* -------------------- AUTO-REFRESH (NEW) -------------------- */
+  useEffect(() => {
+    if (!lessonId) return;
+
+    const id = setInterval(() => {
+      load(); // refresh from DB
+    }, 5000);
+
+    return () => clearInterval(id);
+  }, [lessonId]);
+
+  /* -------------------- MEMOS -------------------- */
 
   const endAt = useMemo(
     () => (lesson ? durationEnd(lesson.start, lesson.duration) : null),
