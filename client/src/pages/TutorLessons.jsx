@@ -118,10 +118,7 @@ export default function TutorLessons() {
       }
     })();
 
-    const id = setInterval(
-      () => setLessons((prev) => [...prev]),
-      30000
-    );
+    const id = setInterval(() => setLessons((prev) => [...prev]), 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -350,6 +347,18 @@ export default function TutorLessons() {
                   >
                     Mark complete
                   </button>
+                )}
+
+                {/* Completed → NEW "View recordings" button */}
+                {l.status === "completed" && (
+                  <Link
+                    to={`/lesson-recordings?lessonId=${encodeURIComponent(
+                      l._id
+                    )}`}
+                    className="px-3 py-1 rounded-2xl border hover:shadow-sm text-sm bg-blue-50 text-blue-700"
+                  >
+                    View recordings
+                  </Link>
                 )}
 
                 {/* Copy summary */}
