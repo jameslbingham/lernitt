@@ -18,10 +18,8 @@ function euros(priceCentsOrEur) {
 function translateStatus(raw) {
   switch (raw) {
     case "booked":
-      // Lesson created but not paid yet
       return "pending_payment";
     case "paid":
-      // Payment done, waiting for tutor confirmation
       return "paid_waiting_tutor";
     case "confirmed":
       return "confirmed";
@@ -32,7 +30,6 @@ function translateStatus(raw) {
     case "expired":
       return "expired";
     default:
-      // Fallback: show something sensible even if backend sends unknown status
       return raw || "pending_payment";
   }
 }
@@ -58,7 +55,7 @@ function normalizeLesson(raw) {
     _id: id,
     start: startISO,
     duration,
-    status: raw.status, // raw backend lifecycle status: booked/paid/confirmed/completed/cancelled/expired
+    status: raw.status,
     isTrial: !!raw.isTrial,
     price,
     tutorId,
@@ -71,8 +68,6 @@ function deriveStatus(l) {
   const started = new Date(l.start).getTime() <= Date.now();
   const translated = translateStatus(l.status);
 
-  // If start time has passed and backend has not marked as completed/cancelled/expired,
-  // show "expired" in the student view.
   if (started && !["completed", "cancelled", "expired"].includes(translated)) {
     return "expired";
   }
@@ -170,7 +165,7 @@ export default function MyLessons() {
   const [hidePast, setHidePast] = useState(false);
   const [onlyTrials, setOnlyTrials] = useState(false);
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  the [statusFilter, setStatusFilter] = useState("all");
   const [showTop, setShowTop] = useState(false);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -210,6 +205,7 @@ export default function MyLessons() {
   const ordered = useMemo(() => {
     let arr = [...rows];
 
+    // sort to show upcoming first
     arr.sort((a, b) => {
       const rank = (x) => (["expired", "completed", "cancelled"].includes(deriveStatus(x)) ? 1 : 0);
       return rank(a) - rank(b);
@@ -239,7 +235,7 @@ export default function MyLessons() {
     return arr;
   }, [rows, statusFilter, hidePast, onlyTrials, q]);
 
-  /* ----------- cancel ----------- */
+  /* ----------- cancel lesson ----------- */
   async function cancelLesson(id) {
     if (MOCK) {
       alert("Cancel disabled in mock mode.");
@@ -421,6 +417,8 @@ export default function MyLessons() {
             const canCancel =
               !MOCK && ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
 
+            const isCompleted = status === "completed";
+
             return (
               <li key={l._id} className="border rounded-2xl p-3">
                 {/* header row */}
@@ -473,6 +471,16 @@ export default function MyLessons() {
                   >
                     Tutor
                   </Link>
+
+                  {/* NEW — VIEW RECORDINGS BUTTON (completed lessons only) */}
+                  {isCompleted && (
+                    <Link
+                      to={`/lesson-recordings?lessonId=${encodeURIComponent(l._id)}`}
+                      className="text-sm border px-3 py-1 rounded-2xl bg-blue-50 hover:bg-blue-100"
+                    >
+                      View Recordings
+                    </Link>
+                  )}
                 </div>
               </li>
             );
