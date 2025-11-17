@@ -258,6 +258,7 @@ export default function VideoLesson() {
       if (box) box.scrollTop = box.scrollHeight;
     }, 50);
   }
+
   /* ---------------------------------------------------------------
     8) POLLING — KEEP RECORDING STATE SYNCED
   ----------------------------------------------------------------*/
@@ -284,7 +285,6 @@ export default function VideoLesson() {
           stopVotes: data.recordingStopVotes,
         });
 
-        // Keep isRecording synced
         setIsRecording(data.recordingActive);
         setRecordingId(data.recordingId || null);
 
@@ -520,26 +520,38 @@ export default function VideoLesson() {
             flexDirection: "row",
           }}
         >
-          {/* 5-minute countdown bar */}
-          {timeLeftSecs !== null && timeLeftSecs <= 5 * 60 && (
+
+          {/* NEW — FLOATING LIVE RECORDING BADGE */}
+          {recordingState.active && (
             <div
               style={{
                 position: "absolute",
-                top: "50px",
+                top: "12px",
                 left: "50%",
                 transform: "translateX(-50%)",
+                background: "rgba(220, 38, 38, 0.9)",
+                color: "white",
                 padding: "6px 12px",
-                background: "#fef3c7",
-                color: "#92400e",
-                borderRadius: 999,
-                fontSize: 13,
-                zIndex: 50,
+                borderRadius: "999px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                zIndex: 60,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
               }}
             >
-              Lesson ends in{" "}
-              {minutesLeft !== null && secondsLeft !== null
-                ? `${minutesLeft}:${String(secondsLeft).padStart(2, "0")}`
-                : "a few minutes"}
+              <span
+                style={{
+                  display: "inline-block",
+                  width: "10px",
+                  height: "10px",
+                  background: "white",
+                  borderRadius: "50%",
+                }}
+              />
+              Recording
             </div>
           )}
 
@@ -733,7 +745,7 @@ export default function VideoLesson() {
                     onClick={requestStopRecording}
                     style={{
                       padding: "8px 14px",
-                      background: "#f59e0b", // amber
+                      background: "#f59e0b",
                       color: "white",
                       border: "none",
                       borderRadius: "8px",
@@ -750,7 +762,7 @@ export default function VideoLesson() {
                     onClick={cancelStopVote}
                     style={{
                       padding: "8px 14px",
-                      background: "#6b7280", // grey
+                      background: "#6b7280",
                       color: "white",
                       border: "none",
                       borderRadius: "8px",
