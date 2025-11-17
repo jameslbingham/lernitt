@@ -117,7 +117,6 @@ function updateRowOverride(tab, id, patch, setRows) {
   saveOverrides(ov);
   setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 }
-
 /* =====================================================================================================================
    2) DATA FETCH
    ===================================================================================================================== */
@@ -211,17 +210,20 @@ function resolveAdminTab({ propTab, search, hash, pathname, paramTab }) {
     paramTab,
     (pathname || "").split("/").filter(Boolean).pop(),
   ];
+
   for (const c of candidates) {
     const raw = String(c || "").trim();
     const key = raw.toLowerCase();
     if (!raw) continue;
+
     if (ADMIN_TABS_MAP[key]) return ADMIN_TABS_MAP[key];
+
     const norm = key.replace(/[-_]/g, " ");
     if (ADMIN_TABS_MAP[norm]) return ADMIN_TABS_MAP[norm];
   }
+
   return "Users";
 }
-
 /* =====================================================================================================================
    5) MAIN COMPONENT
    ===================================================================================================================== */
@@ -359,6 +361,415 @@ export default function AdminDashboard({ initialTab = "users" }) {
     setSelected([]);
     setPage(1);
   }, [filterValue, query]);
+  /* ========================================================================
+     ACTION RENDERER
+     ======================================================================== */
+
+  function renderActions(row) {
+    return (
+      <div className="space-x-1">
+        <Btn
+          onClick={() =>
+            setDetailsRow(detailsRow?.id === row.id ? null : row)
+          }
+          title="View"
+        >
+          {detailsRow?.id === row.id ? "Hide" : "View"}
+        </Btn>
+
+        {/* Users */}
+        {tab === "Users" && (
+          <>
+            <Select
+              value={row.role}
+              onChange={(e) =>
+                handleChangeUserRole(row, e.target.value)
+              }
+              className="text-xs"
+            >
+              <option value="student">Student</option>
+              <option value="tutor">Tutor</option>
+              <option value="admin">Admin</option>
+            </Select>
+            <Btn
+              onClick={() => handleToggleSuspend(row)}
+              className="text-xs"
+            >
+              {row.suspended ? "Unsuspend" : "Suspend"}
+            </Btn>
+            <Btn
+              onClick={() => handleToggleVerify(row)}
+              className="text-xs"
+            >
+              {row.verified ? "Unverify" : "Verify"}
+            </Btn>
+          </>
+        )}
+
+        {/* Tutors */}
+        {tab === "Tutors" && (
+          <>
+            {row.status === "pending" && (
+              <>
+                <Btn
+                  onClick={() => handleApproveTutor(row)}
+                  className="text-xs"
+                  kind="success"
+                >
+                  Approve
+                </Btn>
+                <Btn
+                  onClick={() => handleRejectTutor(row)}
+                  className="text-xs"
+                  kind="danger"
+                >
+                  Reject
+                </Btn>
+              </>
+            )}
+
+            {row.status === "approved" && (
+              <Badge color="green">Approved</Badge>
+            )}
+            {row.status === "rejected" && (
+              <Badge color="red">Rejected</Badge>
+            )}
+          </>
+        )}
+
+        {/* Lessons — reschedule */}
+        {tab === "Lessons" &&
+          row.rescheduleRequested &&
+          !row.rescheduleStatus && (
+            <>
+              <Btn
+                onClick={() => handleReschedule(row, "approved")}
+                className="text-xs"
+                kind="success"
+              >
+                Approve
+              </Btn>
+              <Btn
+                onClick={() => handleReschedule(row, "denied")}
+                className="text-xs"
+                kind="danger"
+              >
+                Deny
+              </Btn>
+              <Badge color="yellow">reschedule pending</Badge>
+            </>
+          )}
+
+        {/* Lessons — reschedule result */}
+        {tab === "Lessons" && row.rescheduleStatus && (
+          <Badge
+            color={
+              row.rescheduleStatus === "approved"
+                ? "green"
+                : "red"
+            }
+          >
+            {row.rescheduleStatus}
+          </Badge>
+        )}
+
+        {/* Disputes */}
+        {tab === "Disputes" &&
+          (row.status === "open" || !row.status) && (
+            <>
+              <Btn
+                onClick={() =>
+                  handleDisputeStatus(
+                    row,
+                    "resolved",
+                    "Resolved by admin"
+                  )
+                }
+                className="text-xs"
+                kind="success"
+              >
+                Resolve
+              </Btn>
+              <Btn
+                onClick={() =>
+                  handleDisputeStatus(
+                    row,
+                    "rejected",
+                    "Rejected by admin"
+                  )
+                }
+                className="text-xs"
+                kind="danger"
+              >
+                Reject
+              </Btn>
+              <Badge color="yellow">open</Badge>
+            </>
+          )}
+
+        {tab === "Disputes" &&
+          row.status &&
+          row.status !== "open" && (
+            <Badge
+              color={
+                row.status === "resolved"
+                  ? "green"
+                  : "red"
+              }
+            >
+              {row.status}
+            </Badge>
+          )}
+
+        {/* Notifications */}
+        {tab === "Notifications" && (
+          <>
+            <Btn
+              onClick={() => handleResendNotification(row.id)}
+              className="text-xs"
+              kind="info"
+            >
+              Resend
+            </Btn>
+            <Btn
+              onClick={() => handleDeleteNotification(row.id)}
+              className="text-xs"
+              kind="danger"
+            >
+              Delete
+            </Btn>
+          </>
+        )}
+      </div>
+    );
+  }
+  // Users
+  function handleChangeUserRole(row, newRole) {
+    updateRowOverride("Users", row.id, { role: newRole }, setRows);
+  }
+  function handleToggleSuspend(row) {
+    const next = !row.suspended;
+    updateRowOverride("Users", row.id, { suspended: next }, setRows);
+  }
+  function handleToggleVerify(row) {
+    updateRowOverride("Users", row.id, { verified: !row.verified }, setRows);
+  }
+
+  // Tutors
+  function handleApproveTutor(row) {
+    updateRowOverride("Tutors", row.id, { status: "approved" }, setRows);
+  }
+  function handleRejectTutor(row) {
+    updateRowOverride("Tutors", row.id, { status: "rejected" }, setRows);
+  }
+
+  // Lessons — reschedule handling
+  async function handleReschedule(row, status) {
+    try {
+      await safeFetchJSON(`/api/admin/lessons/${row.id}/reschedule`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+    } catch {}
+    updateRowOverride("Lessons", row.id, { rescheduleStatus: status }, setRows);
+  }
+
+  // Disputes
+  async function handleDisputeStatus(row, status, resolution = "") {
+    try {
+      await safeFetchJSON(`/api/admin/disputes/${row.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, resolution }),
+      });
+    } catch {}
+    updateRowOverride("Disputes", row.id, { status, resolution }, setRows);
+  }
+
+  // Notifications: broadcast
+  async function handleBroadcast() {
+    if (!broadcast.title.trim() || !broadcast.message.trim()) return;
+    setSending(true);
+    try {
+      await safeFetchJSON("/api/notifications/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(broadcast),
+      });
+    } catch {
+    } finally {
+      const synthetic = {
+        id: `N${Date.now()}`,
+        userId: "*",
+        type: "broadcast",
+        title: broadcast.title.trim(),
+        message: broadcast.message.trim(),
+        read: false,
+        createdAt: new Date().toISOString(),
+        audience: broadcast.audience,
+      };
+      if (tab === "Notifications") setRows((prev) => [synthetic, ...prev]);
+      setBroadcast({ title: "", message: "", audience: "all" });
+      setSending(false);
+    }
+  }
+
+  // Notifications: custom send
+  async function handleCustomSend() {
+    if (!custom.title.trim() || !custom.message.trim()) return;
+    const ids = custom.userIds.split(",").map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) return;
+
+    setSending(true);
+    try {
+      await safeFetchJSON("/api/notifications/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: custom.title.trim(),
+          message: custom.message.trim(),
+          userIds: ids,
+        }),
+      });
+    } catch {
+    } finally {
+      setCustom({ title: "", message: "", userIds: "" });
+      setSending(false);
+    }
+  }
+
+  async function handleDeleteNotification(id) {
+    confirm({
+      title: "Delete notification",
+      msg: "Are you sure you want to delete this notification?",
+      onConfirm: async () => {
+        try {
+          await safeFetchJSON(`/api/notifications/${id}`, {
+            method: "DELETE",
+          });
+        } catch {}
+        setRows((rs) => rs.filter((r) => r.id !== id));
+      },
+    });
+  }
+
+  async function handleResendNotification(id) {
+    try {
+      await safeFetchJSON(`/api/notifications/${id}/resend`, {
+        method: "POST",
+      });
+      setRows((rs) =>
+        rs.map((r) =>
+          r.id === id ? { ...r, resentAt: new Date().toISOString() } : r
+        )
+      );
+    } catch {}
+  }
+
+  /* ========================================================================
+     ADMIN ROLE GUARD
+     ======================================================================== */
+
+  if (role !== "admin") {
+    return (
+      <div className="p-6 max-w-6xl mx-auto">
+        <div className="mb-4 p-4 rounded-xl bg-yellow-100 border border-yellow-300">
+          <b>Admin only.</b>
+          In mock mode, set <code>localStorage.user</code> to {"{ role: 'admin' }"}
+          or add <code>?admin=1</code> to the URL.
+        </div>
+        <Link to="/">Go home</Link>
+      </div>
+    );
+  }
+
+  /* ========================================================================
+     MAIN ADMIN UI — HEADER + TABS
+     ======================================================================== */
+
+  /* ========================================================================
+     REFACTORED: ADMIN TAB DATA LOADER (original logic moved here)
+     ======================================================================== */
+
+  async function loadAdminTabData() {
+    // Tabs that do NOT fetch any list
+    if (
+      tab === "Finance" ||
+      tab === "Support" ||
+      tab === "Financials" ||
+      tab === "Risk & Ops" ||
+      tab === "Growth"
+    ) {
+      setLoading(false);
+      setRows([]);
+      setSelected([]);
+      setDetailsRow(null);
+      return;
+    }
+
+    // Original URL resolution
+    let url = "";
+    if (tab === "Users") url = "/api/admin/users";
+    if (tab === "Tutors") url = "/api/tutors";
+    if (tab === "Lessons") url = "/api/lessons";
+    if (tab === "Payouts") url = "/api/payouts";
+    if (tab === "Refunds") url = "/api/refunds";
+    if (tab === "Notifications") url = "/api/notifications";
+    if (tab === "Disputes") url = "/api/admin/disputes";
+
+    setLoading(true);
+
+    // EXACT original logic
+    getJSON(url).then((data) => {
+      const arr = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+        ? data
+        : [];
+      setRows(applyOverrides(tab, arr));
+      setLoading(false);
+      setSelected([]);
+      setDetailsRow(null);
+    });
+  }
+
+  /* ========================================================================
+     ORIGINAL useEffect — now calls loadAdminTabData()
+     ======================================================================== */
+
+  useEffect(() => {
+    loadAdminTabData();
+  }, [tab]);
+  /* ========================================================================
+     5-SECOND AUTO-REFRESH — **LESSONS TAB ONLY**
+     ======================================================================== */
+
+  useEffect(() => {
+    if (tab !== "Lessons") return; // refresh ONLY the Lessons tab
+
+    const id = setInterval(() => {
+      loadAdminTabData(); // safe refresh
+    }, 5000);
+
+    return () => clearInterval(id);
+  }, [tab]);
+
+  /* ========================================================================
+     RESET filters/sort/page when tab changes
+     ======================================================================== */
+
+  useEffect(() => {
+    setFilterValue("");
+    setSort({ key: null, dir: "asc" });
+    setSelected([]);
+    setQuery("");
+  }, [tab]);
+
+  useEffect(() => {
+    setSelected([]);
+    setPage(1);
+  }, [filterValue, query]);
 
   /* ========================================================================
      FILTERED / SORTED / SEARCHED ROWS
@@ -407,8 +818,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
 
     return arr;
   }, [rows, query, filterValue, sort, tab]);
-
-  // Pagination
+  // Pagination support
   const allCols = useMemo(
     () => (filtered[0] ? Object.keys(flatten(filtered[0])) : []),
     [filtered]
@@ -555,7 +965,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
       },
     }));
   }, [activeCols, tab]);
-
   /* ========================================================================
      ACTION RENDERER
      ======================================================================== */
@@ -869,8 +1278,8 @@ export default function AdminDashboard({ initialTab = "users" }) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-4 p-4 rounded-xl bg-yellow-100 border border-yellow-300">
-          <b>Admin only.</b>  
-          In mock mode, set <code>localStorage.user</code> to {"{ role: 'admin' }"}  
+          <b>Admin only.</b>
+          In mock mode, set <code>localStorage.user</code> to {"{ role: 'admin' }"}
           or add <code>?admin=1</code> to the URL.
         </div>
         <Link to="/">Go home</Link>
@@ -915,7 +1324,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
           </button>
         ))}
       </div>
-
       {/* Special-case tabs */}
       {tab === "Finance" ? (
         <Finance />
