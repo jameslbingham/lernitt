@@ -4,10 +4,17 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+const videoWebhookRouter = require("./routes/videoWebhook");
+
 const app = express();
 
 // Updated CORS line
 app.use(cors({ origin: "*", credentials: true }));
+
+// Daily webhook MUST come before express.json() so raw body is preserved
+app.use("/api/video", videoWebhookRouter);
+
+// Normal JSON parser for all other routes
 app.use(express.json());
 
 // Connect to Mongo only if URI present
