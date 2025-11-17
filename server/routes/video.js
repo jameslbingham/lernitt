@@ -2,7 +2,7 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
-const auth = require("../middleware/auth");
+const auth = require("../middleware/auth.js");
 
 const router = express.Router();
 
@@ -71,13 +71,11 @@ router.post("/start-recording", auth, async (req, res) => {
   try {
     const { roomUrl, lessonId } = req.body || {};
     if (!roomUrl || !lessonId) {
-      return res.status(400).json({ error: "roomUrl and lessonId are required" });
+      return res.status(400).json({ error: "roomUrl and lessonId required" });
     }
 
     const lesson = await Lesson.findById(lessonId);
-    if (!lesson) {
-      return res.status(404).json({ error: "Lesson not found" });
-    }
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
 
     const body = {
       room_url: roomUrl,
@@ -89,79 +87,145 @@ router.post("/start-recording", auth, async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    // Save recording metadata
+    // Set recording state
     lesson.recordingActive = true;
     lesson.recordingId = recording.id || null;
-    lesson.recordingStartedBy = req.user.id;
-    lesson.recordingStopVotes = { tutor: false, student: false }; // reset votes
+    lesson.recordingStartedBy = String(req.user._id);
+    lesson.recordingStopVotes = { tutor: false, student: false };
     await lesson.save();
 
-    res.json({ recording });
+    res.json({
+      recording,
+      recordingState: {
+        active: true,
+        id: recording.id || null,
+        startedBy: lesson.recordingStartedBy,
+        stopVotes: lesson.recordingStopVotes,
+      },
+    });
   } catch (err) {
     console.error("start-recording error:", err.message || err);
     res.status(500).json({ error: "Could not start recording" });
   }
 });
 
-/* ---------------- STOP RECORDING (DUAL-VOTE SYSTEM) ---------------- */
-router.post("/stop-recording", auth, async (req, res) => {
+/* ---------------- REQUEST STOP RECORDING ---------------- */
+router.post("/request-stop-recording", auth, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
-    if (!lessonId) {
-      return res.status(400).json({ error: "lessonId is required" });
-    }
+    if (!lessonId) return res.status(400).json({ error: "lessonId required" });
 
     const lesson = await Lesson.findById(lessonId);
-    if (!lesson) {
-      return res.status(404).json({ error: "Lesson not found" });
-    }
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
 
-    if (!lesson.recordingActive) {
-      return res.json({ ok: true, message: "Recording already inactive" });
-    }
+    if (!lesson.recordingActive)
+      return res.status(400).json({ error: "No active recording" });
 
-    const isTutor = String(lesson.tutor) === String(req.user.id);
-    const isStudent = String(lesson.student) === String(req.user.id);
+    const userId = String(req.user._id);
+    const isTutor = userId === String(lesson.tutor);
+    const isStudent = userId === String(lesson.student);
 
-    if (!isTutor && !isStudent) {
-      return res.status(403).json({ error: "Not part of this lesson" });
-    }
-
-    // Apply stop vote
     if (isTutor) lesson.recordingStopVotes.tutor = true;
     if (isStudent) lesson.recordingStopVotes.student = true;
 
-    await lesson.save();
-
-    // If BOTH voted → stop recording
+    // If both voted → auto-stop
     if (lesson.recordingStopVotes.tutor && lesson.recordingStopVotes.student) {
-      const recording = await dailyFetch("/recordings/stop", {
-        method: "POST",
-      });
-
+      await dailyFetch("/recordings/stop", { method: "POST" });
       lesson.recordingActive = false;
-      lesson.recordingId = null;
       lesson.recordingStartedBy = null;
+      lesson.recordingId = null;
       lesson.recordingStopVotes = { tutor: false, student: false };
-      await lesson.save();
-
-      return res.json({ stopped: true, recording });
     }
 
-    // Otherwise, send current vote status
+    await lesson.save();
+
     res.json({
-      stopped: false,
-      votes: lesson.recordingStopVotes,
+      ok: true,
+      recordingState: {
+        active: lesson.recordingActive,
+        startedBy: lesson.recordingStartedBy,
+        stopVotes: lesson.recordingStopVotes,
+      },
     });
   } catch (err) {
+    console.error("request-stop-recording error:", err.message || err);
+    res.status(500).json({ error: "Could not update stop vote" });
+  }
+});
+
+/* ---------------- CANCEL STOP VOTE ---------------- */
+router.post("/cancel-stop-vote", auth, async (req, res) => {
+  try {
+    const { lessonId } = req.body || {};
+    if (!lessonId) return res.status(400).json({ error: "lessonId required" });
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const userId = String(req.user._id);
+    const isTutor = userId === String(lesson.tutor);
+    const isStudent = userId === String(lesson.student);
+
+    if (isTutor) lesson.recordingStopVotes.tutor = false;
+    if (isStudent) lesson.recordingStopVotes.student = false;
+
+    await lesson.save();
+
+    res.json({
+      ok: true,
+      recordingState: {
+        active: lesson.recordingActive,
+        startedBy: lesson.recordingStartedBy,
+        stopVotes: lesson.recordingStopVotes,
+      },
+    });
+  } catch (err) {
+    console.error("cancel-stop-vote error:", err.message || err);
+    res.status(500).json({ error: "Could not cancel vote" });
+  }
+});
+
+/* ---------------- STOP RECORDING (MANUAL) ---------------- */
+router.post("/stop-recording", auth, async (req, res) => {
+  try {
+    const { lessonId } = req.body || {};
+    if (!lessonId) return res.status(400).json({ error: "lessonId required" });
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    if (!lesson.recordingActive)
+      return res.status(400).json({ error: "No active recording" });
+
+    // Only allow if both voted (safety)
+    if (
+      !(
+        lesson.recordingStopVotes.tutor &&
+        lesson.recordingStopVotes.student
+      )
+    ) {
+      return res.status(403).json({
+        error: "Recording can only be stopped when both participants agree.",
+      });
+    }
+
+    await dailyFetch("/recordings/stop", { method: "POST" });
+
+    lesson.recordingActive = false;
+    lesson.recordingStartedBy = null;
+    lesson.recordingId = null;
+    lesson.recordingStopVotes = { tutor: false, student: false };
+    await lesson.save();
+
+    res.json({ ok: true });
+  } catch (err) {
     console.error("stop-recording error:", err.message || err);
-    res.status(500).json({ error: "Could not apply stop vote" });
+    res.status(500).json({ error: "Could not stop recording" });
   }
 });
 
 /* ---------------- COMPLETE LESSON ---------------- */
-// NOTE: temporarily no auth middleware, to avoid handler errors.
-router.post("/complete-lesson", async (req, res) => {
+router.post("/complete-lesson", auth, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
     if (!lessonId) {
