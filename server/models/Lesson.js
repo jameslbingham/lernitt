@@ -64,9 +64,16 @@ const LessonSchema = new Schema(
     // Duration
     durationMins: { type: Number, default: 0 },
 
-    // 🔴 ADDED FOR RECORDINGS
+    // 🔴 ADDED FOR RECORDINGS (your previous additions)
     recordingId:        { type: String, default: null },
     recordingStartedBy: { type: String, default: null },
+
+    // 🔴 NEW — dual-stop-vote safe recording system
+    recordingActive: { type: Boolean, default: false },
+    recordingStopVotes: {
+      tutor:   { type: Boolean, default: false },
+      student: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );
