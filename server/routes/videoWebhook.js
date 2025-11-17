@@ -1,38 +1,61 @@
 // server/routes/videoWebhook.js
+// ============================================================================
+// DAILY WEBHOOK ENDPOINT (FULL + COMPLETE)
+// This file is self-contained. No further pasting required.
+// ============================================================================
+
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 
-router.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
-  try {
-    const signature = req.headers["daily-signature"];
-    const secret = process.env.DAILY_WEBHOOK_SECRET;
+// NOTE:
+// Daily requires express.raw() for webhooks. Do NOT use express.json() here.
+// Keep this route in its own file to avoid breaking other JSON routes.
 
-    if (!signature || !secret) return res.status(400).end();
+router.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    try {
+      const signature = req.headers["daily-signature"];
+      const secret = process.env.DAILY_WEBHOOK_SECRET;
 
-    // Verify signature (Daily docs)
-    const hmac = crypto
-      .createHmac("sha256", secret)
-      .update(req.body)
-      .digest("hex");
+      // Missing secret or signature → reject
+      if (!signature || !secret) {
+        return res.status(400).end();
+      }
 
-    if (signature !== hmac) return res.status(401).end();
+      // Compute expected signature
+      const computed = crypto
+        .createHmac("sha256", secret)
+        .update(req.body)
+        .digest("hex");
 
-    const event = JSON.parse(req.body.toString());
+      // Compare signatures
+      if (signature !== computed) {
+        console.error("Daily webhook: signature mismatch");
+        return res.status(401).end();
+      }
 
-    console.log("Daily webhook:", event.type);
+      // Parse the event data
+      const event = JSON.parse(req.body.toString());
+      console.log("Daily webhook event:", event.type);
 
-    // TODO: handle recording events:
-    // recording.started
-    // recording.finished
-    // recording.error
-    // recording.no-participants
+      // -----------------------------------------------------------------------
+      // TODO (next steps, not part of this file):
+      // Handle the following events:
+      // • recording.started
+      // • recording.finished  → update lesson.recordingStatus + recordingUrl
+      // • recording.error
+      // • recording.no-participants
+      // -----------------------------------------------------------------------
 
-    return res.status(200).end();
-  } catch (err) {
-    console.error(err);
-    return res.status(500).end();
+      return res.status(200).end();
+    } catch (err) {
+      console.error("Daily webhook error:", err);
+      return res.status(500).end();
+    }
   }
-});
+);
 
 module.exports = router;
