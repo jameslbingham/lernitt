@@ -44,10 +44,6 @@ export default function LessonEnded() {
     navigate(dashboardPath);
   }
 
-  function viewRecordings() {
-    navigate(`/lesson-recordings?lessonId=${lessonId}`);
-  }
-
   function formatDate(dateStr) {
     if (!dateStr) return "";
     const d = new Date(dateStr);
@@ -172,10 +168,11 @@ export default function LessonEnded() {
             marginBottom: 20,
           }}
         >
-          If this lesson was recorded, you can view and download any recordings
-          using the button below.
+          If this lesson was recorded, you may be able to download the
+          recording via the recordings page within the next 30 days.
         </div>
 
+        {/* BUTTONS */}
         <div
           style={{
             display: "flex",
@@ -183,15 +180,15 @@ export default function LessonEnded() {
             gap: 10,
           }}
         >
-          {/* NEW BUTTON — View Recordings */}
+          {/* NEW — View Recordings */}
           <button
             type="button"
-            onClick={viewRecordings}
+            onClick={() => navigate(`/lesson-recordings?lessonId=${lessonId}`)}
             style={{
               padding: "8px 14px",
               borderRadius: 8,
               border: "none",
-              background: "#2563eb",
+              background: "#4f46e5",
               color: "white",
               cursor: "pointer",
               fontSize: 14,
@@ -200,6 +197,25 @@ export default function LessonEnded() {
             View Recordings
           </button>
 
+          {/* Disabled original download button */}
+          <button
+            type="button"
+            disabled
+            title="Download will be available on the recordings page."
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: "#9ca3af",
+              color: "white",
+              cursor: "not-allowed",
+              fontSize: 14,
+            }}
+          >
+            Download Recording (coming soon)
+          </button>
+
+          {/* Return */}
           <button
             type="button"
             onClick={handleReturn}
