@@ -1,11 +1,16 @@
 // server/routes/videoWebhook.js
 // ============================================================================
-// DAILY WEBHOOK ENDPOINT (FULL + COMPLETE) — WITH recording.finished HANDLER
+// DAILY WEBHOOK ENDPOINT (FULL + COMPLETE)
+// Includes:
+// - Signature verification
+// - recording.finished
+// - recording.error
+// - recording.no-participants
 // ============================================================================
 
 const express = require("express");
 const crypto = require("crypto");
-const Lesson = require("../models/Lesson"); // ✅ needed for DB updates
+const Lesson = require("../models/Lesson");
 const router = express.Router();
 
 router.post(
@@ -33,42 +38,60 @@ router.post(
       const event = JSON.parse(req.body.toString());
       console.log("Daily webhook event:", event.type);
 
+      const lessonId = event?.data?.object?.room?.name;
+      if (!lessonId) return res.status(200).end(); // acknowledge anyway
+
+      const lesson = await Lesson.findById(lessonId);
+      if (!lesson) return res.status(200).end();
+
       // ============================================================
-      // STEP 2: HANDLE recording.finished
+      // STEP 2: RECORDING FINISHED
       // ============================================================
       if (event.type === "recording.finished") {
-        const lessonId = event?.data?.object?.room?.name; 
-        // IMPORTANT:
-        // room.name == lessonId   (we designed create-room that way)
-
         const recordingUrl = event?.data?.object?.download_url;
 
-        if (!lessonId || !recordingUrl) {
-          console.error("Missing lessonId or recordingUrl");
-          return res.status(200).end(); // acknowledge anyway
+        if (!recordingUrl) {
+          console.error("Missing download_url for recording.finished");
+          return res.status(200).end();
         }
 
-        const lesson = await Lesson.findById(lessonId);
-        if (!lesson) {
-          console.error("Lesson not found for recording.finished");
-          return res.status(200).end(); // acknowledge to Daily
-        }
-
-        // Update lesson recording fields
         lesson.recordingStatus = "available";
         lesson.recordingUrl = recordingUrl;
         lesson.recordingActive = false;
 
         await lesson.save();
-
         console.log(`🎥 Recording complete for lesson ${lessonId}`);
+
         return res.status(200).end();
       }
 
       // ============================================================
-      // FUTURE: recording.started, recording.error, no-participants
+      // STEP 3A: RECORDING ERROR
       // ============================================================
+      if (event.type === "recording.error") {
+        lesson.recordingStatus = "error";
+        lesson.recordingActive = false;
 
+        await lesson.save();
+        console.error(`❌ Recording ERROR for lesson ${lessonId}`);
+
+        return res.status(200).end();
+      }
+
+      // ============================================================
+      // STEP 3B: NO PARTICIPANTS
+      // ============================================================
+      if (event.type === "recording.no-participants") {
+        lesson.recordingStatus = "no-participants";
+        lesson.recordingActive = false;
+
+        await lesson.save();
+        console.log(`⚠️ Recording NO PARTICIPANTS for lesson ${lessonId}`);
+
+        return res.status(200).end();
+      }
+
+      // Acknowledge all other events (ignored for now)
       return res.status(200).end();
     } catch (err) {
       console.error("Daily webhook error:", err);
