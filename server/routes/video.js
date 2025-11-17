@@ -2,7 +2,7 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
-const auth = require("../middleware/auth");   // ✅ NEW
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -67,14 +67,11 @@ router.post("/create-room", async (req, res) => {
 });
 
 /* ---------------- START RECORDING ---------------- */
-router.post("/start-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
+router.post("/start-recording", auth, async (req, res) => {
   try {
     const { roomUrl, lessonId } = req.body || {};
-    if (!roomUrl) {
-      return res.status(400).json({ error: "roomUrl is required" });
-    }
-    if (!lessonId) {
-      return res.status(400).json({ error: "lessonId is required" });
+    if (!roomUrl || !lessonId) {
+      return res.status(400).json({ error: "roomUrl and lessonId are required" });
     }
 
     const lesson = await Lesson.findById(lessonId);
@@ -92,9 +89,11 @@ router.post("/start-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
       body: JSON.stringify(body),
     });
 
-    // ✅ Save metadata with a real authenticated user
+    // Save recording metadata
+    lesson.recordingActive = true;
     lesson.recordingId = recording.id || null;
     lesson.recordingStartedBy = req.user.id;
+    lesson.recordingStopVotes = { tutor: false, student: false }; // reset votes
     await lesson.save();
 
     res.json({ recording });
@@ -104,8 +103,8 @@ router.post("/start-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
   }
 });
 
-/* ---------------- STOP RECORDING ---------------- */
-router.post("/stop-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
+/* ---------------- STOP RECORDING (DUAL-VOTE SYSTEM) ---------------- */
+router.post("/stop-recording", auth, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
     if (!lessonId) {
@@ -117,48 +116,51 @@ router.post("/stop-recording", auth, async (req, res) => {   // ✅ ADDED AUTH
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    const recording = await dailyFetch("/recordings/stop", {
-      method: "POST",
-    });
+    if (!lesson.recordingActive) {
+      return res.json({ ok: true, message: "Recording already inactive" });
+    }
 
-    // ✅ Clear metadata
-    lesson.recordingId = null;
-    lesson.recordingStartedBy = null;
+    const isTutor = String(lesson.tutor) === String(req.user.id);
+    const isStudent = String(lesson.student) === String(req.user.id);
+
+    if (!isTutor && !isStudent) {
+      return res.status(403).json({ error: "Not part of this lesson" });
+    }
+
+    // Apply stop vote
+    if (isTutor) lesson.recordingStopVotes.tutor = true;
+    if (isStudent) lesson.recordingStopVotes.student = true;
+
     await lesson.save();
 
-    res.json({ recording });
-  } catch (err) {
-    console.error("stop-recording error:", err.message || err);
-    res.status(500).json({ error: "Could not stop recording" });
-  }
-});
+    // If BOTH voted → stop recording
+    if (lesson.recordingStopVotes.tutor && lesson.recordingStopVotes.student) {
+      const recording = await dailyFetch("/recordings/stop", {
+        method: "POST",
+      });
 
-/* ---------------- GET RECORDINGS FOR LESSON ---------------- */
-router.get("/recordings/:lessonId", async (req, res) => {
-  try {
-    const { lessonId } = req.params;
+      lesson.recordingActive = false;
+      lesson.recordingId = null;
+      lesson.recordingStartedBy = null;
+      lesson.recordingStopVotes = { tutor: false, student: false };
+      await lesson.save();
 
-    const lesson = await Lesson.findById(lessonId);
-    if (!lesson) {
-      return res.status(404).json({ error: "Lesson not found" });
+      return res.json({ stopped: true, recording });
     }
 
-    if (!lesson.recordingId) {
-      return res.json({ recordings: [] });
-    }
-
-    const recording = await dailyFetch(`/recordings/${lesson.recordingId}`);
-
+    // Otherwise, send current vote status
     res.json({
-      recordings: [recording],
+      stopped: false,
+      votes: lesson.recordingStopVotes,
     });
   } catch (err) {
-    console.error("get-recordings error:", err.message || err);
-    res.status(500).json({ error: "Could not fetch recordings" });
+    console.error("stop-recording error:", err.message || err);
+    res.status(500).json({ error: "Could not apply stop vote" });
   }
 });
 
 /* ---------------- COMPLETE LESSON ---------------- */
+// NOTE: temporarily no auth middleware, to avoid handler errors.
 router.post("/complete-lesson", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
