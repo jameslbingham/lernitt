@@ -244,7 +244,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
 
-  /* (continues in Part 2...) */
   useEffect(() => {
     const next = resolveAdminTab({
       propTab: initialTab,
@@ -738,10 +737,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
     );
   }
 
-  /* ========================================================================
-     (Part 3 continues with: USERS/TUTORS/LESSONS/DISPUTES HANDLERS + UI HEADER)
-     ======================================================================== */
-
   // Users
   function handleChangeUserRole(row, newRole) {
     updateRowOverride("Users", row.id, { role: newRole }, setRows);
@@ -934,7 +929,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
         <GrowthDashboard />
       ) : (
         <>
-          {/* BEGIN CONTROLS ROW — continues in PART 4 */}
           {/* Controls Row */}
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur mb-3 border rounded-2xl p-2">
             <div className="flex flex-col lg:flex-row lg:items-center gap-2">
@@ -1359,6 +1353,50 @@ export default function AdminDashboard({ initialTab = "users" }) {
                 <div className="font-semibold">Row Details</div>
                 <Btn onClick={() => setDetailsRow(null)}>Close</Btn>
               </div>
+
+              {/* NEW: Recording details for Lessons tab */}
+              {tab === "Lessons" && (
+                <div className="mt-3 mb-3 p-3 rounded-xl bg-blue-50 border border-blue-200">
+                  <h3 className="font-semibold text-blue-800 mb-1">
+                    Recording
+                  </h3>
+                  <div className="text-sm text-blue-900 space-y-1">
+                    <div>
+                      <strong>Active:</strong>{" "}
+                      {detailsRow.recordingActive ? "Yes" : "No"}
+                    </div>
+                    <div>
+                      <strong>Recording ID:</strong>{" "}
+                      {detailsRow.recordingId || "—"}
+                    </div>
+                    <div>
+                      <strong>Started by:</strong>{" "}
+                      {detailsRow.recordingStartedBy || "—"}
+                    </div>
+                    <div>
+                      <strong>Stop votes:</strong>{" "}
+                      {detailsRow.recordingStopVotes
+                        ? JSON.stringify(detailsRow.recordingStopVotes)
+                        : "—"}
+                    </div>
+                    <div className="mt-2">
+                      <strong>Recording Link:</strong>{" "}
+                      {detailsRow.recordingLink ? (
+                        <a
+                          href={detailsRow.recordingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline"
+                        >
+                          Open recording
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <pre className="mt-2 text-xs overflow-auto max-h-96">
                 {JSON.stringify(detailsRow, null, 2)}
