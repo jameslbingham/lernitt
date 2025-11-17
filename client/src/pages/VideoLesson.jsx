@@ -32,10 +32,17 @@ export default function VideoLesson() {
   const [messages, setMessages] = useState([]);
   const [msgText, setMsgText] = useState("");
 
-  // Recording
+  // Recording (dual-stop-vote)
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingOwner, setRecordingOwner] = useState(null);
   const [recordingId, setRecordingId] = useState(null);
+
+  const [recordingState, setRecordingState] = useState({
+    active: false,
+    myVote: false,
+    theirVote: false,
+    startedBy: null,
+    stopVotes: { tutor: false, student: false },
+  });
 
   // Timer / auto-end
   const [timeLeftSecs, setTimeLeftSecs] = useState(null);
@@ -49,7 +56,13 @@ export default function VideoLesson() {
   const token = getToken();
   const API = import.meta.env.VITE_API;
 
-  // 1) Load Lesson
+  const myUserId = user?._id;
+  const isTutor = lesson && myUserId === lesson.tutor;
+  const isStudent = lesson && myUserId === lesson.student;
+
+  /* ---------------------------------------------------------------
+    1) LOAD LESSON
+  ----------------------------------------------------------------*/
   useEffect(() => {
     async function loadLesson() {
       try {
@@ -58,17 +71,36 @@ export default function VideoLesson() {
         });
         const data = await res.json();
         setLesson(data);
+
+        // Sync recording state if present
+        if (data?.recordingActive) {
+          const voteMine = isTutor ? data.recordingStopVotes?.tutor : data.recordingStopVotes?.student;
+          const voteTheirs = isTutor ? data.recordingStopVotes?.student : data.recordingStopVotes?.tutor;
+
+          setRecordingState({
+            active: data.recordingActive,
+            id: data.recordingId || null,
+            startedBy: data.recordingStartedBy || null,
+            myVote: voteMine || false,
+            theirVote: voteTheirs || false,
+            stopVotes: data.recordingStopVotes,
+          });
+
+          setIsRecording(true);
+          setRecordingId(data.recordingId || null);
+        }
+
       } catch {
         setLesson(null);
       }
     }
+
     if (lessonId && token) loadLesson();
-  }, [lessonId, API, token]);
+  }, [lessonId, API, token, isTutor]);
 
-  const isTutor = lesson && user?._id === lesson.tutor;
-  const isStudent = lesson && user?._id === lesson.student;
-
-  // 2) Load Room URL (Tutor must click Start)
+  /* ---------------------------------------------------------------
+    2) LOAD VIDEO ROOM (Tutor must click Start)
+  ----------------------------------------------------------------*/
   useEffect(() => {
     if (!lesson || (!isTutor && !isStudent)) return;
 
@@ -93,7 +125,9 @@ export default function VideoLesson() {
     loadRoom();
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
-  // 3) Daily Call + Devices
+  /* ---------------------------------------------------------------
+    3) DAILY CALL SETUP
+  ----------------------------------------------------------------*/
   useEffect(() => {
     if (!roomUrl) return;
     if (!containerRef.current) return;
@@ -107,7 +141,6 @@ export default function VideoLesson() {
     });
 
     callRef.current = call;
-
     call.join({ url: roomUrl });
 
     call.setLocalAudio(micOn);
@@ -136,7 +169,9 @@ export default function VideoLesson() {
     };
   }, [roomUrl]);
 
-  // 4) Toggles
+  /* ---------------------------------------------------------------
+    4) DEVICE TOGGLES
+  ----------------------------------------------------------------*/
   function toggleMic() {
     if (!callRef.current) return;
     const next = !micOn;
@@ -168,7 +203,9 @@ export default function VideoLesson() {
     }
   }
 
-  // 5) Device Settings Apply
+  /* ---------------------------------------------------------------
+    5) APPLY DEVICE CHANGES
+  ----------------------------------------------------------------*/
   async function applyDeviceChanges() {
     if (!callRef.current) return;
 
@@ -187,7 +224,9 @@ export default function VideoLesson() {
     setShowDevices(false);
   }
 
-  // 6) Leave Lesson
+  /* ---------------------------------------------------------------
+    6) LEAVE LESSON
+  ----------------------------------------------------------------*/
   function leaveLesson() {
     if (callRef.current) {
       callRef.current.leave();
@@ -197,7 +236,9 @@ export default function VideoLesson() {
     else navigate("/my-lessons");
   }
 
-  // 7) Chat Send
+  /* ---------------------------------------------------------------
+    7) CHAT SEND
+  ----------------------------------------------------------------*/
   function sendMessage() {
     if (!msgText.trim()) return;
 
@@ -205,7 +246,7 @@ export default function VideoLesson() {
       ...prev,
       {
         id: Date.now(),
-        sender: user._id,
+        sender: myUserId,
         text: msgText.trim(),
       },
     ]);
@@ -217,8 +258,47 @@ export default function VideoLesson() {
       if (box) box.scrollTop = box.scrollHeight;
     }, 50);
   }
+  /* ---------------------------------------------------------------
+    8) POLLING — KEEP RECORDING STATE SYNCED
+  ----------------------------------------------------------------*/
+  useEffect(() => {
+    if (!lessonId || !token) return;
 
-  // *** 8) UPDATED RECORDING LOGIC (AUTH, SEND lessonId) ***
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/api/lessons/${lessonId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!data) return;
+
+        const voteMine = isTutor ? data.recordingStopVotes?.tutor : data.recordingStopVotes?.student;
+        const voteTheirs = isTutor ? data.recordingStopVotes?.student : data.recordingStopVotes?.tutor;
+
+        setRecordingState({
+          active: data.recordingActive,
+          id: data.recordingId || null,
+          startedBy: data.recordingStartedBy || null,
+          myVote: voteMine || false,
+          theirVote: voteTheirs || false,
+          stopVotes: data.recordingStopVotes,
+        });
+
+        // Keep isRecording synced
+        setIsRecording(data.recordingActive);
+        setRecordingId(data.recordingId || null);
+
+      } catch (err) {
+        console.warn("pollRecordingState error:", err);
+      }
+    }, 2000);
+
+    return () => clearInterval(id);
+  }, [lessonId, token, API, isTutor]);
+
+  /* ---------------------------------------------------------------
+    9) START RECORDING
+  ----------------------------------------------------------------*/
   async function startRecording() {
     if (!roomUrl) return;
 
@@ -233,26 +313,30 @@ export default function VideoLesson() {
       });
 
       const data = await res.json();
-      if (data.recording) {
+      if (data?.recordingState) {
+        setRecordingState({
+          active: true,
+          id: data.recordingState.id || null,
+          startedBy: data.recordingState.startedBy,
+          myVote: false,
+          theirVote: false,
+          stopVotes: data.recordingState.stopVotes,
+        });
+
         setIsRecording(true);
-        setRecordingOwner(user._id);
-        setRecordingId(data.recording.id || null);
+        setRecordingId(data.recording?.id || null);
       }
     } catch (err) {
       console.error("Start recording error:", err);
     }
   }
 
-  async function stopRecording() {
-    if (!isRecording) return;
-
-    if (recordingOwner !== user._id) {
-      console.warn("Only the person who started recording can stop it.");
-      return;
-    }
-
+  /* ---------------------------------------------------------------
+    10) REQUEST STOP RECORDING (VOTE)
+  ----------------------------------------------------------------*/
+  async function requestStopRecording() {
     try {
-      await fetch(`${API}/api/video/stop-recording`, {
+      const res = await fetch(`${API}/api/video/request-stop-recording`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -261,17 +345,67 @@ export default function VideoLesson() {
         body: JSON.stringify({ lessonId }),
       });
 
-      setIsRecording(false);
-      setRecordingOwner(null);
-      setRecordingId(null);
+      const data = await res.json();
+      if (data.recordingState) {
+        const voteMine = isTutor ? data.recordingState.stopVotes.tutor : data.recordingState.stopVotes.student;
+        const voteTheirs = isTutor ? data.recordingState.stopVotes.student : data.recordingState.stopVotes.tutor;
+
+        setRecordingState({
+          active: data.recordingState.active,
+          id: data.recordingState.id || null,
+          startedBy: data.recordingState.startedBy || null,
+          myVote: voteMine,
+          theirVote: voteTheirs,
+          stopVotes: data.recordingState.stopVotes,
+        });
+
+        setIsRecording(data.recordingState.active);
+      }
+
     } catch (err) {
-      console.error("Stop recording error:", err);
+      console.error("Stop vote error:", err);
     }
   }
 
-  // 9) Auto-end logic
+  /* ---------------------------------------------------------------
+    11) CANCEL STOP VOTE
+  ----------------------------------------------------------------*/
+  async function cancelStopVote() {
+    try {
+      const res = await fetch(`${API}/api/video/cancel-stop-vote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ lessonId }),
+      });
+
+      const data = await res.json();
+      if (data.recordingState) {
+        const voteMine = isTutor ? data.recordingState.stopVotes.tutor : data.recordingState.stopVotes.student;
+        const voteTheirs = isTutor ? data.recordingState.stopVotes.student : data.recordingState.stopVotes.tutor;
+
+        setRecordingState({
+          active: data.recordingState.active,
+          id: data.recordingState.id || null,
+          startedBy: data.recordingState.startedBy,
+          myVote: voteMine,
+          theirVote: voteTheirs,
+          stopVotes: data.recordingState.stopVotes,
+        });
+      }
+
+    } catch (err) {
+      console.error("Cancel vote error:", err);
+    }
+  }
+
+  /* ---------------------------------------------------------------
+    12) AUTO-END TIMER
+  ----------------------------------------------------------------*/
   useEffect(() => {
-    if (!lesson || !roomUrl || timerStarted === true) return;
+    if (!lesson || !roomUrl || timerStarted) return;
 
     let mins = 0;
     if (typeof lesson.durationMins === "number" && lesson.durationMins > 0) {
@@ -282,9 +416,7 @@ export default function VideoLesson() {
       mins = Math.max(0, Math.round((end - start) / 60000));
     }
 
-    if (!mins) {
-      mins = 60;
-    }
+    if (!mins) mins = 60;
 
     setTimeLeftSecs(mins * 60);
     setTimerStarted(true);
@@ -327,9 +459,10 @@ export default function VideoLesson() {
     }
   }
 
-  // RENDER
+  /* ---------------------------------------------------------------
+    13) RENDER START — HEADER & MAIN LAYOUT
+  ----------------------------------------------------------------*/
   if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
-
   if (!isTutor && !isStudent)
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
 
@@ -448,7 +581,7 @@ export default function VideoLesson() {
                     key={m.id}
                     style={{
                       marginBottom: "8px",
-                      textAlign: m.sender === user._id ? "right" : "left",
+                      textAlign: m.sender === myUserId ? "right" : "left",
                     }}
                   >
                     <span
@@ -457,8 +590,8 @@ export default function VideoLesson() {
                         padding: "8px 12px",
                         borderRadius: "10px",
                         background:
-                          m.sender === user._id ? "#4f46e5" : "#d1d5db",
-                        color: m.sender === user._id ? "white" : "black",
+                          m.sender === myUserId ? "#4f46e5" : "#d1d5db",
+                        color: m.sender === myUserId ? "white" : "black",
                         maxWidth: "80%",
                         wordBreak: "break-word",
                       }}
@@ -563,7 +696,7 @@ export default function VideoLesson() {
             Device Settings
           </button>
 
-          {/* RECORDING CONTROLS */}
+          {/* ---------------- RECORDING CONTROLS ---------------- */}
           <div
             style={{
               position: "absolute",
@@ -574,7 +707,8 @@ export default function VideoLesson() {
               zIndex: 40,
             }}
           >
-            {!isRecording && (
+            {/* NOT recording yet */}
+            {!recordingState.active && (
               <button
                 onClick={startRecording}
                 style={{
@@ -590,151 +724,70 @@ export default function VideoLesson() {
               </button>
             )}
 
-            {isRecording && (
-              <button
-                onClick={recordingOwner === user._id ? stopRecording : undefined}
-                disabled={recordingOwner !== user._id}
-                title={
-                  recordingOwner !== user._id
-                    ? "Only the person who started the recording can stop it."
-                    : ""
-                }
-                style={{
-                  padding: "8px 14px",
-                  background:
-                    recordingOwner === user._id ? "#ef4444" : "#9ca3af",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor:
-                    recordingOwner === user._id ? "pointer" : "not-allowed",
-                }}
-              >
-                Stop Recording
-              </button>
-            )}
+            {/* ACTIVE RECORDING */}
+            {recordingState.active && (
+              <>
+                {/* Request Stop */}
+                {!recordingState.myVote && (
+                  <button
+                    onClick={requestStopRecording}
+                    style={{
+                      padding: "8px 14px",
+                      background: "#f59e0b", // amber
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Request Stop
+                  </button>
+                )}
 
-            {isRecording && (
-              <div
-                style={{
-                  padding: "8px 14px",
-                  background: "#ef4444",
-                  color: "white",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
-                }}
-              >
-                ● Recording
-              </div>
+                {/* Cancel Stop Vote */}
+                {recordingState.myVote && (
+                  <button
+                    onClick={cancelStopVote}
+                    style={{
+                      padding: "8px 14px",
+                      background: "#6b7280", // grey
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel Vote
+                  </button>
+                )}
+
+                {/* STATUS BADGES */}
+                <div
+                  style={{
+                    padding: "8px 14px",
+                    background: recordingState.myVote
+                      ? "#f59e0b"
+                      : recordingState.theirVote
+                      ? "#3b82f6"
+                      : "#ef4444",
+                    color: "white",
+                    borderRadius: "8px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {recordingState.myVote && recordingState.theirVote
+                    ? "Both Agreed"
+                    : recordingState.myVote
+                    ? "Stop Requested (You)"
+                    : recordingState.theirVote
+                    ? "Stop Requested (Them)"
+                    : "Recording"}
+                </div>
+              </>
             )}
           </div>
 
-          {/* CONTROL BAR */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: "12px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: "12px",
-              zIndex: 40,
-            }}
-          >
-            <button
-              onClick={toggleMic}
-              style={{
-                padding: "10px 16px",
-                borderRadius: "10px",
-                border: "none",
-                background: micOn ? "#4f46e5" : "#9ca3af",
-                color: "white",
-                cursor: "pointer",
-              }}
-            >
-              {micOn ? "Mute Mic" : "Unmute Mic"}
-            </button>
-
-            <button
-              onClick={toggleCam}
-              style={{
-                padding: "10px 16px",
-                borderRadius: "10px",
-                border: "none",
-                background: camOn ? "#4f46e5" : "#9ca3af",
-                color: "white",
-                cursor: "pointer",
-              }}
-            >
-              {camOn ? "Turn Camera Off" : "Turn Camera On"}
-            </button>
-
-            <button
-              onClick={toggleScreenShare}
-              style={{
-                padding: "10px 16px",
-                borderRadius: "10px",
-                border: "none",
-                background: sharing ? "#ef4444" : "#4f46e5",
-                color: "white",
-                cursor: "pointer",
-              }}
-            >
-              {sharing ? "Stop Sharing" : "Share Screen"}
-            </button>
-          </div>
-
-          {/* TUTOR WAIT */}
-          {isTutor && !hasStarted && !roomUrl && (
-            <div
-              style={{
-                flex: 1,
-                color: "white",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <p style={{ fontSize: "18px", marginBottom: "10px" }}>
-                When you are ready, start the lesson.
-              </p>
-              <button
-                onClick={() => {
-                  setLoading(true);
-                  setHasStarted(true);
-                }}
-                style={{
-                  padding: "10px 20px",
-                  border: "none",
-                  borderRadius: "12px",
-                  background: "#4f46e5",
-                  color: "white",
-                  cursor: "pointer",
-                  fontSize: "16px",
-                }}
-              >
-                Start Lesson
-              </button>
-            </div>
-          )}
-
-          {/* STUDENT WAIT */}
-          {isStudent && !roomUrl && loading && (
-            <div
-              style={{
-                flex: 1,
-                color: "white",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              Waiting for tutor…
-            </div>
-          )}
-
-          {/* DAILY VIDEO */}
+          {/* VIDEO DISPLAY */}
           <div
             ref={containerRef}
             style={{
@@ -744,7 +797,7 @@ export default function VideoLesson() {
             }}
           />
 
-          {/* DEVICE SETTINGS POPUP */}
+          {/* ---------------- DEVICE SETTINGS POPUP ---------------- */}
           {showDevices && (
             <div
               style={{
@@ -787,20 +840,6 @@ export default function VideoLesson() {
                   </option>
                 ))}
               </select>
-
-              <label>Speakers:</label>
-              <select
-                value={selectedSpeaker}
-                onChange={(e) => setSelectedSpeaker(e.target.value)}
-                style={{ width: "100%", marginBottom: "10px" }}
-              >
-                {speakers.map((sp) => (
-                  <option key={sp.deviceId} value={sp.deviceId}>
-                    {sp.label || "Speakers"}
-                  </option>
-                ))}
-              </select>
-
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <button
                   onClick={() => setShowDevices(false)}
@@ -815,6 +854,7 @@ export default function VideoLesson() {
                 >
                   Cancel
                 </button>
+
                 <button
                   onClick={applyDeviceChanges}
                   style={{
