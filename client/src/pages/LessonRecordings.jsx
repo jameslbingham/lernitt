@@ -16,28 +16,48 @@ export default function LessonRecordings() {
 
   const API = import.meta.env.VITE_API;
 
-  useEffect(() => {
-    async function load() {
-      if (!lessonId || !token) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await fetch(
-          `${API}/api/video/lesson-recordings?lessonId=${lessonId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setRecordings(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Recording load error:", err);
-        setRecordings([]);
-      } finally {
-        setLoading(false);
-      }
+  /* ------------------------------------------------------------
+    1. Extract load() so it can be reused by polling
+  ------------------------------------------------------------ */
+  async function load() {
+    if (!lessonId || !token) {
+      setLoading(false);
+      return;
     }
+    try {
+      const res = await fetch(
+        `${API}/api/video/lesson-recordings?lessonId=${lessonId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      setRecordings(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Recording load error:", err);
+      setRecordings([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ------------------------------------------------------------
+    2. Initial load (unchanged except calling extracted load())
+  ------------------------------------------------------------ */
+  useEffect(() => {
     load();
   }, [lessonId, token, API]);
+
+  /* ------------------------------------------------------------
+    3. NEW — Auto-refresh recording info every 5 seconds
+  ------------------------------------------------------------ */
+  useEffect(() => {
+    if (!lessonId || !token) return;
+
+    const id = setInterval(() => {
+      load(); // re-fetch recording metadata
+    }, 5000);
+
+    return () => clearInterval(id);
+  }, [lessonId, token]);
 
   const softGrey = "#d4d4d4";
 
