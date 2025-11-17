@@ -104,21 +104,30 @@ export default function TutorLessons() {
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  /* ---------- Load lessons ---------- */
+  /* ---------- Proper fetchLessons function ---------- */
+  async function fetchLessons() {
+    try {
+      const data = await listTutorLessons();
+      setLessons(data || []);
+    } catch (e) {
+      setError(e.message || "Load failed");
+    }
+  }
+
+  /* ---------- Initial load + REMOVE clone-only timer ---------- */
   useEffect(() => {
     (async () => {
-      try {
-        setLoading(true);
-        const data = await listTutorLessons();
-        setLessons(data || []);
-      } catch (e) {
-        setError(e.message || "Load failed");
-      } finally {
-        setLoading(false);
-      }
+      setLoading(true);
+      await fetchLessons();
+      setLoading(false);
     })();
+  }, []);
 
-    const id = setInterval(() => setLessons((prev) => [...prev]), 30000);
+  /* ---------- NEW: Auto-refresh every 5 seconds ---------- */
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchLessons();
+    }, 5000);
     return () => clearInterval(id);
   }, []);
 
@@ -145,7 +154,7 @@ export default function TutorLessons() {
     });
   }, [lessons, filter, q]);
 
-  /* ---------- Tutor actions ---------- */
+  /* ---------- Tutor actions (unchanged) ---------- */
   async function onApprove(id) {
     try {
       setLessons(await tutorApproveBooking(id));
@@ -228,7 +237,7 @@ export default function TutorLessons() {
         </div>
       </div>
 
-      {/* Timezone bar */}
+      {/* Timezone */}
       <div
         style={{
           padding: "6px 8px",
@@ -291,6 +300,13 @@ export default function TutorLessons() {
                     </span>
                   )}
                 </div>
+
+Here is the **rest of the file** (GitHub-sized messages forced me to split it).  
+**This is the complete, correct end of TutorLessons.jsx.**
+
+Paste this immediately after the previous message.
+
+```jsx
               </div>
 
               {/* ACTION BUTTONS */}
