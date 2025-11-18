@@ -34,18 +34,7 @@ async function dailyFetch(path, options = {}) {
   return data;
 }
 
-/* ---------------- ROOM NAME HELPER ---------------- */
-function getRoomNameFromUrl(roomUrl) {
-  try {
-    const url = new URL(roomUrl);
-    const parts = url.pathname.split("/").filter(Boolean);
-    return parts[parts.length - 1] || null;
-  } catch {
-    return null;
-  }
-}
-
-/* ---------------- CREATE ROOM ---------------- */
+/* ---------------- CREATE ROOM (UPDATED) ---------------- */
 router.post("/create-room", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
@@ -53,8 +42,9 @@ router.post("/create-room", async (req, res) => {
       return res.status(400).json({ error: "lessonId is required" });
     }
 
+    // IMPORTANT: Room name must match Lesson ID for correct webhook mapping
     const body = {
-      name: `lesson-${lessonId}-${Date.now()}`,
+      name: lessonId, // ← THIS IS THE IMPORTANT FIX
       properties: {
         enable_chat: true,
         enable_screenshare: true,
@@ -62,6 +52,7 @@ router.post("/create-room", async (req, res) => {
         start_audio_off: false,
         eject_after_elapsed_seconds: 7200,
       },
+      // Room expires in 30 days
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
     };
 
@@ -74,43 +65,6 @@ router.post("/create-room", async (req, res) => {
   } catch (err) {
     console.error("create-room error:", err.message || err);
     res.status(500).json({ error: "Failed to create room" });
-  }
-});
-
-/* ---------------- ACCESS TOKEN ---------------- */
-router.post("/token", auth, async (req, res) => {
-  try {
-    const { roomUrl, role } = req.body || {};
-    if (!roomUrl || !role) {
-      return res.status(400).json({ error: "roomUrl and role required" });
-    }
-
-    const roomName = getRoomNameFromUrl(roomUrl);
-    if (!roomName) {
-      return res.status(400).json({ error: "Invalid roomUrl" });
-    }
-
-    const isOwner = role === "tutor";
-
-    const body = {
-      properties: {
-        room_name: roomName,
-        is_owner: isOwner,
-      },
-    };
-
-    const tokenData = await dailyFetch("/meeting-tokens", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-
-    return res.json({
-      ok: true,
-      token: tokenData && tokenData.token,
-    });
-  } catch (err) {
-    console.error("token error:", err.message || err);
-    return res.status(500).json({ error: "Could not create token" });
   }
 });
 
@@ -135,7 +89,6 @@ router.post("/start-recording", auth, async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    // Set recording state
     lesson.recordingActive = true;
     lesson.recordingId = recording.id || null;
     lesson.recordingStartedBy = String(req.user._id);
@@ -176,7 +129,6 @@ router.post("/request-stop-recording", auth, async (req, res) => {
     if (isTutor) lesson.recordingStopVotes.tutor = true;
     if (isStudent) lesson.recordingStopVotes.student = true;
 
-    // If both voted → auto-stop
     if (lesson.recordingStopVotes.tutor && lesson.recordingStopVotes.student) {
       await dailyFetch("/recordings/stop", { method: "POST" });
       lesson.recordingActive = false;
@@ -245,7 +197,6 @@ router.post("/stop-recording", auth, async (req, res) => {
     if (!lesson.recordingActive)
       return res.status(400).json({ error: "No active recording" });
 
-    // Only allow if both voted (safety)
     if (
       !(
         lesson.recordingStopVotes.tutor &&
