@@ -139,7 +139,6 @@ export default function VideoLesson() {
 
     callRef.current = call;
 
-    // ---------------------- NEW TOKEN JOIN LOGIC ----------------------
     async function joinWithToken() {
       try {
         const role = isTutor ? "owner" : "participant";
@@ -168,7 +167,6 @@ export default function VideoLesson() {
     }
 
     joinWithToken();
-    // ------------------------------------------------------------------
 
     call.setLocalAudio(micOn);
     call.setLocalVideo(camOn);
@@ -537,6 +535,26 @@ export default function VideoLesson() {
             flexDirection: "row",
           }}
         >
+
+          {/* TOKEN DEBUG BADGE (temporary for testing) */}
+          <div
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: "50%",
+              transform: "translateX(-50%) translateY(40px)",
+              background: "#4f46e5",
+              color: "white",
+              padding: "6px 12px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              zIndex: 70,
+              opacity: 0.85,
+            }}
+          >
+            {isTutor ? "Owner Token" : "Participant Token"}
+          </div>
+
           {/* RECORDING BADGE */}
           {recordingState.active && (
             <div
