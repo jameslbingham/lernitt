@@ -66,7 +66,40 @@ router.post("/create-room", async (req, res) => {
   }
 });
 
-/* ---------------- ACCESS TOKEN (NEW) ---------------- */
+/* ====================================================================== */
+/* ---------------- CREATE TOKEN FOR JOINING A DAILY ROOM --------------- */
+/* ====================================================================== */
+router.post("/token", auth, async (req, res) => {
+  try {
+    const { roomName, role } = req.body; // role = 'owner' or 'participant'
+
+    if (!roomName || !role) {
+      return res.status(400).json({ error: "roomName and role required" });
+    }
+
+    const tokenRes = await fetch("https://api.daily.co/v1/meeting-tokens", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
+      },
+      body: JSON.stringify({
+        properties: {
+          room_name: roomName,
+          is_owner: role === "owner",
+        },
+      }),
+    });
+
+    const token = await tokenRes.json();
+    return res.json(token);
+  } catch (err) {
+    console.error("Token error:", err);
+    res.status(500).json({ error: "Token creation failed" });
+  }
+});
+
+/* ---------------- ACCESS TOKEN (EXISTING DAILY VERSION) ---------------- */
 router.post("/access-token", auth, async (req, res) => {
   try {
     const { lessonId, roomUrl } = req.body || {};
@@ -87,7 +120,7 @@ router.post("/access-token", auth, async (req, res) => {
       return res.status(403).json({ error: "Not allowed for this lesson" });
     }
 
-    // Get room name from the URL, e.g. https://lernitt.daily.co/room-name
+    // Get room name from the URL
     let roomName = null;
     try {
       const urlObj = new URL(roomUrl);
@@ -105,7 +138,7 @@ router.post("/access-token", auth, async (req, res) => {
       body: JSON.stringify({
         properties: {
           room_name: roomName,
-          is_owner: isTutor, // tutor = owner, student = normal participant
+          is_owner: isTutor,
           user_name: isTutor ? "Tutor" : "Student",
         },
       }),
@@ -139,7 +172,6 @@ router.post("/start-recording", auth, async (req, res) => {
       body: JSON.stringify(body),
     });
 
-    // Set recording state
     lesson.recordingActive = true;
     lesson.recordingId = recording.id || null;
     lesson.recordingStartedBy = String(req.user._id);
@@ -180,7 +212,7 @@ router.post("/request-stop-recording", auth, async (req, res) => {
     if (isTutor) lesson.recordingStopVotes.tutor = true;
     if (isStudent) lesson.recordingStopVotes.student = true;
 
-    // If both voted → auto-stop
+    // Auto-stop if both agree
     if (lesson.recordingStopVotes.tutor && lesson.recordingStopVotes.student) {
       await dailyFetch("/recordings/stop", { method: "POST" });
       lesson.recordingActive = false;
@@ -249,13 +281,7 @@ router.post("/stop-recording", auth, async (req, res) => {
     if (!lesson.recordingActive)
       return res.status(400).json({ error: "No active recording" });
 
-    // Only allow if both voted (safety)
-    if (
-      !(
-        lesson.recordingStopVotes.tutor &&
-        lesson.recordingStopVotes.student
-      )
-    ) {
+    if (!(lesson.recordingStopVotes.tutor && lesson.recordingStopVotes.student)) {
       return res.status(403).json({
         error: "Recording can only be stopped when both participants agree.",
       });
