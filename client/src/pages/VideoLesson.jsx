@@ -32,10 +32,9 @@ export default function VideoLesson() {
   const [messages, setMessages] = useState([]);
   const [msgText, setMsgText] = useState("");
 
-  // Recording (dual-stop-vote)
+  // Recording state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingId, setRecordingId] = useState(null);
-
   const [recordingState, setRecordingState] = useState({
     active: false,
     myVote: false,
@@ -44,7 +43,7 @@ export default function VideoLesson() {
     stopVotes: { tutor: false, student: false },
   });
 
-  // Timer / auto-end
+  // Timer
   const [timeLeftSecs, setTimeLeftSecs] = useState(null);
   const [timerStarted, setTimerStarted] = useState(false);
 
@@ -72,7 +71,6 @@ export default function VideoLesson() {
         const data = await res.json();
         setLesson(data);
 
-        // Sync recording state if present
         if (data?.recordingActive) {
           const voteMine = isTutor ? data.recordingStopVotes?.tutor : data.recordingStopVotes?.student;
           const voteTheirs = isTutor ? data.recordingStopVotes?.student : data.recordingStopVotes?.tutor;
@@ -81,15 +79,14 @@ export default function VideoLesson() {
             active: data.recordingActive,
             id: data.recordingId || null,
             startedBy: data.recordingStartedBy || null,
-            myVote: voteMine || false,
-            theirVote: voteTheirs || false,
+            myVote: voteMine,
+            theirVote: voteTheirs,
             stopVotes: data.recordingStopVotes,
           });
 
           setIsRecording(true);
           setRecordingId(data.recordingId || null);
         }
-
       } catch {
         setLesson(null);
       }
@@ -99,7 +96,7 @@ export default function VideoLesson() {
   }, [lessonId, API, token, isTutor]);
 
   /* ---------------------------------------------------------------
-    2) LOAD VIDEO ROOM (Tutor must click Start)
+    2) LOAD VIDEO ROOM (after Start)
   ----------------------------------------------------------------*/
   useEffect(() => {
     if (!lesson || (!isTutor && !isStudent)) return;
@@ -126,7 +123,7 @@ export default function VideoLesson() {
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
   /* ---------------------------------------------------------------
-    3) DAILY CALL SETUP
+    3) DAILY CALL SETUP (JOIN WITH TOKEN)
   ----------------------------------------------------------------*/
   useEffect(() => {
     if (!roomUrl) return;
@@ -141,7 +138,37 @@ export default function VideoLesson() {
     });
 
     callRef.current = call;
-    call.join({ url: roomUrl });
+
+    // ---------------------- NEW TOKEN JOIN LOGIC ----------------------
+    async function joinWithToken() {
+      try {
+        const role = isTutor ? "owner" : "participant";
+        const roomName = roomUrl.split("/").pop();
+
+        const res = await fetch(`${API}/api/video/token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ roomName, role }),
+        });
+
+        const data = await res.json();
+
+        if (data?.token) {
+          await call.join({ url: roomUrl, token: data.token });
+        } else {
+          await call.join({ url: roomUrl });
+        }
+      } catch (err) {
+        console.error("Token join failed:", err);
+        await call.join({ url: roomUrl });
+      }
+    }
+
+    joinWithToken();
+    // ------------------------------------------------------------------
 
     call.setLocalAudio(micOn);
     call.setLocalVideo(camOn);
@@ -167,7 +194,7 @@ export default function VideoLesson() {
       call.leave();
       call.destroy();
     };
-  }, [roomUrl]);
+  }, [roomUrl, API, token, micOn, camOn, isTutor]);
 
   /* ---------------------------------------------------------------
     4) DEVICE TOGGLES
@@ -260,7 +287,7 @@ export default function VideoLesson() {
   }
 
   /* ---------------------------------------------------------------
-    8) POLLING — KEEP RECORDING STATE SYNCED
+    8) POLLING (RECORDING STATE)
   ----------------------------------------------------------------*/
   useEffect(() => {
     if (!lessonId || !token) return;
@@ -280,14 +307,13 @@ export default function VideoLesson() {
           active: data.recordingActive,
           id: data.recordingId || null,
           startedBy: data.recordingStartedBy || null,
-          myVote: voteMine || false,
-          theirVote: voteTheirs || false,
+          myVote: voteMine,
+          theirVote: voteTheirs,
           stopVotes: data.recordingStopVotes,
         });
 
         setIsRecording(data.recordingActive);
         setRecordingId(data.recordingId || null);
-
       } catch (err) {
         console.warn("pollRecordingState error:", err);
       }
@@ -314,12 +340,15 @@ export default function VideoLesson() {
 
       const data = await res.json();
       if (data?.recordingState) {
+        const voteMine = false;
+        const voteTheirs = false;
+
         setRecordingState({
           active: true,
           id: data.recordingState.id || null,
           startedBy: data.recordingState.startedBy,
-          myVote: false,
-          theirVote: false,
+          myVote: voteMine,
+          theirVote: voteTheirs,
           stopVotes: data.recordingState.stopVotes,
         });
 
@@ -332,7 +361,7 @@ export default function VideoLesson() {
   }
 
   /* ---------------------------------------------------------------
-    10) REQUEST STOP RECORDING (VOTE)
+    10) REQUEST STOP RECORDING
   ----------------------------------------------------------------*/
   async function requestStopRecording() {
     try {
@@ -361,7 +390,6 @@ export default function VideoLesson() {
 
         setIsRecording(data.recordingState.active);
       }
-
     } catch (err) {
       console.error("Stop vote error:", err);
     }
@@ -395,7 +423,6 @@ export default function VideoLesson() {
           stopVotes: data.recordingState.stopVotes,
         });
       }
-
     } catch (err) {
       console.error("Cancel vote error:", err);
     }
@@ -460,28 +487,18 @@ export default function VideoLesson() {
   }
 
   /* ---------------------------------------------------------------
-    13) RENDER START — HEADER & MAIN LAYOUT
+    13) RENDER UI
   ----------------------------------------------------------------*/
   if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
   if (!isTutor && !isStudent)
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
 
   const softGrey = "#d4d4d4";
-  const minutesLeft =
-    timeLeftSecs !== null ? Math.floor(timeLeftSecs / 60) : null;
-  const secondsLeft =
-    timeLeftSecs !== null ? timeLeftSecs % 60 : null;
+  const minutesLeft = timeLeftSecs !== null ? Math.floor(timeLeftSecs / 60) : null;
+  const secondsLeft = timeLeftSecs !== null ? timeLeftSecs % 60 : null;
 
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100vh",
-        background: "#f7f7f7",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div style={{ width: "100%", height: "100vh", background: "#f7f7f7", display: "flex", flexDirection: "column" }}>
       {/* HEADER */}
       <div
         style={{
@@ -506,7 +523,7 @@ export default function VideoLesson() {
           alignItems: "center",
         }}
       >
-        {/* OUTER BORDER */}
+        {/* BORDER */}
         <div
           style={{
             width: "90%",
@@ -520,8 +537,7 @@ export default function VideoLesson() {
             flexDirection: "row",
           }}
         >
-
-          {/* NEW — FLOATING LIVE RECORDING BADGE */}
+          {/* RECORDING BADGE */}
           {recordingState.active && (
             <div
               style={{
@@ -601,8 +617,7 @@ export default function VideoLesson() {
                         display: "inline-block",
                         padding: "8px 12px",
                         borderRadius: "10px",
-                        background:
-                          m.sender === myUserId ? "#4f46e5" : "#d1d5db",
+                        background: m.sender === myUserId ? "#4f46e5" : "#d1d5db",
                         color: m.sender === myUserId ? "white" : "black",
                         maxWidth: "80%",
                         wordBreak: "break-word",
@@ -708,7 +723,7 @@ export default function VideoLesson() {
             Device Settings
           </button>
 
-          {/* ---------------- RECORDING CONTROLS ---------------- */}
+          {/* RECORDING CONTROLS */}
           <div
             style={{
               position: "absolute",
@@ -719,7 +734,6 @@ export default function VideoLesson() {
               zIndex: 40,
             }}
           >
-            {/* NOT recording yet */}
             {!recordingState.active && (
               <button
                 onClick={startRecording}
@@ -736,10 +750,8 @@ export default function VideoLesson() {
               </button>
             )}
 
-            {/* ACTIVE RECORDING */}
             {recordingState.active && (
               <>
-                {/* Request Stop */}
                 {!recordingState.myVote && (
                   <button
                     onClick={requestStopRecording}
@@ -756,7 +768,6 @@ export default function VideoLesson() {
                   </button>
                 )}
 
-                {/* Cancel Stop Vote */}
                 {recordingState.myVote && (
                   <button
                     onClick={cancelStopVote}
@@ -773,7 +784,6 @@ export default function VideoLesson() {
                   </button>
                 )}
 
-                {/* STATUS BADGES */}
                 <div
                   style={{
                     padding: "8px 14px",
@@ -799,17 +809,10 @@ export default function VideoLesson() {
             )}
           </div>
 
-          {/* VIDEO DISPLAY */}
-          <div
-            ref={containerRef}
-            style={{
-              flex: 1,
-              width: "100%",
-              height: "100%",
-            }}
-          />
+          {/* VIDEO AREA */}
+          <div ref={containerRef} style={{ flex: 1, width: "100%", height: "100%" }} />
 
-          {/* ---------------- DEVICE SETTINGS POPUP ---------------- */}
+          {/* DEVICE POPUP */}
           {showDevices && (
             <div
               style={{
