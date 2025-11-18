@@ -34,7 +34,7 @@ async function dailyFetch(path, options = {}) {
   return data;
 }
 
-/* ---------------- CREATE ROOM (UPDATED) ---------------- */
+/* ---------------- CREATE ROOM ---------------- */
 router.post("/create-room", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
@@ -42,9 +42,8 @@ router.post("/create-room", async (req, res) => {
       return res.status(400).json({ error: "lessonId is required" });
     }
 
-    // IMPORTANT: Room name must match Lesson ID for correct webhook mapping
     const body = {
-      name: lessonId, // ← THIS IS THE IMPORTANT FIX
+      name: `lesson-${lessonId}-${Date.now()}`,
       properties: {
         enable_chat: true,
         enable_screenshare: true,
@@ -52,7 +51,6 @@ router.post("/create-room", async (req, res) => {
         start_audio_off: false,
         eject_after_elapsed_seconds: 7200,
       },
-      // Room expires in 30 days
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
     };
 
@@ -65,6 +63,58 @@ router.post("/create-room", async (req, res) => {
   } catch (err) {
     console.error("create-room error:", err.message || err);
     res.status(500).json({ error: "Failed to create room" });
+  }
+});
+
+/* ---------------- ACCESS TOKEN (NEW) ---------------- */
+router.post("/access-token", auth, async (req, res) => {
+  try {
+    const { lessonId, roomUrl } = req.body || {};
+    if (!lessonId || !roomUrl) {
+      return res
+        .status(400)
+        .json({ error: "lessonId and roomUrl are required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const userId = String(req.user._id);
+    const isTutor = userId === String(lesson.tutor);
+    const isStudent = userId === String(lesson.student);
+
+    if (!isTutor && !isStudent) {
+      return res.status(403).json({ error: "Not allowed for this lesson" });
+    }
+
+    // Get room name from the URL, e.g. https://lernitt.daily.co/room-name
+    let roomName = null;
+    try {
+      const urlObj = new URL(roomUrl);
+      roomName = urlObj.pathname.replace(/^\/+/, "");
+    } catch {
+      roomName = null;
+    }
+
+    if (!roomName) {
+      return res.status(400).json({ error: "Invalid roomUrl" });
+    }
+
+    const tokenResponse = await dailyFetch("/meeting-tokens", {
+      method: "POST",
+      body: JSON.stringify({
+        properties: {
+          room_name: roomName,
+          is_owner: isTutor, // tutor = owner, student = normal participant
+          user_name: isTutor ? "Tutor" : "Student",
+        },
+      }),
+    });
+
+    return res.json({ token: tokenResponse.token });
+  } catch (err) {
+    console.error("access-token error:", err.message || err);
+    return res.status(500).json({ error: "Could not create access token" });
   }
 });
 
@@ -89,6 +139,7 @@ router.post("/start-recording", auth, async (req, res) => {
       body: JSON.stringify(body),
     });
 
+    // Set recording state
     lesson.recordingActive = true;
     lesson.recordingId = recording.id || null;
     lesson.recordingStartedBy = String(req.user._id);
@@ -129,6 +180,7 @@ router.post("/request-stop-recording", auth, async (req, res) => {
     if (isTutor) lesson.recordingStopVotes.tutor = true;
     if (isStudent) lesson.recordingStopVotes.student = true;
 
+    // If both voted → auto-stop
     if (lesson.recordingStopVotes.tutor && lesson.recordingStopVotes.student) {
       await dailyFetch("/recordings/stop", { method: "POST" });
       lesson.recordingActive = false;
@@ -197,6 +249,7 @@ router.post("/stop-recording", auth, async (req, res) => {
     if (!lesson.recordingActive)
       return res.status(400).json({ error: "No active recording" });
 
+    // Only allow if both voted (safety)
     if (
       !(
         lesson.recordingStopVotes.tutor &&
