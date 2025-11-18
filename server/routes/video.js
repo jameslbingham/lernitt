@@ -34,6 +34,17 @@ async function dailyFetch(path, options = {}) {
   return data;
 }
 
+/* ---------------- ROOM NAME HELPER ---------------- */
+function getRoomNameFromUrl(roomUrl) {
+  try {
+    const url = new URL(roomUrl);
+    const parts = url.pathname.split("/").filter(Boolean);
+    return parts[parts.length - 1] || null;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------------- CREATE ROOM ---------------- */
 router.post("/create-room", async (req, res) => {
   try {
@@ -63,6 +74,43 @@ router.post("/create-room", async (req, res) => {
   } catch (err) {
     console.error("create-room error:", err.message || err);
     res.status(500).json({ error: "Failed to create room" });
+  }
+});
+
+/* ---------------- ACCESS TOKEN ---------------- */
+router.post("/token", auth, async (req, res) => {
+  try {
+    const { roomUrl, role } = req.body || {};
+    if (!roomUrl || !role) {
+      return res.status(400).json({ error: "roomUrl and role required" });
+    }
+
+    const roomName = getRoomNameFromUrl(roomUrl);
+    if (!roomName) {
+      return res.status(400).json({ error: "Invalid roomUrl" });
+    }
+
+    const isOwner = role === "tutor";
+
+    const body = {
+      properties: {
+        room_name: roomName,
+        is_owner: isOwner,
+      },
+    };
+
+    const tokenData = await dailyFetch("/meeting-tokens", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    return res.json({
+      ok: true,
+      token: tokenData && tokenData.token,
+    });
+  } catch (err) {
+    console.error("token error:", err.message || err);
+    return res.status(500).json({ error: "Could not create token" });
   }
 });
 
