@@ -43,9 +43,10 @@ export default function VideoLesson() {
     stopVotes: { tutor: false, student: false },
   });
 
-  // Timer
+  // Timer / completion
   const [timeLeftSecs, setTimeLeftSecs] = useState(null);
   const [timerStarted, setTimerStarted] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
 
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -71,9 +72,19 @@ export default function VideoLesson() {
         const data = await res.json();
         setLesson(data);
 
+        if (data?.status === "completed") {
+          setHasEnded(true);
+        } else {
+          setHasEnded(false);
+        }
+
         if (data?.recordingActive) {
-          const voteMine = isTutor ? data.recordingStopVotes?.tutor : data.recordingStopVotes?.student;
-          const voteTheirs = isTutor ? data.recordingStopVotes?.student : data.recordingStopVotes?.tutor;
+          const voteMine = isTutor
+            ? data.recordingStopVotes?.tutor
+            : data.recordingStopVotes?.student;
+          const voteTheirs = isTutor
+            ? data.recordingStopVotes?.student
+            : data.recordingStopVotes?.tutor;
 
           setRecordingState({
             active: data.recordingActive,
@@ -298,8 +309,12 @@ export default function VideoLesson() {
         const data = await res.json();
         if (!data) return;
 
-        const voteMine = isTutor ? data.recordingStopVotes?.tutor : data.recordingStopVotes?.student;
-        const voteTheirs = isTutor ? data.recordingStopVotes?.student : data.recordingStopVotes?.tutor;
+        const voteMine = isTutor
+          ? data.recordingStopVotes?.tutor
+          : data.recordingStopVotes?.student;
+        const voteTheirs = isTutor
+          ? data.recordingStopVotes?.student
+          : data.recordingStopVotes?.tutor;
 
         setRecordingState({
           active: data.recordingActive,
@@ -374,8 +389,12 @@ export default function VideoLesson() {
 
       const data = await res.json();
       if (data.recordingState) {
-        const voteMine = isTutor ? data.recordingState.stopVotes.tutor : data.recordingState.stopVotes.student;
-        const voteTheirs = isTutor ? data.recordingState.stopVotes.student : data.recordingState.stopVotes.tutor;
+        const voteMine = isTutor
+          ? data.recordingState.stopVotes.tutor
+          : data.recordingState.stopVotes.student;
+        const voteTheirs = isTutor
+          ? data.recordingState.stopVotes.student
+          : data.recordingState.stopVotes.tutor;
 
         setRecordingState({
           active: data.recordingState.active,
@@ -409,8 +428,12 @@ export default function VideoLesson() {
 
       const data = await res.json();
       if (data.recordingState) {
-        const voteMine = isTutor ? data.recordingState.stopVotes.tutor : data.recordingState.stopVotes.student;
-        const voteTheirs = isTutor ? data.recordingState.stopVotes.student : data.recordingState.stopVotes.tutor;
+        const voteMine = isTutor
+          ? data.recordingState.stopVotes.tutor
+          : data.recordingState.stopVotes.student;
+        const voteTheirs = isTutor
+          ? data.recordingState.stopVotes.student
+          : data.recordingState.stopVotes.tutor;
 
         setRecordingState({
           active: data.recordingState.active,
@@ -423,6 +446,22 @@ export default function VideoLesson() {
       }
     } catch (err) {
       console.error("Cancel vote error:", err);
+    }
+  }
+
+  /* ---------------------------------------------------------------
+    11b) LOAD RECORDINGS FOR PLAYBACK
+  ----------------------------------------------------------------*/
+  async function loadRecordings() {
+    try {
+      const res = await fetch(`${API}/api/lessons/${lessonId}/recordings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      return data.recordings || [];
+    } catch (err) {
+      console.error("loadRecordings error:", err);
+      return [];
     }
   }
 
@@ -492,11 +531,20 @@ export default function VideoLesson() {
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
 
   const softGrey = "#d4d4d4";
-  const minutesLeft = timeLeftSecs !== null ? Math.floor(timeLeftSecs / 60) : null;
+  const minutesLeft =
+    timeLeftSecs !== null ? Math.floor(timeLeftSecs / 60) : null;
   const secondsLeft = timeLeftSecs !== null ? timeLeftSecs % 60 : null;
 
   return (
-    <div style={{ width: "100%", height: "100vh", background: "#f7f7f7", display: "flex", flexDirection: "column" }}>
+    <div
+      style={{
+        width: "100%",
+        height: "100vh",
+        background: "#f7f7f7",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* HEADER */}
       <div
         style={{
@@ -535,26 +583,6 @@ export default function VideoLesson() {
             flexDirection: "row",
           }}
         >
-
-          {/* TOKEN DEBUG BADGE (temporary for testing) */}
-          <div
-            style={{
-              position: "absolute",
-              top: "12px",
-              left: "50%",
-              transform: "translateX(-50%) translateY(40px)",
-              background: "#4f46e5",
-              color: "white",
-              padding: "6px 12px",
-              borderRadius: "8px",
-              fontSize: "12px",
-              zIndex: 70,
-              opacity: 0.85,
-            }}
-          >
-            {isTutor ? "Owner Token" : "Participant Token"}
-          </div>
-
           {/* RECORDING BADGE */}
           {recordingState.active && (
             <div
@@ -635,7 +663,8 @@ export default function VideoLesson() {
                         display: "inline-block",
                         padding: "8px 12px",
                         borderRadius: "10px",
-                        background: m.sender === myUserId ? "#4f46e5" : "#d1d5db",
+                        background:
+                          m.sender === myUserId ? "#4f46e5" : "#d1d5db",
                         color: m.sender === myUserId ? "white" : "black",
                         maxWidth: "80%",
                         wordBreak: "break-word",
@@ -827,8 +856,40 @@ export default function VideoLesson() {
             )}
           </div>
 
+          {/* WATCH RECORDING BUTTON (AFTER LESSON) */}
+          {hasEnded && (
+            <button
+              onClick={async () => {
+                const recs = await loadRecordings();
+                if (!recs.length) {
+                  alert("No recordings yet.");
+                  return;
+                }
+                const url = recs[0].url;
+                if (url) window.open(url, "_blank");
+              }}
+              style={{
+                position: "absolute",
+                bottom: "20px",
+                left: "20px",
+                zIndex: 50,
+                background: "#4f46e5",
+                color: "white",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Watch Recording
+            </button>
+          )}
+
           {/* VIDEO AREA */}
-          <div ref={containerRef} style={{ flex: 1, width: "100%", height: "100%" }} />
+          <div
+            ref={containerRef}
+            style={{ flex: 1, width: "100%", height: "100%" }}
+          />
 
           {/* DEVICE POPUP */}
           {showDevices && (
