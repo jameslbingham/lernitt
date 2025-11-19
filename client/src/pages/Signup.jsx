@@ -29,8 +29,11 @@ export default function Signup() {
       // MOCK MODE
       if (MOCK) {
         login("mock-token", { email, role, name });
-        if (role === "tutor") nav("/tutor-profile", { replace: true });
-        else nav("/welcome-setup", { replace: true });
+        if (role === "tutor") {
+          nav("/tutor-profile-setup", { replace: true });
+        } else {
+          nav("/welcome-setup", { replace: true });
+        }
         return;
       }
 
@@ -49,7 +52,7 @@ export default function Signup() {
 
       // Redirect based on role
       if (role === "tutor") {
-        nav("/tutor-profile", { replace: true });
+        nav("/tutor-profile-setup", { replace: true });
       } else {
         nav("/welcome-setup", { replace: true });
       }
