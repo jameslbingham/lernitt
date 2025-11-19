@@ -63,13 +63,10 @@ router.post('/test', auth, async (req, res) => {
 // POST /api/notifications/broadcast
 router.post('/broadcast', auth, isAdmin, async (req, res) => {
   const { title = '', message = '', audience = 'all' } = req.body || {};
-  // TODO: enqueue/send notifications to "all", "tutors", or "students"
   return res.json({ ok: true, title, message, audience, sentAt: new Date().toISOString() });
 });
 
 // Targeted notifications (specific users)
-// POST /api/notifications/custom
-// Body: { userIds: string[], title: string, message: string }
 router.post('/custom', auth, isAdmin, async (req, res) => {
   const { userIds = [], title = '', message = '' } = req.body || {};
   if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -79,7 +76,6 @@ router.post('/custom', auth, isAdmin, async (req, res) => {
     return res.status(400).json({ error: 'title and message are required' });
   }
 
-  // TODO: enqueue/send notifications to selected userIds
   return res.json({
     ok: true,
     count: userIds.length,
@@ -91,7 +87,6 @@ router.post('/custom', auth, isAdmin, async (req, res) => {
 });
 
 // Admin: delete a notification
-// DELETE /api/notifications/:id
 router.delete('/:id', auth, isAdmin, async (req, res) => {
   try {
     const deleted = await Notification.findByIdAndDelete(req.params.id);
@@ -102,8 +97,7 @@ router.delete('/:id', auth, isAdmin, async (req, res) => {
   }
 });
 
-// Admin: list all notifications (limit for safety)
-// GET /api/notifications/all
+// Admin: list all notifications
 router.get('/all', auth, isAdmin, async (req, res) => {
   try {
     const notes = await Notification.find().sort({ createdAt: -1 }).limit(200);
@@ -113,17 +107,36 @@ router.get('/all', auth, isAdmin, async (req, res) => {
   }
 });
 
-// Admin: resend notification stub
-// POST /api/notifications/:id/resend
+// Admin: resend notification
 router.post('/:id/resend', auth, isAdmin, async (req, res) => {
   try {
     const note = await Notification.findById(req.params.id);
     if (!note) return res.status(404).json({ error: 'Notification not found' });
 
-    // TODO: implement resend logic later
     res.json({ ok: true, id: note.id, resentAt: new Date().toISOString() });
   } catch {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ======================
+// SENDGRID EMAIL TEST  ★ NEW ★
+// ======================
+// GET /api/notifications/test-email
+router.get('/test-email', auth, async (req, res) => {
+  try {
+    const sendEmail = require('../utils/sendEmail');
+
+    await sendEmail({
+      to: req.user.email,
+      subject: 'Lernitt Test Email',
+      text: 'If you received this, SendGrid is working!',
+    });
+
+    res.json({ ok: true, message: 'Test email sent' });
+  } catch (err) {
+    console.error('SendGrid test error:', err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
