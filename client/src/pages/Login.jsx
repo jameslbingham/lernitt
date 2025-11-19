@@ -1,17 +1,16 @@
 // client/src/pages/Login.jsx
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
-const MOCK = import.meta.env.VITE_MOCK === "1";   // mock = local dev only
+const MOCK = import.meta.env.VITE_MOCK === "1";
 
 export default function Login() {
   const nav = useNavigate();
   const { login } = useAuth();
 
-  // Handle ?next=/xyz redirect
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const next = params.get("next") || "/";
@@ -23,7 +22,9 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Load remembered email
+  // NEW: login/signup mode
+  const [mode, setMode] = useState("login"); // "login" | "signup"
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("login:email");
@@ -31,7 +32,6 @@ export default function Login() {
     } catch {}
   }, []);
 
-  // Save/remove remembered email
   useEffect(() => {
     try {
       if (remember && email) localStorage.setItem("login:email", email);
@@ -46,7 +46,9 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // ✅ MOCK MODE – no backend call
+      // ------------------
+      // MOCK MODE
+      // ------------------
       if (MOCK) {
         const role = email.startsWith("admin")
           ? "admin"
@@ -58,21 +60,39 @@ export default function Login() {
         return nav(next, { replace: true });
       }
 
-      // ✅ REAL LOGIN (Vercel/Render backend)
+      // ------------------
+      // SIGNUP MODE
+      // ------------------
+      if (mode === "signup") {
+        const data = await apiFetch(`${API}/api/auth/signup`, {
+          method: "POST",
+          body: { email, password },
+        });
+
+        if (!data?.token || !data?.user) {
+          throw new Error("Signup failed");
+        }
+
+        login(data.token, data.user);
+        return nav("/", { replace: true });
+      }
+
+      // ------------------
+      // LOGIN MODE
+      // ------------------
       const data = await apiFetch(`${API}/api/auth/login`, {
         method: "POST",
         body: { email, password },
       });
 
       if (!data?.token || !data?.user) {
-        throw new Error("Invalid login response from server");
+        throw new Error("Login failed");
       }
 
-      // ✅ Use central auth handler
       login(data.token, data.user);
       nav(next, { replace: true });
     } catch (e2) {
-      setErr(e2?.message || "Login failed");
+      setErr(e2?.message || "Error");
     } finally {
       setLoading(false);
     }
@@ -80,7 +100,9 @@ export default function Login() {
 
   return (
     <div style={{ maxWidth: 460, margin: "0 auto", padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Login</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
+        {mode === "login" ? "Login" : "Create account"}
+      </h1>
 
       <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>
         You’ll return to: <code>{next}</code>
@@ -131,8 +153,7 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required={!MOCK}
-              placeholder={MOCK ? "(ignored in mock mode)" : ""}
-              autoComplete="current-password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
               style={{
                 display: "block",
                 width: "100%",
@@ -142,10 +163,10 @@ export default function Login() {
                 marginTop: 4,
               }}
             />
+
             <button
               type="button"
               onClick={() => setShowPw((v) => !v)}
-              aria-label={showPw ? "Hide password" : "Show password"}
               style={{
                 position: "absolute",
                 right: 6,
@@ -162,12 +183,6 @@ export default function Login() {
               {showPw ? "Hide" : "Show"}
             </button>
           </div>
-
-          {MOCK && (
-            <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>
-              Mock mode: password is ignored — you can leave it blank.
-            </div>
-          )}
         </label>
 
         <div
@@ -188,9 +203,26 @@ export default function Login() {
             Remember email
           </label>
 
-          <Link to="/profile" className="text-sm underline" style={{ marginLeft: "auto" }}>
-            Create account
-          </Link>
+          {/* Toggle mode */}
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === "login" ? "signup" : "login");
+              setErr("");
+            }}
+            style={{
+              marginLeft: "auto",
+              background: "none",
+              border: "none",
+              color: "#2563eb",
+              textDecoration: "underline",
+              cursor: "pointer",
+              padding: 0,
+              fontSize: 14,
+            }}
+          >
+            {mode === "login" ? "Create account" : "Back to login"}
+          </button>
         </div>
 
         <button
@@ -204,51 +236,15 @@ export default function Login() {
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {loading
+            ? mode === "login"
+              ? "Signing in…"
+              : "Creating…"
+            : mode === "login"
+            ? "Sign in"
+            : "Create account"}
         </button>
       </form>
-
-      {/* ✅ Demo buttons visible ONLY in local mock mode */}
-      {MOCK && (
-        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("student@example.com");
-              setPassword("123456");
-            }}
-            style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
-          >
-            Use demo student
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("tutor@example.com");
-              setPassword("123456");
-            }}
-            style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
-          >
-            Use demo tutor
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("admin@example.com");
-              setPassword("123456");
-            }}
-            style={{ padding: "6px 10px", border: "1px solid #e5e7eb", borderRadius: 8 }}
-          >
-            Use demo admin
-          </button>
-        </div>
-      )}
-
-      {MOCK && (
-        <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
-          MOCK MODE is active. You can sign in with any email; password is ignored.
-        </div>
-      )}
     </div>
   );
 }
