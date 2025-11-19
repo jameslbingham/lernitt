@@ -7,6 +7,8 @@ const express = require("express");
 const crypto = require("crypto");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
+const User = require("../models/User");        // ← NEW: needed for email lookup
+const { sendEmail } = require("../utils/sendEmail"); // ← NEW: email helper
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -61,8 +63,49 @@ router.post(
         lesson.recordingStatus = "available";
         lesson.recordingUrl = recordingUrl;
         lesson.recordingActive = false;
-
         await lesson.save();
+
+        // ------------------------------------------------------------
+        // NEW: Email recording URL to tutor AND student
+        // ------------------------------------------------------------
+        try {
+          const tutor = await User.findById(lesson.tutor);
+          const student = await User.findById(lesson.student);
+
+          const subject = "Your Lernitt lesson recording is ready";
+          const text = `
+Your lesson recording is ready for download.
+
+Lesson ID: ${lessonId}
+Download link: ${recordingUrl}
+
+This link was generated automatically and may expire.
+Please save this file to your device.
+
+– Lernitt
+          `;
+
+          if (tutor?.email) {
+            await sendEmail({
+              to: tutor.email,
+              subject,
+              text,
+            });
+          }
+
+          if (student?.email) {
+            await sendEmail({
+              to: student.email,
+              subject,
+              text,
+            });
+          }
+
+          console.log("📧 Recording email sent to tutor + student");
+        } catch (emailErr) {
+          console.error("Email send error:", emailErr);
+        }
+
         return res.status(200).json({ ok: true });
       }
 
