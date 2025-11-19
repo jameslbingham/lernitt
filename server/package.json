@@ -2,7 +2,9 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
@@ -13,6 +15,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
