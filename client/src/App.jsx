@@ -40,11 +40,15 @@ const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
 // NEW — lazy import LessonRecordings
 const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
 
+// NEW — signup + setup pages
+const Signup = lazy(() => import("./pages/Signup.jsx"));
+const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
+const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
+
 import TutorLessons from "./pages/TutorLessons.jsx";
 import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
 import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
-
 import TutorDashboard from "./pages/TutorDashboard";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
@@ -161,6 +165,12 @@ export default function App({ mockMode }) {
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+
+            {/* NEW ROUTES */}
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/welcome-setup" element={<WelcomeSetup />} />
+            <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
+
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/tutors/:id" element={<TutorProfile />} />
             <Route path="/book/:tutorId" element={<BookLesson />} />
