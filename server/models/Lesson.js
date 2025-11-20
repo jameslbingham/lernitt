@@ -1,133 +1,131 @@
 // /server/models/Lesson.js
-const mongoose = require("mongoose");
+// ======================================================================
+// FINAL COMPLETE LESSON MODEL — INCLUDING ALL PHASE F RECORDING FIELDS
+// ======================================================================
 
+const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-const lessonSchema = new Schema({
-  // Core participants
-  tutor: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  student: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
+const LessonSchema = new Schema(
+  {
+    // ---------------- BASIC RELATION FIELDS ----------------
+    tutor: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    student: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
 
-  // Basic lesson info
-  subject: {
-    type: String,
-    default: "",
-  },
-  price: {
-    type: Number, // cents (or EUR if you stored that way)
-    default: 0,
-  },
-  isTrial: {
-    type: Boolean,
-    default: false,
-  },
+    // ---------------- SCHEDULING ----------------
+    startTime: {
+      type: Date,
+      required: true,
+    },
+    endTime: {
+      type: Date,
+    },
+    durationMins: {
+      type: Number,
+      default: null,
+    },
 
-  // Timing
-  startTime: {
-    type: Date,
-    required: true,
-  },
-  endTime: {
-    type: Date,
-  },
-  durationMins: {
-    type: Number,
-  },
+    // ---------------- META ----------------
+    subject: { type: String, default: "" },
+    price: { type: Number, default: 0 },
+    isTrial: { type: Boolean, default: false },
 
-  // Status lifecycle
-  status: {
-    type: String,
-    enum: [
-      "booked",               // student created, not paid yet
-      "paid",                 // paid, awaiting tutor approval
-      "confirmed",            // confirmed by tutor
-      "completed",            // lesson finished
-      "cancelled",            // cancelled
-      "expired",              // time passed without completion
-      "reschedule_requested", // student requested new time
-    ],
-    default: "booked",
-  },
+    // ---------------- STATUS ----------------
+    status: {
+      type: String,
+      enum: [
+        "booked",
+        "paid",
+        "confirmed",
+        "completed",
+        "cancelled",
+        "expired",
+        "reschedule_requested",
+      ],
+      default: "booked",
+    },
 
-  // Recording state (for Daily.co + UI)
-  recordingActive: {
-    type: Boolean,
-    default: false,
-  },
-  recordingId: {
-    type: String,
-    default: null,
-  },
-  recordingStartedBy: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    default: null,
-  },
-  recordingStopVotes: {
-    tutor: { type: Boolean, default: false },
-    student: { type: Boolean, default: false },
-  },
+    // ---------------- RESCHEDULING ----------------
+    rescheduleRequest: {
+      requested: { type: Boolean, default: false },
+      newStart: { type: Date },
+      reason: { type: String },
+    },
 
-  // Final recording info (webhook + Supabase or Daily URL)
-  recordingStatus: {
-    type: String,
-    default: null, // "available" | "error" | "no-participants" | "expired" | null
+    // =====================================================================
+    //                           RECORDING SYSTEM (PHASE F)
+    // =====================================================================
+
+    // Recording is currently active?
+    recordingActive: {
+      type: Boolean,
+      default: false,
+    },
+
+    // Daily internal recording ID
+    recordingId: {
+      type: String,
+      default: null,
+    },
+
+    // Who started the recording
+    recordingStartedBy: {
+      type: String,
+      default: null,
+    },
+
+    // Tutor + student “stop requests”
+    recordingStopVotes: {
+      tutor: { type: Boolean, default: false },
+      student: { type: Boolean, default: false },
+    },
+
+    // Final downloadable URL (Supabase or Daily)
+    recordingUrl: {
+      type: String,
+      default: null,
+    },
+
+    // “available”, “error”, “no-participants”
+    recordingStatus: {
+      type: String,
+      default: null,
+    },
+
+    // ---------------- INTERNAL STAMPS ----------------
+    createdAt: { type: Date, default: Date.now },
   },
-  recordingUrl: {
-    type: String,
-    default: null, // final URL (Supabase or Daily fallback)
-  },
+  { timestamps: true }
+);
 
-  // Timestamps
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-// Auto-update updatedAt and durationMins
-lessonSchema.pre("save", function (next) {
-  this.updatedAt = new Date();
-
-  if (!this.durationMins && this.startTime && this.endTime) {
-    const diffMs = this.endTime - this.startTime;
-    if (diffMs > 0) {
-      this.durationMins = Math.round(diffMs / 60000);
-    }
-  }
-
-  next();
-});
-
-// Small summary helper used by some API responses
-lessonSchema.methods.summary = function () {
+// ======================================================================
+// SUMMARY HELPER (used by complete-lesson)
+// ======================================================================
+LessonSchema.methods.summary = function () {
   return {
-    _id: this._id,
+    id: this._id,
     tutor: this.tutor,
     student: this.student,
-    subject: this.subject,
-    price: this.price,
-    isTrial: this.isTrial,
     startTime: this.startTime,
     endTime: this.endTime,
     durationMins: this.durationMins,
+    price: this.price,
+    subject: this.subject,
+    isTrial: this.isTrial,
     status: this.status,
     recordingActive: this.recordingActive,
-    recordingStatus: this.recordingStatus,
+    recordingId: this.recordingId,
     recordingUrl: this.recordingUrl,
+    recordingStatus: this.recordingStatus,
   };
 };
 
-module.exports = mongoose.model("Lesson", lessonSchema);
+module.exports = mongoose.model("Lesson", LessonSchema);
