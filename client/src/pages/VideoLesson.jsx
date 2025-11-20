@@ -130,12 +130,11 @@ export default function VideoLesson() {
     }
 
     if (isTutor && !hasStarted) return;
-
     loadRoom();
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
   /* ---------------------------------------------------------------
-    3) DAILY CALL SETUP — JOIN WITH SECURE ACCESS TOKEN
+    3) DAILY CALL SETUP (JOIN WITH SECURE ACCESS TOKEN)
   ----------------------------------------------------------------*/
   useEffect(() => {
     if (!roomUrl) return;
@@ -159,7 +158,10 @@ export default function VideoLesson() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ lessonId, roomUrl }),
+          body: JSON.stringify({
+            lessonId,
+            roomUrl,
+          }),
         });
 
         const data = await res.json();
@@ -201,7 +203,7 @@ export default function VideoLesson() {
       call.leave();
       call.destroy();
     };
-  }, [roomUrl, API, token, micOn, camOn, isTutor]);
+  }, [roomUrl, API, token, micOn, camOn, isTutor, lessonId]);
 
   /* ---------------------------------------------------------------
     4) DEVICE TOGGLES
@@ -524,7 +526,6 @@ export default function VideoLesson() {
   /* ---------------------------------------------------------------
     13) RENDER UI
   ----------------------------------------------------------------*/
-
   if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
   if (!isTutor && !isStudent)
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
@@ -750,13 +751,34 @@ export default function VideoLesson() {
             Leave Lesson
           </button>
 
+          {/* VIEW RECORDINGS BUTTON (NEW) */}
+          <button
+            onClick={() =>
+              navigate(`/lesson-recordings?lessonId=${lessonId}`)
+            }
+            style={{
+              position: "absolute",
+              top: "12px",
+              right: "120px",
+              zIndex: 40,
+              background: "#4f46e5",
+              color: "white",
+              border: "none",
+              padding: "8px 14px",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            View Recordings
+          </button>
+
           {/* DEVICE SETTINGS BUTTON */}
           <button
             onClick={() => setShowDevices(true)}
             style={{
               position: "absolute",
               top: "12px",
-              right: "120px",
+              right: "220px",
               zIndex: 40,
               background: "#4f46e5",
               color: "white",
@@ -933,7 +955,6 @@ export default function VideoLesson() {
                   </option>
                 ))}
               </select>
-
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <button
                   onClick={() => setShowDevices(false)}
