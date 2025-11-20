@@ -42,7 +42,7 @@ router.post("/create-room", async (req, res) => {
       return res.status(400).json({ error: "lessonId is required" });
     }
 
-    const body = {
+    const roomBody = {
       name: `lesson-${lessonId}-${Date.now()}`,
       properties: {
         enable_chat: true,
@@ -54,35 +54,34 @@ router.post("/create-room", async (req, res) => {
       exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
     };
 
-    const data = await dailyFetch("/rooms", {
+    const room = await dailyFetch("/rooms", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(roomBody),
     });
 
-    res.json({ roomUrl: data.url });
+    return res.json({ roomUrl: room.url });
   } catch (err) {
     console.error("create-room error:", err.message || err);
-    res.status(500).json({ error: "Failed to create room" });
+    return res.status(500).json({ error: "Failed to create room" });
   }
 });
 
 /* ====================================================================== */
-/* ---------------- CREATE TOKEN FOR JOINING A DAILY ROOM --------------- */
+/* ---------------- SIMPLE MEETING TOKEN (Manual Generator) -------------- */
 /* ====================================================================== */
+
 router.post("/token", auth, async (req, res) => {
   try {
-    const { roomName, role } = req.body; // role = 'owner' or 'participant'
+    const { roomName, role } = req.body;
 
     if (!roomName || !role) {
-      return res.status(400).json({ error: "roomName and role required" });
+      return res
+        .status(400)
+        .json({ error: "roomName and role are required" });
     }
 
-    const tokenRes = await fetch("https://api.daily.co/v1/meeting-tokens", {
+    const tokenRes = await dailyFetch("/meeting-tokens", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-      },
       body: JSON.stringify({
         properties: {
           room_name: roomName,
@@ -91,15 +90,17 @@ router.post("/token", auth, async (req, res) => {
       }),
     });
 
-    const token = await tokenRes.json();
-    return res.json(token);
+    return res.json({ token: tokenRes.token });
   } catch (err) {
-    console.error("Token error:", err);
-    res.status(500).json({ error: "Token creation failed" });
+    console.error("token error:", err.message || err);
+    return res.status(500).json({ error: "Token creation failed" });
   }
 });
 
-/* ---------------- ACCESS TOKEN (EXISTING DAILY VERSION) ---------------- */
+/* ====================================================================== */
+/* ---- ACCESS TOKEN FOR A SPECIFIC LESSON (Student/Tutor Protected) ----- */
+/* ====================================================================== */
+
 router.post("/access-token", auth, async (req, res) => {
   try {
     const { lessonId, roomUrl } = req.body || {};
@@ -120,7 +121,7 @@ router.post("/access-token", auth, async (req, res) => {
       return res.status(403).json({ error: "Not allowed for this lesson" });
     }
 
-    // Get room name from the URL
+    // Extract room name from URL
     let roomName = null;
     try {
       const urlObj = new URL(roomUrl);
@@ -162,14 +163,14 @@ router.post("/start-recording", auth, async (req, res) => {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ error: "Lesson not found" });
 
-    const body = {
+    const recBody = {
       room_url: roomUrl,
       layout: { preset: "default" },
     };
 
     const recording = await dailyFetch("/recordings/start", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(recBody),
     });
 
     lesson.recordingActive = true;
@@ -178,7 +179,7 @@ router.post("/start-recording", auth, async (req, res) => {
     lesson.recordingStopVotes = { tutor: false, student: false };
     await lesson.save();
 
-    res.json({
+    return res.json({
       recording,
       recordingState: {
         active: true,
@@ -189,7 +190,7 @@ router.post("/start-recording", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("start-recording error:", err.message || err);
-    res.status(500).json({ error: "Could not start recording" });
+    return res.status(500).json({ error: "Could not start recording" });
   }
 });
 
@@ -223,7 +224,7 @@ router.post("/request-stop-recording", auth, async (req, res) => {
 
     await lesson.save();
 
-    res.json({
+    return res.json({
       ok: true,
       recordingState: {
         active: lesson.recordingActive,
@@ -233,7 +234,7 @@ router.post("/request-stop-recording", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("request-stop-recording error:", err.message || err);
-    res.status(500).json({ error: "Could not update stop vote" });
+    return res.status(500).json({ error: "Could not update stop vote" });
   }
 });
 
@@ -255,7 +256,7 @@ router.post("/cancel-stop-vote", auth, async (req, res) => {
 
     await lesson.save();
 
-    res.json({
+    return res.json({
       ok: true,
       recordingState: {
         active: lesson.recordingActive,
@@ -265,7 +266,7 @@ router.post("/cancel-stop-vote", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("cancel-stop-vote error:", err.message || err);
-    res.status(500).json({ error: "Could not cancel vote" });
+    return res.status(500).json({ error: "Could not cancel vote" });
   }
 });
 
@@ -295,10 +296,10 @@ router.post("/stop-recording", auth, async (req, res) => {
     lesson.recordingStopVotes = { tutor: false, student: false };
     await lesson.save();
 
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err) {
     console.error("stop-recording error:", err.message || err);
-    res.status(500).json({ error: "Could not stop recording" });
+    return res.status(500).json({ error: "Could not stop recording" });
   }
 });
 
@@ -319,13 +320,13 @@ router.post("/complete-lesson", auth, async (req, res) => {
     lesson.endTime = new Date();
     await lesson.save();
 
-    res.json({
+    return res.json({
       ok: true,
       lesson: lesson.summary ? lesson.summary() : lesson,
     });
   } catch (err) {
     console.error("complete-lesson error:", err.message || err);
-    res.status(500).json({ error: "Failed to complete lesson" });
+    return res.status(500).json({ error: "Failed to complete lesson" });
   }
 });
 
