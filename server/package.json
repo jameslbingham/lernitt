@@ -2,6 +2,7 @@
   "name": "server",
   "private": true,
   "version": "1.0.0",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "cleanup:recordings": "node scripts/cleanupRecordings.js"
@@ -15,9 +16,10 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.4.3",
     "mongoose": "^7.6.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.8",
-    "luxon": "^3.4.3"
+    "stripe": "^11.17.0"
   }
 }
