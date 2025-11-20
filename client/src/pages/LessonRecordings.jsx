@@ -17,7 +17,7 @@ export default function LessonRecordings() {
   const API = import.meta.env.VITE_API;
 
   /* ------------------------------------------------------------
-     1. Load recordings (uses new backend route)
+     Load recordings (supports Supabase + Daily fallback)
   ------------------------------------------------------------ */
   async function load() {
     if (!lessonId || !token) {
@@ -30,7 +30,18 @@ export default function LessonRecordings() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      setRecordings(Array.isArray(data) ? data : []);
+
+      // Always normalise to array
+      const arr = Array.isArray(data) ? data : [];
+
+      // Sort newest → oldest
+      arr.sort((a, b) => {
+        const ad = a.created ? new Date(a.created).getTime() : 0;
+        const bd = b.created ? new Date(b.created).getTime() : 0;
+        return bd - ad;
+      });
+
+      setRecordings(arr);
     } catch (err) {
       console.error("Recording load error:", err);
       setRecordings([]);
@@ -39,23 +50,17 @@ export default function LessonRecordings() {
     }
   }
 
-  /* ------------------------------------------------------------
-     2. Initial load
-  ------------------------------------------------------------ */
   useEffect(() => {
     load();
   }, [lessonId, token, API]);
 
   /* ------------------------------------------------------------
-     3. Poll every 5 seconds for updates
+     Poll every 5 seconds for updates
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!lessonId || !token) return;
 
-    const id = setInterval(() => {
-      load();
-    }, 5000);
-
+    const id = setInterval(() => load(), 5000);
     return () => clearInterval(id);
   }, [lessonId, token]);
 
@@ -98,17 +103,19 @@ export default function LessonRecordings() {
           Lesson Recordings
         </h1>
 
+        {/* Empty state */}
         {recordings.length === 0 && (
           <p style={{ textAlign: "center", fontSize: 15, color: "#4b5563" }}>
             No recordings available for this lesson yet.
           </p>
         )}
 
+        {/* List */}
         {recordings.length > 0 && (
           <div style={{ marginTop: 10 }}>
-            {recordings.map((rec) => (
+            {recordings.map((rec, i) => (
               <div
-                key={rec.id}
+                key={`${rec.id}-${i}`}
                 style={{
                   border: `1px solid ${softGrey}`,
                   borderRadius: 10,
@@ -118,7 +125,8 @@ export default function LessonRecordings() {
                 }}
               >
                 <div style={{ marginBottom: 6 }}>
-                  <strong>Recording ID:</strong> {rec.id}
+                  <strong>Recording ID:</strong>{" "}
+                  {rec.id || "Recording"}
                 </div>
 
                 <div style={{ marginBottom: 6 }}>
@@ -130,7 +138,9 @@ export default function LessonRecordings() {
 
                 <div style={{ marginBottom: 6 }}>
                   <strong>Duration:</strong>{" "}
-                  {rec.duration ? `${rec.duration}s` : "Unknown"}
+                  {rec.duration
+                    ? `${rec.duration}s`
+                    : "Unknown"}
                 </div>
 
                 <div style={{ marginBottom: 6 }}>
@@ -140,7 +150,10 @@ export default function LessonRecordings() {
                       href={rec.downloadUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: "#4f46e5", textDecoration: "underline" }}
+                      style={{
+                        color: "#4f46e5",
+                        textDecoration: "underline",
+                      }}
                     >
                       Download File
                     </a>
