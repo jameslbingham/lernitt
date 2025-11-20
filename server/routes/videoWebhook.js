@@ -7,8 +7,8 @@ const express = require("express");
 const crypto = require("crypto");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
-const User = require("../models/User");        // ← NEW: needed for email lookup
-const { sendEmail } = require("../utils/sendEmail"); // ← NEW: email helper
+const User = require("../models/User");        
+const { sendEmail } = require("../utils/sendEmail");
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -28,12 +28,12 @@ router.post(
         return res.status(200).json({ ok: true, message: "test-accepted" });
       }
 
-      // Reject if Daily did not send a signature
+      // Reject if missing signature
       if (!signature) {
         return res.status(400).json({ ok: false, error: "missing-signature" });
       }
 
-      // Normal signature verification once secret exists
+      // Validate signature
       const computed = crypto
         .createHmac("sha256", secret)
         .update(req.body)
@@ -47,26 +47,42 @@ router.post(
       const event = JSON.parse(req.body.toString());
       console.log("Daily webhook event:", event.type);
 
-      const lessonId = event?.data?.object?.room?.name;
+      // ---------------------------------------------------------------------
+      // FIXED LESSON ID EXTRACTION
+      // Room name is "lesson-<lessonId>-timestamp"
+      // ---------------------------------------------------------------------
+      const roomName = event?.data?.object?.room?.name;
+      if (!roomName) return res.status(200).json({ ok: true });
+
+      let lessonId = null;
+      try {
+        const parts = roomName.split("-");
+        lessonId = parts[1]; // real Mongo _id
+      } catch (e) {
+        console.error("Could not extract lessonId from roomName:", roomName);
+        lessonId = null;
+      }
+
       if (!lessonId) return res.status(200).json({ ok: true });
 
       const lesson = await Lesson.findById(lessonId);
       if (!lesson) return res.status(200).json({ ok: true });
 
       // ============================================================
-      // recording.ready-to-download  (Daily’s correct event)
+      // recording.ready-to-download
       // ============================================================
       if (event.type === "recording.ready-to-download") {
         const recordingUrl = event?.data?.object?.download_url;
         if (!recordingUrl) return res.status(200).json({ ok: true });
 
+        // Save recording URL on lesson
         lesson.recordingStatus = "available";
         lesson.recordingUrl = recordingUrl;
         lesson.recordingActive = false;
         await lesson.save();
 
         // ------------------------------------------------------------
-        // NEW: Email recording URL to tutor AND student
+        // Email tutor + student
         // ------------------------------------------------------------
         try {
           const tutor = await User.findById(lesson.tutor);
@@ -79,26 +95,17 @@ Your lesson recording is ready for download.
 Lesson ID: ${lessonId}
 Download link: ${recordingUrl}
 
-This link was generated automatically and may expire.
-Please save this file to your device.
+This link may expire. Please save this file.
 
 – Lernitt
           `;
 
           if (tutor?.email) {
-            await sendEmail({
-              to: tutor.email,
-              subject,
-              text,
-            });
+            await sendEmail({ to: tutor.email, subject, text });
           }
 
           if (student?.email) {
-            await sendEmail({
-              to: student.email,
-              subject,
-              text,
-            });
+            await sendEmail({ to: student.email, subject, text });
           }
 
           console.log("📧 Recording email sent to tutor + student");
@@ -109,7 +116,9 @@ Please save this file to your device.
         return res.status(200).json({ ok: true });
       }
 
+      // ============================================================
       // recording.error
+      // ============================================================
       if (event.type === "recording.error") {
         lesson.recordingStatus = "error";
         lesson.recordingActive = false;
@@ -117,7 +126,9 @@ Please save this file to your device.
         return res.status(200).json({ ok: true });
       }
 
+      // ============================================================
       // recording.no-participants
+      // ============================================================
       if (event.type === "recording.no-participants") {
         lesson.recordingStatus = "no-participants";
         lesson.recordingActive = false;
@@ -134,7 +145,7 @@ Please save this file to your device.
 );
 
 // ---------------------------------------------------------------------------
-// GET /api/video/webhook/create — create webhook on Daily (uses fetch)
+// GET /api/video/webhook/create — create webhook on Daily
 // ---------------------------------------------------------------------------
 router.get("/webhook/create", async (req, res) => {
   try {
@@ -148,7 +159,6 @@ router.get("/webhook/create", async (req, res) => {
 
     const webhookUrl = "https://lernitt.onrender.com/api/video/webhook";
 
-    // ✔ Use correct Daily event
     const response = await fetch("https://api.daily.co/v1/webhooks", {
       method: "POST",
       headers: {
@@ -157,7 +167,7 @@ router.get("/webhook/create", async (req, res) => {
       },
       body: JSON.stringify({
         url: webhookUrl,
-        eventTypes: ["recording.ready-to-download"], // ← correct event
+        eventTypes: ["recording.ready-to-download"],
       }),
     });
 
