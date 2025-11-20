@@ -330,4 +330,47 @@ router.post("/complete-lesson", auth, async (req, res) => {
   }
 });
 
+/* ---------------------------------------------------------------
+   GET /api/video/lesson-recordings
+   Return the final Supabase recording URL saved by webhook
+----------------------------------------------------------------*/
+router.get("/lesson-recordings", auth, async (req, res) => {
+  try {
+    const { lessonId } = req.query || {};
+    if (!lessonId) {
+      return res.status(400).json({ error: "lessonId is required" });
+    }
+
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ error: "Lesson not found" });
+    }
+
+    const userId = String(req.user._id);
+    const isTutor = userId === String(lesson.tutor);
+    const isStudent = userId === String(lesson.student);
+    if (!isTutor && !isStudent) {
+      return res.status(403).json({ error: "Not allowed for this lesson" });
+    }
+
+    const url = lesson.recordingUrl || null;
+
+    const result = url
+      ? [
+          {
+            id: lesson.recordingId || "ready",
+            created: lesson.endTime || lesson.startTime || null,
+            duration: lesson.durationMins ? lesson.durationMins * 60 : null,
+            downloadUrl: url,
+          },
+        ]
+      : [];
+
+    return res.json(result);
+  } catch (err) {
+    console.error("lesson-recordings error:", err.message || err);
+    return res.status(500).json({ error: "Could not load recordings" });
+  }
+});
+
 module.exports = router;
