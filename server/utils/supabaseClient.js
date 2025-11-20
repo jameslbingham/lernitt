@@ -2,9 +2,10 @@
 // ===============================================================
 // Central Supabase client for ALL server-side Supabase access.
 // Used for: file uploads (recordings, avatars, etc.).
+// Requires @supabase/supabase-js v1.x (CommonJS compatible).
 // ===============================================================
 
-import { createClient } from "@supabase/supabase-js";
+const { createClient } = require("@supabase/supabase-js");
 
 // These MUST be set in Render environment variables
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -21,4 +22,6 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 // Create a single shared Supabase client for the whole server
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-export default supabase;
+// Export the client. Other files can:
+//   const supabase = require('../utils/supabaseClient');
+module.exports = supabase;
