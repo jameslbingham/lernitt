@@ -1,22 +1,14 @@
 {
-  "name": "client",
+  "name": "lernitt-root",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
   "scripts": {
-    "dev:mock": "VITE_MOCK=1 vite --port 5173",
-    "dev:live": "VITE_MOCK=0 vite --port 5173",
-    "build": "vite build",
-    "preview": "vite preview --port 5173"
+    "client:dev:mock": "cd client && npm run dev:mock",
+    "client:dev:live": "cd client && npm run dev:live",
+    "client:build": "cd client && npm run build",
+    "server:start": "cd server && npm start",
+    "server:cleanup:recordings": "cd server && npm run cleanup:recordings"
   },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.25.1",
-    "recharts": "^2.12.7"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.0"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }
