@@ -7,8 +7,9 @@ const express = require("express");
 const crypto = require("crypto");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
-const User = require("../models/User");        
+const User = require("../models/User");
 const { sendEmail } = require("../utils/sendEmail");
+const supabase = require("../utils/supabaseClient"); // ← NEW: Supabase client
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -75,9 +76,49 @@ router.post(
         const recordingUrl = event?.data?.object?.download_url;
         if (!recordingUrl) return res.status(200).json({ ok: true });
 
-        // Save recording URL on lesson
-        lesson.recordingStatus = "available";
-        lesson.recordingUrl = recordingUrl;
+        // ------------------------------------------------------------
+        // NEW: Download from Daily and upload to Supabase
+        // ------------------------------------------------------------
+        let finalUrl = recordingUrl; // fallback if upload fails
+
+        try {
+          const fileResp = await fetch(recordingUrl);
+          if (!fileResp.ok) {
+            throw new Error(
+              `Download failed: ${fileResp.status} ${fileResp.statusText}`
+            );
+          }
+
+          const arrayBuffer = await fileResp.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          const filePath = `lesson-recordings/${lessonId}-${Date.now()}.mp4`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("tutor-videos") // your bucket
+            .upload(filePath, buffer, {
+              contentType: "video/mp4",
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error("Supabase upload error:", uploadError);
+          } else if (uploadData) {
+            const { data: publicData } = supabase.storage
+              .from("tutor-videos")
+              .getPublicUrl(filePath);
+
+            if (publicData?.publicUrl) {
+              finalUrl = publicData.publicUrl;
+            }
+          }
+        } catch (uploadErr) {
+          console.error("Recording transfer (Daily → Supabase) error:", uploadErr);
+        }
+
+        // Save recording URL on lesson (Supabase if upload succeeded)
+        lesson.recordingStatus = "uploaded";
+        lesson.recordingUrl = finalUrl;
         lesson.recordingActive = false;
         await lesson.save();
 
@@ -90,12 +131,12 @@ router.post(
 
           const subject = "Your Lernitt lesson recording is ready";
           const text = `
-Your lesson recording is ready for download.
+Your lesson recording is ready for viewing.
 
 Lesson ID: ${lessonId}
-Download link: ${recordingUrl}
+Recording link: ${finalUrl}
 
-This link may expire. Please save this file.
+Please save this link or file for your records.
 
 – Lernitt
           `;
