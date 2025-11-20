@@ -17,7 +17,7 @@ export default function LessonRecordings() {
   const API = import.meta.env.VITE_API;
 
   /* ------------------------------------------------------------
-    1. Extract load() so it can be reused by polling
+     1. Load recordings (uses new backend route)
   ------------------------------------------------------------ */
   async function load() {
     if (!lessonId || !token) {
@@ -40,20 +40,20 @@ export default function LessonRecordings() {
   }
 
   /* ------------------------------------------------------------
-    2. Initial load (unchanged except calling extracted load())
+     2. Initial load
   ------------------------------------------------------------ */
   useEffect(() => {
     load();
   }, [lessonId, token, API]);
 
   /* ------------------------------------------------------------
-    3. NEW — Auto-refresh recording info every 5 seconds
+     3. Poll every 5 seconds for updates
   ------------------------------------------------------------ */
   useEffect(() => {
     if (!lessonId || !token) return;
 
     const id = setInterval(() => {
-      load(); // re-fetch recording metadata
+      load();
     }, 5000);
 
     return () => clearInterval(id);
