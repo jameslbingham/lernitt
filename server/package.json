@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.6.3",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^6.9.8"
+    "nodemailer": "^6.9.8",
+    "luxon": "^3.4.3"
   }
 }
