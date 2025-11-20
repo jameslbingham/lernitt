@@ -130,11 +130,12 @@ export default function VideoLesson() {
     }
 
     if (isTutor && !hasStarted) return;
+
     loadRoom();
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
   /* ---------------------------------------------------------------
-    3) DAILY CALL SETUP (JOIN WITH TOKEN)
+    3) DAILY CALL SETUP — JOIN WITH SECURE ACCESS TOKEN
   ----------------------------------------------------------------*/
   useEffect(() => {
     if (!roomUrl) return;
@@ -150,18 +151,15 @@ export default function VideoLesson() {
 
     callRef.current = call;
 
-    async function joinWithToken() {
+    async function joinWithSecureToken() {
       try {
-        const role = isTutor ? "owner" : "participant";
-        const roomName = roomUrl.split("/").pop();
-
-        const res = await fetch(`${API}/api/video/token`, {
+        const res = await fetch(`${API}/api/video/access-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ roomName, role }),
+          body: JSON.stringify({ lessonId, roomUrl }),
         });
 
         const data = await res.json();
@@ -172,12 +170,12 @@ export default function VideoLesson() {
           await call.join({ url: roomUrl });
         }
       } catch (err) {
-        console.error("Token join failed:", err);
+        console.error("Secure join failed:", err);
         await call.join({ url: roomUrl });
       }
     }
 
-    joinWithToken();
+    joinWithSecureToken();
 
     call.setLocalAudio(micOn);
     call.setLocalVideo(camOn);
@@ -526,6 +524,7 @@ export default function VideoLesson() {
   /* ---------------------------------------------------------------
     13) RENDER UI
   ----------------------------------------------------------------*/
+
   if (!lesson) return <p style={{ padding: 20 }}>Loading lesson…</p>;
   if (!isTutor && !isStudent)
     return <p style={{ padding: 20 }}>You are not part of this lesson.</p>;
@@ -934,6 +933,7 @@ export default function VideoLesson() {
                   </option>
                 ))}
               </select>
+
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <button
                   onClick={() => setShowDevices(false)}
