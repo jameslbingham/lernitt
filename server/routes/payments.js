@@ -7,16 +7,20 @@ const Lesson = require('../models/Lesson');
 
 // Helper: is simulated mode?
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
-const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
+const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_SECRET;
+
+// CONSTANT CURRENCY FOR ENTIRE PLATFORM
+const PLATFORM_CURRENCY = "USD";
 
 /* ============================================
-   Create Stripe PaymentIntent (simulated if no keys)
+   Create Stripe PaymentIntent (USD-only)
    ============================================ */
 router.post('/stripe', auth, async (req, res) => {
   try {
     console.log('[PAY][stripe] body:', req.body);
 
-    const { amount, currency = 'EUR', lesson } = req.body;
+    const { amount, lesson } = req.body;
+    const currency = PLATFORM_CURRENCY;
 
     const lessonDoc = await Lesson.findById(lesson);
     if (!lessonDoc) return res.status(404).json({ message: 'Lesson not found' });
@@ -65,11 +69,12 @@ router.post('/stripe', auth, async (req, res) => {
 });
 
 /* ============================================
-   Create PayPal order (simulated if no keys)
+   Create PayPal order (USD-only)
    ============================================ */
 router.post('/paypal', auth, async (req, res) => {
   try {
-    const { amount, currency = 'EUR', lesson } = req.body;
+    const { amount, lesson } = req.body;
+    const currency = PLATFORM_CURRENCY;
 
     const lessonDoc = await Lesson.findById(lesson);
     if (!lessonDoc) return res.status(404).json({ message: 'Lesson not found' });
@@ -147,7 +152,7 @@ router.patch('/:id/status', auth, async (req, res) => {
     payment.status = status;
     await payment.save();
 
-    // NEW: when payment succeeds, mark lesson as paid in lifecycle
+    // When payment succeeds, mark lesson as paid in lifecycle
     if (status === 'succeeded' && payment.lesson) {
       const lesson = payment.lesson;
       lesson.status = 'paid';
@@ -170,7 +175,6 @@ router.patch('/:id/refund', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
 
-    // Policy: refunds allowed ONLY when legally required
     if (reason !== 'legal_required') {
       return res.status(403).json({ message: 'Refunds not allowed unless required by law.' });
     }
@@ -193,25 +197,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
       return res.status(400).json({ message: 'Already refunded' });
     }
 
-    // Provider refund (simulate if no keys)
     let refundProviderId = `re_sim_${Math.random().toString(36).slice(2, 12)}`;
-
-    if (payment.provider === 'stripe' && hasStripeKeys && payment.providerIds.paymentIntentId) {
-      try {
-        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-        const refund = await stripe.refunds.create({
-          payment_intent: payment.providerIds.paymentIntentId,
-          amount: payment.amount
-        });
-        refundProviderId = refund.id;
-      } catch (e) {
-        refundProviderId = `re_sim_${Math.random().toString(36).slice(2, 12)}`;
-      }
-    }
-
-    if (payment.provider === 'paypal' && hasPayPalKeys) {
-      refundProviderId = `re_sim_${Math.random().toString(36).slice(2, 12)}`;
-    }
 
     payment.refundAmount = payment.amount;
     payment.refundProviderId = refundProviderId;
