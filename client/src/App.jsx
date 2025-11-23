@@ -129,7 +129,11 @@ function Nav() {
           {" | "}
           <Link to="/login">Login</Link>
           {" | "}
-          <Link to="/signup"><strong>Sign up</strong></Link>
+          <Link to="/signup">
+            <strong>Sign up</strong>
+          </Link>
+          {" | "}
+          <Link to="/signup?tutor=1">Apply as a Tutor</Link>
         </>
       )}
       {isAuthed && (
