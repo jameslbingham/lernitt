@@ -15,12 +15,10 @@ function euros(n) {
 export default function Home() {
   const [q, setQ] = useState("");
   const nav = useNavigate();
-
   const { isAuthed } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-
   const [upcoming, setUpcoming] = useState(null);
   const [notifUnread, setNotifUnread] = useState(0);
   const [favCount, setFavCount] = useState(0);
@@ -38,6 +36,7 @@ export default function Home() {
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       setLoading(true);
       setErr("");
@@ -46,7 +45,9 @@ export default function Home() {
         if (isAuthed) {
           const ns = await apiFetch("/api/notifications", { auth: true });
           if (alive) {
-            const unread = Array.isArray(ns) ? ns.filter((n) => !n.read).length : 0;
+            const unread = Array.isArray(ns)
+              ? ns.filter((n) => !n.read).length
+              : 0;
             setNotifUnread(unread);
           }
         } else {
@@ -56,13 +57,19 @@ export default function Home() {
         if (isAuthed) {
           const lessons = await apiFetch("/api/lessons/mine", { auth: true });
           if (alive) {
-            const rows = (Array.isArray(lessons) ? lessons : []).filter(Boolean);
+            const rows = (Array.isArray(lessons) ? lessons : []).filter(
+              Boolean
+            );
             rows.sort(
               (a, b) =>
-                new Date(a.start || a.startTime || 0) - new Date(b.start || b.startTime || 0)
+                new Date(a.start || a.startTime || 0) -
+                new Date(b.start || b.startTime || 0)
             );
             setUpcoming(
-              rows.find((l) => new Date(l.start || l.startTime || 0) > new Date()) || null
+              rows.find(
+                (l) =>
+                  new Date(l.start || l.startTime || 0) > new Date()
+              ) || null
             );
           }
         } else {
@@ -71,7 +78,11 @@ export default function Home() {
 
         try {
           const res = await apiFetch("/api/tutors?page=1&limit=6");
-          const list = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+          const list = Array.isArray(res)
+            ? res
+            : res && Array.isArray(res.data)
+            ? res.data
+            : [];
           if (alive) setTutorPeek(list.slice(0, 6));
         } catch {
           if (alive) setTutorPeek([]);
@@ -82,6 +93,7 @@ export default function Home() {
         if (alive) setLoading(false);
       }
     })();
+
     return () => {
       alive = false;
     };
@@ -89,20 +101,27 @@ export default function Home() {
 
   const nextLesson = useMemo(() => {
     if (!upcoming) return null;
-    const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
+
+    const startISO =
+      upcoming.start || upcoming.startTime || upcoming.begin;
     const start = startISO ? new Date(startISO) : null;
     const when = start
-      ? start.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+      ? start.toLocaleString([], {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
       : "—";
-    const tutorName = upcoming.tutorName || upcoming.tutor?.name || "Tutor";
+    const tutorName =
+      upcoming.tutorName || upcoming.tutor?.name || "Tutor";
     const id = upcoming._id || upcoming.id;
-    const tutorId = String(upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || "");
+    const tutorId = String(
+      upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
+    );
 
-    // FIXED: Remove old "pending" fallback → use "booked"
-    const status =
-      upcoming.status
-        ? upcoming.status.toLowerCase()
-        : "booked";
+    // Canonical lifecycle: default "booked"
+    const status = upcoming.status
+      ? upcoming.status.toLowerCase()
+      : "booked";
 
     return {
       id,
@@ -112,10 +131,16 @@ export default function Home() {
       duration:
         Number(
           upcoming.duration ||
-            (upcoming.endTime ? (new Date(upcoming.endTime) - new Date(startISO)) / 60000 : 0)
+            (upcoming.endTime
+              ? (new Date(upcoming.endTime) - new Date(startISO)) /
+                60000
+              : 0)
         ) || 0,
       isTrial: !!upcoming.isTrial,
-      price: typeof upcoming.price === "number" ? upcoming.price : Number(upcoming.price) || 0,
+      price:
+        typeof upcoming.price === "number"
+          ? upcoming.price
+          : Number(upcoming.price) || 0,
       status,
     };
   }, [upcoming]);
@@ -137,7 +162,10 @@ export default function Home() {
             onChange={(e) => setQ(e.target.value)}
             className="border rounded-2xl px-3 py-2 text-sm w-72"
           />
-          <button type="submit" className="border rounded-2xl px-3 py-2 text-sm">
+          <button
+            type="submit"
+            className="border rounded-2xl px-3 py-2 text-sm"
+          >
             Search
           </button>
         </form>
@@ -147,15 +175,44 @@ export default function Home() {
 
   return (
     <div className="p-4 space-y-6">
-
-      {/* NEW welcome section */}
+      {/* Welcome + hero */}
       <div style={{ paddingBottom: 16 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
+        <h1
+          style={{
+            fontSize: 28,
+            fontWeight: 800,
+            marginBottom: 8,
+          }}
+        >
           Welcome to Lernitt
         </h1>
         <p style={{ fontSize: 16, opacity: 0.8 }}>
-          Book live lessons with tutors worldwide. Choose a subject, pick a tutor, and learn in real time.
+          Lernitt is a live lesson marketplace. Students find tutors and
+          book lessons. Tutors apply to teach, set availability, and get
+          paid for completed lessons.
         </p>
+
+        {/* HERO: student vs tutor paths */}
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            to="/signup"
+            className="rounded-2xl px-5 py-3 text-sm font-semibold border hover:shadow-md transition inline-flex flex-col"
+          >
+            <span className="text-base">I&apos;m a student</span>
+            <span className="text-xs opacity-80">
+              Create a free account and book your first lesson.
+            </span>
+          </Link>
+          <Link
+            to="/signup"
+            className="rounded-2xl px-5 py-3 text-sm font-semibold border hover:shadow-md transition inline-flex flex-col"
+          >
+            <span className="text-base">I&apos;m a tutor</span>
+            <span className="text-xs opacity-80">
+              Apply to teach, then complete Welcome and Profile setup.
+            </span>
+          </Link>
+        </div>
       </div>
 
       {/* Search bar */}
@@ -172,7 +229,10 @@ export default function Home() {
           onChange={(e) => setQ(e.target.value)}
           className="border rounded-2xl px-3 py-2 text-sm w-72"
         />
-        <button type="submit" className="border rounded-2xl px-3 py-2 text-sm">
+        <button
+          type="submit"
+          className="border rounded-2xl px-3 py-2 text-sm"
+        >
           Search
         </button>
       </form>
@@ -184,21 +244,35 @@ export default function Home() {
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Get started</div>
           <p className="text-sm opacity-80">
-            Browse tutors, book a trial, and manage your lessons.
+            Students can browse tutors and book lessons. Tutors can manage
+            availability and see upcoming lessons.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/tutors">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/tutors"
+            >
               Find tutors
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/favourites">
-              Favourites {favCount ? `(${favCount})` : ""}
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/favourites"
+            >
+              Favourites{" "}
+              {favCount ? `(${favCount})` : ""}
             </Link>
             {isAuthed ? (
-              <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/my-lessons">
+              <Link
+                className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+                to="/my-lessons"
+              >
                 My Lessons
               </Link>
             ) : (
-              <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/login">
+              <Link
+                className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+                to="/login"
+              >
                 Log in
               </Link>
             )}
@@ -212,11 +286,16 @@ export default function Home() {
             Stay on top of booking updates and messages.
           </p>
           <div className="mt-3 flex items-center gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/notifications">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/notifications"
+            >
               Open inbox
             </Link>
             <span className="text-xs opacity-70">
-              {isAuthed ? `Unread: ${notifUnread}` : "Login to see your inbox"}
+              {isAuthed
+                ? `Unread: ${notifUnread}`
+                : "Login to see your inbox"}
             </span>
           </div>
           {MOCK && (
@@ -229,34 +308,50 @@ export default function Home() {
         {/* Card: Upcoming lesson */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Upcoming lesson</div>
-          {!isAuthed && <p className="text-sm opacity-80">Log in to see your schedule.</p>}
+          {!isAuthed && (
+            <p className="text-sm opacity-80">
+              Log in to see your schedule.
+            </p>
+          )}
           {isAuthed && !nextLesson && (
-            <p className="text-sm opacity-80">No upcoming lessons yet.</p>
+            <p className="text-sm opacity-80">
+              No upcoming lessons yet.
+            </p>
           )}
           {isAuthed && nextLesson && (
             <>
               <div className="text-sm">
                 <div>
                   <b>{nextLesson.tutorName}</b>{" "}
-                  <span className="opacity-70">({nextLesson.when})</span>
+                  <span className="opacity-70">
+                    ({nextLesson.when})
+                  </span>
                 </div>
                 <div className="opacity-80">
-                  {nextLesson.isTrial ? "Trial" : "Paid"} · {nextLesson.duration} min
+                  {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
+                  {nextLesson.duration} min
                   {!nextLesson.isTrial && nextLesson.price ? (
-                    <> · € {euros(nextLesson.price)}</>
+                    <>
+                      {" "}
+                      · € {euros(nextLesson.price)}
+                    </>
                   ) : null}
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-                  to={`/student-lesson/${encodeURIComponent(nextLesson.id)}`}
+                  to={`/student-lesson/${encodeURIComponent(
+                    nextLesson.id
+                  )}`}
                 >
                   View details
                 </Link>
                 <Link
                   className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-                  to={`/tutors/${encodeURIComponent(nextLesson.tutorId)}`}
+                  to={`/tutors/${encodeURIComponent(
+                    nextLesson.tutorId
+                  )}`}
                 >
                   Tutor
                 </Link>
@@ -275,27 +370,45 @@ export default function Home() {
           </Link>
         </div>
         {tutorPeek.length === 0 ? (
-          <div className="text-sm opacity-70">No tutors to show yet.</div>
+          <div className="text-sm opacity-70">
+            No tutors to show yet.
+          </div>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tutorPeek.map((t) => {
               const id = t._id || t.id;
               const price =
-                typeof t.price === "number" ? (t.price >= 1000 ? t.price / 100 : t.price) : null;
+                typeof t.price === "number"
+                  ? t.price >= 1000
+                    ? t.price / 100
+                    : t.price
+                  : null;
               return (
-                <li key={id} className="border rounded-2xl p-3 hover:shadow-sm transition">
-                  <Link to={`/tutors/${encodeURIComponent(id)}`} className="block">
+                <li
+                  key={id}
+                  className="border rounded-2xl p-3 hover:shadow-sm transition"
+                >
+                  <Link
+                    to={`/tutors/${encodeURIComponent(id)}`}
+                    className="block"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full border flex items-center justify-center text-sm font-semibold">
                         {t.name?.[0] || "?"}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold">{t.name || "Tutor"}</div>
+                        <div className="font-semibold">
+                          {t.name || "Tutor"}
+                        </div>
                         <div className="text-xs opacity-80 truncate">
-                          {(t.subjects || []).slice(0, 3).join(" · ") || "—"}
+                          {(t.subjects || [])
+                            .slice(0, 3)
+                            .join(" · ") || "—"}
                         </div>
                         <div className="text-xs opacity-70 mt-1">
-                          {Number.isFinite(price) ? `€ ${price.toFixed(2)}/h` : ""}
+                          {Number.isFinite(price)
+                            ? `€ ${price.toFixed(2)}/h`
+                            : ""}
                         </div>
                       </div>
                     </div>
@@ -312,23 +425,41 @@ export default function Home() {
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Tutor tools</div>
           <div className="flex flex-wrap gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/availability">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/availability"
+            >
               Availability
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/tutor-lessons">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/tutor-lessons"
+            >
               Tutor lessons
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/payouts">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/payouts"
+            >
               Payouts
             </Link>
           </div>
-          {MOCK && <div className="text-xs opacity-60 mt-2">Mock mode: data is simulated.</div>}
+          {MOCK && (
+            <div className="text-xs opacity-60 mt-2">
+              Mock mode: data is simulated.
+            </div>
+          )}
         </div>
 
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Students</div>
-          <p className="text-sm opacity-80">Manage your student list and bookings.</p>
-          <Link className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/students">
+          <p className="text-sm opacity-80">
+            Manage your student list and bookings.
+          </p>
+          <Link
+            className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+            to="/students"
+          >
             Open Students
           </Link>
         </div>
@@ -336,13 +467,23 @@ export default function Home() {
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Account</div>
           <div className="flex flex-wrap gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/profile">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/profile"
+            >
               Profile
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/notifications">
-              Notifications {notifUnread ? `(${notifUnread})` : ""}
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/notifications"
+            >
+              Notifications{" "}
+              {notifUnread ? `(${notifUnread})` : ""}
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm" to="/settings">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+              to="/settings"
+            >
               Settings
             </Link>
           </div>
