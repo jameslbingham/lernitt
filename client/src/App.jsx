@@ -128,6 +128,8 @@ function Nav() {
         <>
           {" | "}
           <Link to="/login">Login</Link>
+          {" | "}
+          <Link to="/signup"><strong>Sign up</strong></Link>
         </>
       )}
       {isAuthed && (
