@@ -191,6 +191,11 @@ export default function Pay() {
         )}
       </div>
 
+      {/* NEW HEADING — Choose payment method */}
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+        Choose your payment method
+      </h2>
+
       {/* Payment buttons */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         {!isAlreadyPaid && (
@@ -206,7 +211,9 @@ export default function Pay() {
                 opacity: paying ? 0.6 : 1,
               }}
             >
-              {paying ? "Starting Stripe…" : "Pay with Stripe"}
+              {paying
+                ? "Starting Stripe…"
+                : "Pay with credit / debit card (Stripe)"}
             </button>
 
             <button
