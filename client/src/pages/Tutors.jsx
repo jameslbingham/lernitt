@@ -196,7 +196,8 @@ export default function Tutors() {
     if (sortBy === "rating_desc") return arr.sort((a, b) => ra(b) - ra(a));
     if (sortBy === "price_asc") return arr.sort((a, b) => pa(a) - pa(b));
     if (sortBy === "price_desc") return arr.sort((a, b) => pa(b) - pa(a));
-    if (sortBy === "name_asc") return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    if (sortBy === "name_asc")
+      return arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     return arr;
   }, [tutors, sortBy]);
 
@@ -204,7 +205,8 @@ export default function Tutors() {
     ? sortedTutors.filter((t) => favorites.has(t._id || t.id))
     : sortedTutors;
 
-  const hasFilters = q || subject || minRating || priceMin || priceMax || maxPrice;
+  const hasFilters =
+    q || subject || minRating || priceMin || priceMax || maxPrice;
 
   function clearAndApply(key) {
     const next = { q, subject, minRating, priceMin, priceMax };
@@ -476,7 +478,10 @@ export default function Tutors() {
       {loading && (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <li key={i} className="border rounded-2xl p-4 shadow-sm animate-pulse">
+            <li
+              key={i}
+              className="border rounded-2xl p-4 shadow-sm animate-pulse"
+            >
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-200" />
@@ -500,7 +505,9 @@ export default function Tutors() {
       {!loading && !error && tutors.length === 0 && (
         <div className="border rounded-2xl p-8 text-center shadow-sm">
           <div className="text-lg font-semibold mb-2">No tutors found</div>
-          <p className="opacity-80 mb-4">Try clearing filters or changing your search.</p>
+          <p className="opacity-80 mb-4">
+            Try clearing filters or changing your search.
+          </p>
           <div className="flex gap-2 justify-center">
             <button
               onClick={clearFilters}
@@ -550,6 +557,8 @@ export default function Tutors() {
             {displayedTutors.map((t) => {
               const tid = t._id || t.id;
               const isFav = favorites.has(tid);
+              const initial = t.name?.[0] || "?" ;
+
               return (
                 <li
                   key={tid}
@@ -558,7 +567,11 @@ export default function Tutors() {
                 >
                   {/* Favourite toggle (on top) */}
                   <button
-                    aria-label={isFav ? "Remove from favourites" : "Add to favourites"}
+                    aria-label={
+                      isFav
+                        ? "Remove from favourites"
+                        : "Add to favourites"
+                    }
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -582,9 +595,19 @@ export default function Tutors() {
                   <div className="flex justify-between items-start relative z-10">
                     <div>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full border flex items-center justify-center text-sm font-semibold">
-                          {t.name?.[0] || "?"}
-                        </div>
+                        {/* Square / rounded photo to match TutorProfile */}
+                        {t.avatar ? (
+                          <img
+                            src={t.avatar}
+                            alt={t.name || "Tutor"}
+                            className="w-12 h-12 rounded-2xl object-cover border"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-2xl border flex items-center justify-center text-sm font-semibold">
+                            {initial}
+                          </div>
+                        )}
+
                         <span className="text-lg font-semibold underline decoration-dotted group-hover:decoration-solid">
                           {t.name}
                         </span>
@@ -592,7 +615,10 @@ export default function Tutors() {
 
                       <div className="flex flex-wrap gap-2 mt-2">
                         {(t.subjects || ["—"]).map((s, i) => (
-                          <span key={i} className="text-xs px-2 py-1 border rounded-full">
+                          <span
+                            key={i}
+                            className="text-xs px-2 py-1 border rounded-full"
+                          >
                             {s}
                           </span>
                         ))}
@@ -600,7 +626,9 @@ export default function Tutors() {
 
                       <div className="text-sm flex items-center gap-2 mt-1">
                         <StarRating
-                          value={typeof t.avgRating === "number" ? t.avgRating : 0}
+                          value={
+                            typeof t.avgRating === "number" ? t.avgRating : 0
+                          }
                           readOnly
                           size={16}
                           showValue
@@ -622,11 +650,13 @@ export default function Tutors() {
                         €{" "}
                         {(() => {
                           const p = eurosFromPrice(t.price);
-                          return typeof p === "number" ? p.toFixed(2) : p;
+                          return typeof p === "number"
+                            ? p.toFixed(2)
+                            : p;
                         })()}
                         /h
                       </div>
-                      {/* NEW: Quick Trial → preselect trial in booking */}
+                      {/* Quick Trial → preselect trial in booking */}
                       <Link
                         to={`/book/${tid}`}
                         state={{ tutor: t, trial: true }}
@@ -640,7 +670,10 @@ export default function Tutors() {
                         to={`/book/${tid}`}
                         state={{
                           tutor: t,
-                          from: { pathname: loc.pathname, search: loc.search },
+                          from: {
+                            pathname: loc.pathname,
+                            search: loc.search,
+                          },
                         }}
                         onClick={(e) => e.stopPropagation()}
                         className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
@@ -656,7 +689,9 @@ export default function Tutors() {
 
           <div className="flex justify-end">
             <button
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              onClick={() =>
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
               className="mt-2 border px-3 py-2 rounded-2xl shadow-sm hover:shadow-md transition text-sm"
             >
               Back to top ↑
@@ -675,7 +710,10 @@ export default function Tutors() {
             placeholder="Go"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                const n = Math.min(Math.max(1, Number(e.currentTarget.value || 1)), totalPages);
+                const n = Math.min(
+                  Math.max(1, Number(e.currentTarget.value || 1)),
+                  totalPages
+                );
                 setPage(n);
                 load(n);
               }
@@ -692,7 +730,9 @@ export default function Tutors() {
           >
             Previous
           </button>
-          <span className="px-2 py-1">Page {page} / {totalPages}</span>
+          <span className="px-2 py-1">
+            Page {page} / {totalPages}
+          </span>
           <button
             className="border px-3 py-1 rounded-2xl"
             onClick={() => {
