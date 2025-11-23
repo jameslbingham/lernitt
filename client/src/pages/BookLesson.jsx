@@ -91,12 +91,10 @@ function WeeklyGrid({ days, selectedDay, onSelect, countSlotsFor }) {
 }
 
 export default function BookLesson() {
-  // ── Route + state (tutor passthrough and back link) ────────────────────────
   const { tutorId } = useParams();
   const loc = useLocation();
   const passedTutor = loc.state?.tutor || null;
 
-  // Fallback fetch if tutor not passed in state
   const [tutor, setTutor] = useState(passedTutor);
   useEffect(() => {
     if (tutor) return;
@@ -105,24 +103,20 @@ export default function BookLesson() {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load tutor"))))
       .then(setTutor)
       .catch(() => setTutor(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorId]);
 
   const backTo = loc.state?.from
     ? `${loc.state.from.pathname}${loc.state.from.search || ""}`
     : "/tutors";
 
-  // Try route param first, then passed tutor object for name/price display
   const tutorObj = passedTutor || {};
   const tutorName = tutorObj?.name || tutor?.name || "Tutor";
 
-  // ---- Prefs (duration, trial, notes) with persistence ----
   const prefsKey = tutorId ? `bookPrefs:${tutorId}` : null;
   const [duration, setDuration] = useState(60);
   const [trial, setTrial] = useState(false);
   const [notes, setNotes] = useState("");
 
-  // Restore prefs
   useEffect(() => {
     if (!prefsKey) return;
     try {
@@ -133,10 +127,8 @@ export default function BookLesson() {
       if (typeof t === "boolean") setTrial(t);
       if (typeof n === "string") setNotes(n.slice(0, NOTES_MAX));
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefsKey]);
 
-  // Save prefs
   useEffect(() => {
     if (!prefsKey) return;
     try {
@@ -144,25 +136,20 @@ export default function BookLesson() {
     } catch {}
   }, [prefsKey, duration, trial, notes]);
 
-  // Timezones
   const [tutorTz, setTutorTz] = useState(null);
   const [tz] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
 
-  // Week navigation (declare todayStart once!)
   const todayStart = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(todayStart);
   const weekEnd = addDays(weekStart, 6);
 
-  // Selected day
   const [selectedDay, setSelectedDay] = useState(todayStart);
   useEffect(() => {
-    // Snap selected day into the current week if it falls out after nav
     if (selectedDay < weekStart || selectedDay > addDays(weekStart, 6)) {
       setSelectedDay(weekStart);
     }
   }, [weekStart, selectedDay]);
 
-  // Price estimate
   const hourlyPrice = tutorObj?.price ?? tutor?.price ?? null;
   const priceForDuration = useMemo(() => {
     if (trial) return 0;
@@ -170,10 +157,8 @@ export default function BookLesson() {
     return Math.round(hourlyPrice * (duration / 60) * 100) / 100;
   }, [trial, duration, hourlyPrice]);
 
-  // Auth
   const loggedIn = !!localStorage.getItem("token");
 
-  // Trial counters
   const [trialInfo, setTrialInfo] = useState({
     totalUsed: 0,
     usedWithTutor: 0,
@@ -186,10 +171,8 @@ export default function BookLesson() {
 
   useEffect(() => {
     if (!trialAllowed && trial) setTrial(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trialAllowed]);
 
-  // Tutor timezone
   useEffect(() => {
     if (!MOCK && tutorId) {
       fetch(`${API}/api/availability/${encodeURIComponent(tutorId)}`)
@@ -199,7 +182,6 @@ export default function BookLesson() {
     }
   }, [tutorId]);
 
-  // Trial counters fetch
   useEffect(() => {
     const load = async () => {
       try {
@@ -222,22 +204,17 @@ export default function BookLesson() {
             limitPerTutor: d?.limitPerTutor ?? 1,
           });
         }
-      } catch {
-        // keep defaults
-      }
+      } catch {}
     };
     if (tutorId) load();
   }, [tutorId]);
 
-  // Slots cache for the shown week: { 'YYYY-MM-DD': [slotISOStrings...] }
   const [weekSlots, setWeekSlots] = useState({});
   const [loadingWeek, setLoadingWeek] = useState(false);
   const [error, setError] = useState("");
 
-  // Build the 7-day window from weekStart
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
-  // Derive slots for selected day
   const daySlots = useMemo(() => {
     const key = startOfDay(selectedDay).toISOString().slice(0, 10);
     const arr = weekSlots[key] || [];
@@ -250,13 +227,11 @@ export default function BookLesson() {
       }));
   }, [selectedDay, weekSlots]);
 
-  // Total slots this week
   const weekTotal = useMemo(
     () => Object.values(weekSlots).reduce((n, arr) => n + (arr?.length || 0), 0),
     [weekSlots]
   );
 
-  // MOCK availability window config (read-only — used to bound next-week navigation)
   const mockCfg = useMemo(() => {
     if (!MOCK) return null;
     const rules = JSON.parse(localStorage.getItem("availabilityRules") || "null");
@@ -268,7 +243,6 @@ export default function BookLesson() {
     return { rules, startDate, repeat, untilMode, untilDate };
   }, []);
 
-  // Prev/Next week enablement (no past weeks)
   const prevDisabled = useMemo(() => weekStart <= todayStart, [weekStart, todayStart]);
 
   const nextDisabled = useMemo(() => {
@@ -281,7 +255,6 @@ export default function BookLesson() {
     return false;
   }, [MOCK, mockCfg, weekStart]);
 
-  // Fetch week slots whenever inputs change (+ sessionStorage cache)
   useEffect(() => {
     if (!tutorId) return;
     const fetchWeek = async () => {
@@ -298,7 +271,6 @@ export default function BookLesson() {
           tz,
         });
 
-        // 🔹 sessionStorage cache for faster reloads
         const cacheKey = ["weekSlots", tutorId, from.toISOString().slice(0, 10), dur, tz].join("|");
         try {
           const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
@@ -315,7 +287,6 @@ export default function BookLesson() {
         if (!r.ok) throw new Error(`Failed to load slots (${r.status})`);
         const data = await r.json();
 
-        // Accept both mock shape {slots:[iso,...]} and real shape [{start: iso}, ...]
         const list =
           Array.isArray(data?.slots) ? data.slots :
           Array.isArray(data) ? data.map((x) => x.start) : [];
@@ -326,14 +297,13 @@ export default function BookLesson() {
           grouped[key] = grouped[key] || [];
           grouped[key].push(iso);
         }
-        // ensure keys for each day exist
+
         for (const d of days) {
           const key = d.toISOString().slice(0, 10);
           grouped[key] = grouped[key] || [];
         }
         setWeekSlots(grouped);
 
-        // Save to cache
         try {
           sessionStorage.setItem(cacheKey, JSON.stringify(grouped));
         } catch {}
@@ -344,7 +314,6 @@ export default function BookLesson() {
       }
     };
     fetchWeek();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorId, duration, trial, tz, weekStart, mockCfg]);
 
   const hasSlotsFor = (date) => {
@@ -357,10 +326,11 @@ export default function BookLesson() {
     return (weekSlots[key] || []).length;
   };
 
-  // ✅ Updated to skip confirmation for trials and trigger banner on profile
+  // ---------------------------------------------------
+  // CHANGED REDIRECT HERE
+  // ---------------------------------------------------
   async function handleBook(iso) {
     try {
-      // require login first
       const token = localStorage.getItem("token");
       if (!token) {
         const params = new URLSearchParams({ next: `/book/${encodeURIComponent(tutorId)}` });
@@ -395,14 +365,14 @@ export default function BookLesson() {
       }
       const lesson = await r.json();
 
-      // NEW: for trials, jump straight to the tutor profile and trigger the banner
       if (lesson.isTrial) {
         window.location.href = `/tutors/${encodeURIComponent(tutorId)}?trial=1`;
         return;
       }
 
-      // Paid bookings still go to confirmation
-      window.location.href = `/confirm/${encodeURIComponent(lesson._id)}`;
+      // NEW: redirect to payment page instead of confirmation
+      window.location.href = `/pay/${encodeURIComponent(lesson._id)}`;
+
     } catch (e) {
       alert(e.message || "Booking failed");
     }
@@ -412,7 +382,6 @@ export default function BookLesson() {
     return <div style={{ padding: 16 }}>Missing tutorId. Open this page from a tutor profile.</div>;
   }
 
-  // Week header label
   const weekLabel =
     weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
     " – " +
@@ -420,7 +389,7 @@ export default function BookLesson() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
-      {/* Back to tutors (preserve filters) */}
+      {/* Back to tutors */}
       <div style={{ marginBottom: 8 }}>
         <Link to={backTo} className="text-sm underline">← Back to tutors</Link>
       </div>
@@ -429,7 +398,6 @@ export default function BookLesson() {
         Book a lesson with {tutorName}
       </h1>
 
-      {/* Timezone note */}
       <div
         style={{
           padding: "6px 8px",
@@ -500,7 +468,6 @@ export default function BookLesson() {
           </div>
         )}
 
-        {/* Prefs controls */}
         <button
           onClick={() => {
             setDuration(60);
@@ -521,7 +488,7 @@ export default function BookLesson() {
         </button>
       </div>
 
-      {/* Week navigation (sticky) */}
+      {/* Week navigation */}
       <div
         style={{
           position: "sticky",
@@ -578,7 +545,7 @@ export default function BookLesson() {
         ))}
       </div>
 
-      {/* Weekly preview bar (horizontal, mobile-friendly) */}
+      {/* Weekly preview bar */}
       <div
         style={{
           display: "flex",
@@ -595,7 +562,7 @@ export default function BookLesson() {
         {days.map((d) => {
           const count = countSlotsFor(d);
           const isSel = sameDay(d, selectedDay);
-          const bg = isSel ? "#3b82f6" : count > 0 ? "#ecfdf5" : "#f3f4f6"; // blue/green/gray
+          const bg = isSel ? "#3b82f6" : count > 0 ? "#ecfdf5" : "#f3f4f6";
           const color = isSel ? "#fff" : "#111827";
           return (
             <button
@@ -618,7 +585,7 @@ export default function BookLesson() {
         })}
       </div>
 
-      {/* Weekly preview grid (cards) */}
+      {/* Weekly preview grid */}
       <WeeklyGrid
         days={days}
         selectedDay={selectedDay}
@@ -651,11 +618,10 @@ export default function BookLesson() {
         </div>
       </div>
 
-      {/* Error / Loading */}
       {error && <div style={{ color: "#b91c1c", marginBottom: 12 }}>{error}</div>}
       {loadingWeek && <div style={{ marginBottom: 12 }}>Loading availability…</div>}
 
-      {/* Slots for selected day */}
+      {/* Slots grid */}
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
         {selectedDay.toLocaleDateString(undefined, {
           weekday: "long",
@@ -695,7 +661,6 @@ export default function BookLesson() {
           )}
         </div>
       ) : (
-        // Mobile-friendly slot grid (bigger tap targets)
         <div
           style={{
             display: "grid",
