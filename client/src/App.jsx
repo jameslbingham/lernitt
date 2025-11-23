@@ -9,7 +9,7 @@ import {
   Link,
   useNavigate,
   Navigate,
-  useLocation
+  useLocation,
 } from "react-router-dom";
 
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
@@ -133,7 +133,7 @@ function Nav() {
             <strong>Sign up</strong>
           </Link>
           {" | "}
-          <Link to="/signup?tutor=1">Apply as a Tutor</Link>
+          <Link to="/signup?type=tutor">Apply as a Tutor</Link>
         </>
       )}
       {isAuthed && (
@@ -233,10 +233,7 @@ export default function App({ mockMode }) {
               <Route path="/lesson-ended" element={<LessonEnded />} />
 
               {/* NEW — Lesson recordings page */}
-              <Route
-                path="/lesson-recordings"
-                element={<LessonRecordings />}
-              />
+              <Route path="/lesson-recordings" element={<LessonRecordings />} />
             </Route>
 
             {/* Fallback */}
