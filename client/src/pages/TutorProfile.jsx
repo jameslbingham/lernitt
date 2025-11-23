@@ -18,14 +18,14 @@ function readFavs() {
     return new Set();
   }
 }
-// --- end helpers ---
 
+// Format price
 function eurosFromPrice(p) {
   const n = typeof p === "number" ? p : Number(p) || 0;
-  return n >= 1000 ? n / 100 : n; // cents → €
+  return n >= 1000 ? n / 100 : n;
 }
 
-/* ---------------- Trials badge (new) ---------------- */
+/* ---------------- Trials badge ---------------- */
 function TrialsBadge({ tutorId }) {
   const [data, setData] = useState(null);
 
@@ -40,6 +40,7 @@ function TrialsBadge({ tutorId }) {
         if (live) setData(res);
       } catch {}
     })();
+
     return () => { live = false; };
   }, [tutorId]);
 
@@ -53,7 +54,6 @@ function TrialsBadge({ tutorId }) {
 }
 
 /* ---------------- Reviews Panel ---------------- */
-
 function ReviewsPanel({ tutorId, tutorName }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -72,12 +72,12 @@ function ReviewsPanel({ tutorId, tutorName }) {
       try {
         const [list, sum] = await Promise.all([
           apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}`),
-          apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`),
+          apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`)
         ]);
         setItems(Array.isArray(list) ? list : []);
         setSummary({
           avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0),
+          reviewsCount: Number(sum?.reviewsCount || 0)
         });
       } catch (e) {
         setErr(e.message || "Failed to load reviews.");
@@ -85,6 +85,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
         setLoading(false);
       }
     }
+
     async function checkCanReview() {
       try {
         const res = await apiFetch(
@@ -96,11 +97,11 @@ function ReviewsPanel({ tutorId, tutorName }) {
         setCanReview(false);
       }
     }
+
     if (tutorId) {
       load();
       checkCanReview();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorId]);
 
   function onSaved() {
@@ -111,14 +112,9 @@ function ReviewsPanel({ tutorId, tutorName }) {
         setItems(Array.isArray(list) ? list : []);
         setSummary({
           avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0),
+          reviewsCount: Number(sum?.reviewsCount || 0)
         });
         setShowForm(false);
-        if (openFromQuery) {
-          const next = new URLSearchParams(searchParams);
-          next.delete("review");
-          setSearchParams(next, { replace: true });
-        }
       } catch {}
     })();
   }
@@ -131,6 +127,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
           {summary.reviewsCount} review{summary.reviewsCount === 1 ? "" : "s"}
           {summary.reviewsCount > 0 ? ` • ${summary.avgRating.toFixed(1)}/5` : ""}
         </span>
+
         {canReview && (
           <button
             onClick={() => setShowForm(true)}
@@ -143,19 +140,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
 
       {showForm && (
         <div className="border rounded-2xl p-3">
-          <ReviewForm
-            tutorId={tutorId}
-            tutorName={tutorName}
-            onSaved={onSaved}
-            onClose={() => {
-              setShowForm(false);
-              if (openFromQuery) {
-                const next = new URLSearchParams(searchParams);
-                next.delete("review");
-                setSearchParams(next, { replace: true });
-              }
-            }}
-          />
+          <ReviewForm tutorId={tutorId} tutorName={tutorName} onSaved={onSaved} onClose={() => setShowForm(false)} />
         </div>
       )}
 
@@ -169,13 +154,15 @@ function ReviewsPanel({ tutorId, tutorName }) {
       {!loading && !err && items.length > 0 && (
         <ul className="space-y-2">
           {items.map((r) => (
-            <li key={r.id || r._id} className="border rounded-2xl p-3">
+            <li key={r._id || r.id} className="border rounded-2xl p-3">
               <div className="flex items-center gap-2">
                 <div className="font-medium">{r.student || "Student"}</div>
                 <div className="text-xs opacity-70">
                   {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
                 </div>
-                <div className="ml-auto text-sm">★ {Number(r.rating || 0).toFixed(1)}/5</div>
+                <div className="ml-auto text-sm">
+                  ★ {Number(r.rating || 0).toFixed(1)}/5
+                </div>
               </div>
               {r.text && <div className="text-sm mt-1">{r.text}</div>}
             </li>
@@ -192,18 +179,15 @@ export default function TutorProfile() {
   const { id } = useParams();
   const loc = useLocation();
   const backTo = (loc.state && loc.state.from) || "/tutors";
+  const toast = useToast();
 
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const toast = useToast();
-
-  // Favourites state (persisted to localStorage)
   const [favorites, setFavorites] = useState(readFavs());
   const isFav = favorites.has(id);
 
-  // Trial banner via ?trial=1
   const searchParams = new URLSearchParams(loc.search || "");
   const trialParam = searchParams.get("trial");
   const [showTrialBanner, setShowTrialBanner] = useState(trialParam === "1");
@@ -211,8 +195,7 @@ export default function TutorProfile() {
   function toggleFavorite() {
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.has(id) ? next.delete(id) : next.add(id);
       try {
         localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
       } catch {}
@@ -220,7 +203,6 @@ export default function TutorProfile() {
     });
   }
 
-  // keep favourites in sync across tabs
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === FAV_KEY) setFavorites(readFavs());
@@ -229,7 +211,6 @@ export default function TutorProfile() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // refresh favourites when navigating
   useEffect(() => {
     setFavorites(readFavs());
   }, [id]);
@@ -238,11 +219,9 @@ export default function TutorProfile() {
     setLoading(true);
     setError("");
     try {
-      // Tutor only (reviews+summary handled by ReviewsPanel)
       const t = await apiFetch(`/api/tutors/${encodeURIComponent(id)}`);
       setTutor(t);
-    } catch (e) {
-      console.error("[TutorProfile] load error:", e);
+    } catch {
       setError("Could not load tutor profile.");
     } finally {
       setLoading(false);
@@ -251,24 +230,13 @@ export default function TutorProfile() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Document title: "Name — 4.8⭐ | Lernitt" (use tutor.avgRating if present)
+  // Document title
   useEffect(() => {
     if (!tutor) return;
-    const avgNumeric =
-      typeof tutor.avgRating === "number" ? Number(tutor.avgRating) : null;
-    const name = tutor.name || "Tutor";
-    const newTitle =
-      avgNumeric != null && !Number.isNaN(avgNumeric)
-        ? `${name} — ${avgNumeric.toFixed(1)}⭐ | Lernitt`
-        : `${name} — Tutor | Lernitt`;
-    const prev = document.title;
-    document.title = newTitle;
-    return () => {
-      document.title = prev || "Lernitt";
-    };
+    const avg = typeof tutor.avgRating === "number" ? tutor.avgRating.toFixed(1) : null;
+    document.title = avg ? `${tutor.name} — ${avg}⭐ | Lernitt` : `${tutor.name} — Tutor | Lernitt`;
   }, [tutor]);
 
   if (loading) return <div className="p-4">Loading…</div>;
@@ -281,103 +249,96 @@ export default function TutorProfile() {
       : String(tutor.price || "");
 
   async function onCopyProfileLink() {
-    try {
-      if (navigator?.share) {
-        await navigator.share({
-          title: tutor.name || "Lernitt tutor",
-          url: window.location.href,
-        });
-        return;
-      }
-    } catch {}
     const ok = await copyToClipboard(window.location.href);
     toast(ok ? "Link copied!" : "Copy failed");
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header + actions */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{tutor.name}</h1>
-        <div className="flex items-center gap-2">
-          <Link to={backTo} className="text-sm underline">
-            ← Back to tutors
-          </Link>
-          <button
-            onClick={onCopyProfileLink}
-            className="text-xs border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-          >
-            Copy profile link 🔗
-          </button>
-          <button
-            type="button"
-            onClick={toggleFavorite}
-            aria-label={isFav ? "Remove from favourites" : "Add to favourites"}
-            className="text-xs border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-            title={isFav ? "Remove from favourites" : "Add to favourites"}
-          >
-            {isFav ? "♥ In favourites" : "♡ Add to favourites"}
-          </button>
-        </div>
-      </div>
+    <div className="p-4 max-w-2xl mx-auto space-y-6">
 
-      {/* Trial success banner */}
+      {/* Trial banner */}
       {showTrialBanner && (
-        <div className="flex items-start gap-3 p-3 rounded-xl border shadow-sm bg-green-50 border-green-200">
-          <div>🎉 <b>Trial booked!</b> Your 30-minute session is confirmed.</div>
+        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+          <div>🎉 <b>Trial booked!</b> Your 30-minute lesson is confirmed.</div>
           <button
             onClick={() => setShowTrialBanner(false)}
-            className="ml-auto text-xs border px-2 py-1 rounded-2xl hover:bg-white"
-            aria-label="Dismiss"
-            title="Dismiss"
+            className="ml-auto text-xs border px-2 py-1 rounded-2xl"
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Basic profile card */}
-      <div className="grid gap-4 md:grid-cols-[auto,1fr] items-start">
+      {/* Centered header */}
+      <div className="text-center space-y-3">
+        {/* Square / rounded-corner photo */}
         {tutor.avatar ? (
           <img
             src={tutor.avatar}
-            alt="Avatar"
-            className="w-32 h-32 rounded-full object-cover border shadow-sm"
+            alt="Tutor"
+            className="w-40 h-40 object-cover rounded-2xl mx-auto border shadow-sm"
           />
         ) : (
-          <div className="w-32 h-32 rounded-full border shadow-sm flex items-center justify-center text-2xl font-semibold">
+          <div className="w-40 h-40 rounded-2xl mx-auto border shadow-sm flex items-center justify-center text-4xl font-semibold">
             {tutor.name?.[0] || "?"}
           </div>
         )}
-        <div className="space-y-2">
-          <div className="text-sm">
-            <span className="font-medium">Subjects:</span>{" "}
-            {tutor.subjects?.length ? tutor.subjects.join(", ") : "—"}
-          </div>
-          <div className="text-sm">
-            <span className="font-medium">Price:</span>{" "}
-            {priceText ? `${priceText} €` : "—"}
-          </div>
-          {tutor.bio && (
-            <div className="text-sm whitespace-pre-line">{tutor.bio}</div>
-          )}
-          <div className="pt-2 flex items-center gap-2">
-            <Link
-              to={`/book/${tutor.id || tutor._id || id}`}
-              state={{ tutor, from: { pathname: loc.pathname, search: loc.search } }}
-              className="btn btn-primary"
-            >
-              Book Lesson
-            </Link>
-            <TrialsBadge tutorId={tutor._id || tutor.id || id} />
-          </div>
+
+        <h1 className="text-3xl font-bold">{tutor.name}</h1>
+
+        <div className="text-sm opacity-80">
+          {tutor.subjects?.length ? tutor.subjects.join(", ") : "—"}
         </div>
+
+        {tutor.avgRating != null && (
+          <div className="text-sm">⭐ {tutor.avgRating.toFixed(1)} / 5</div>
+        )}
+
+        <div className="text-lg font-semibold">
+          {priceText ? `${priceText} € / hour` : "—"}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex justify-center flex-wrap gap-2 pt-2">
+          <Link
+            to={`/book/${tutor._id || tutor.id || id}`}
+            state={{ tutor, from: { pathname: loc.pathname, search: loc.search } }}
+            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
+          >
+            Book Lesson
+          </Link>
+
+          <button
+            onClick={toggleFavorite}
+            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
+          >
+            {isFav ? "♥ In favourites" : "♡ Add to favourites"}
+          </button>
+
+          <button
+            onClick={onCopyProfileLink}
+            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
+          >
+            Share profile 🔗
+          </button>
+
+          <TrialsBadge tutorId={tutor._id || tutor.id || id} />
+        </div>
+
+        <Link to={backTo} className="text-sm underline block pt-2">
+          ← Back to tutors
+        </Link>
       </div>
 
-      {/* Reviews section */}
-      {tutor && (
-        <ReviewsPanel tutorId={tutor._id || tutor.id || id} tutorName={tutor.name} />
+      {/* Bio */}
+      {tutor.bio && (
+        <div className="p-4 border rounded-2xl whitespace-pre-line text-sm">
+          {tutor.bio}
+        </div>
       )}
+
+      {/* Reviews panel */}
+      <ReviewsPanel tutorId={tutor._id || tutor.id || id} tutorName={tutor.name} />
     </div>
   );
 }
