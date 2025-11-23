@@ -43,7 +43,6 @@ export default function Home() {
       setErr("");
 
       try {
-        // Notifications
         if (isAuthed) {
           const ns = await apiFetch("/api/notifications", { auth: true });
           if (alive) {
@@ -54,7 +53,6 @@ export default function Home() {
           }
         } else setNotifUnread(0);
 
-        // Upcoming lessons
         if (isAuthed) {
           const lessons = await apiFetch("/api/lessons/mine", { auth: true });
           if (alive) {
@@ -73,7 +71,7 @@ export default function Home() {
           }
         } else setUpcoming(null);
 
-        // Tutor preview
+        // tutors
         try {
           const res = await apiFetch("/api/tutors?page=1&limit=6");
           const list = Array.isArray(res)
@@ -131,7 +129,6 @@ export default function Home() {
     };
   }, [upcoming]);
 
-  // Loading state
   if (loading) {
     return (
       <div className="p-4 space-y-4">
@@ -143,13 +140,15 @@ export default function Home() {
   return (
     <div className="space-y-10">
       {/* ----------------------------------------------------- */}
-      {/* HERO SECTION (MARKETING) */}
+      {/* HERO SECTION (Responsive) */}
       {/* ----------------------------------------------------- */}
       <div
         style={{
           position: "relative",
           width: "100%",
-          height: 360,
+          height: "55vh",
+          minHeight: 260,
+          maxHeight: 420,
           borderRadius: 20,
           overflow: "hidden",
           backgroundImage:
@@ -175,16 +174,16 @@ export default function Home() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            padding: "30px",
+            padding: "20px",
             color: "white",
           }}
         >
           <h1
             style={{
-              fontSize: 36,
+              fontSize: "clamp(22px, 4vw, 36px)",
               fontWeight: 800,
-              maxWidth: 600,
-              lineHeight: 1.15,
+              maxWidth: 550,
+              lineHeight: 1.2,
             }}
           >
             Book live 1-to-1 lessons with expert tutors
@@ -192,27 +191,30 @@ export default function Home() {
 
           <p
             style={{
-              marginTop: 12,
-              fontSize: 18,
+              marginTop: 10,
+              fontSize: "clamp(14px, 2.6vw, 18px)",
               opacity: 0.9,
-              maxWidth: 520,
+              maxWidth: 500,
             }}
           >
             Learn languages, skills, and more — with friendly tutors who teach
             you live.
           </p>
 
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div
+            className="mt-4 flex flex-wrap gap-3"
+            style={{ maxWidth: 320 }}
+          >
             <Link
               to="/signup"
-              className="px-5 py-3 rounded-2xl text-sm font-semibold border border-white bg-white text-black hover:shadow-md transition"
+              className="px-5 py-3 rounded-2xl text-sm font-semibold border border-white bg-white text-black hover:shadow-md transition w-full sm:w-auto text-center"
             >
               I’m a student — Get started
             </Link>
 
             <Link
               to="/signup?type=tutor"
-              className="px-5 py-3 rounded-2xl text-sm font-semibold border border-white text-white hover:bg-white hover:text-black transition"
+              className="px-5 py-3 rounded-2xl text-sm font-semibold border border-white text-white hover:bg-white hover:text-black transition w-full sm:w-auto text-center"
             >
               I’m a tutor — Apply to teach
             </Link>
@@ -228,15 +230,18 @@ export default function Home() {
           e.preventDefault();
           nav(`/tutors?q=${encodeURIComponent(q)}`);
         }}
-        className="flex items-center gap-2"
+        className="flex flex-col sm:flex-row items-center gap-2"
       >
         <input
           placeholder="Search tutors (e.g., English)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="border rounded-2xl px-3 py-2 text-sm w-72"
+          className="border rounded-2xl px-3 py-2 text-sm w-full sm:w-72"
         />
-        <button type="submit" className="border rounded-2xl px-3 py-2 text-sm">
+        <button
+          type="submit"
+          className="border rounded-2xl px-3 py-2 text-sm w-full sm:w-auto"
+        >
           Search
         </button>
       </form>
@@ -244,10 +249,10 @@ export default function Home() {
       {err && <div className="text-red-600 text-sm">{err}</div>}
 
       {/* ----------------------------------------------------- */}
-      {/* CARDS: Get Started / Notifications / Upcoming Lesson */}
+      {/* TOP CARDS */}
       {/* ----------------------------------------------------- */}
-      <div className="grid gap-3 md:grid-cols-3">
-        {/* GET STARTED */}
+      <div className="grid gap-3 md:grid-cols-3 sm:grid-cols-2 grid-cols-1">
+        {/* Get started */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Get started</div>
           <p className="text-sm opacity-80">
@@ -257,11 +262,17 @@ export default function Home() {
             <Link className="border px-3 py-1 rounded-2xl text-sm" to="/tutors">
               Find tutors
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/favourites">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm"
+              to="/favourites"
+            >
               Favourites {favCount ? `(${favCount})` : ""}
             </Link>
             {isAuthed ? (
-              <Link className="border px-3 py-1 rounded-2xl text-sm" to="/my-lessons">
+              <Link
+                className="border px-3 py-1 rounded-2xl text-sm"
+                to="/my-lessons"
+              >
                 My Lessons
               </Link>
             ) : (
@@ -272,10 +283,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* NOTIFICATIONS */}
+        {/* Notifications */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Notifications</div>
-          <p className="text-sm opacity-80">Your inbox for updates & messages.</p>
+          <p className="text-sm opacity-80">Your inbox.</p>
           <div className="mt-3 flex items-center gap-2">
             <Link className="border px-3 py-1 rounded-2xl text-sm" to="/notifications">
               Open inbox
@@ -286,7 +297,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* UPCOMING LESSON */}
+        {/* Upcoming lesson */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Upcoming lesson</div>
 
@@ -295,7 +306,7 @@ export default function Home() {
           )}
 
           {isAuthed && !nextLesson && (
-            <p className="text-sm opacity-80">No upcoming lessons yet.</p>
+            <p className="text-sm opacity-80">No upcoming lessons.</p>
           )}
 
           {isAuthed && nextLesson && (
@@ -319,7 +330,6 @@ export default function Home() {
                 >
                   View details
                 </Link>
-
                 <Link
                   className="border px-3 py-1 rounded-2xl text-sm"
                   to={`/tutors/${nextLesson.tutorId}`}
@@ -344,9 +354,9 @@ export default function Home() {
         </div>
 
         {tutorPeek.length === 0 ? (
-          <div className="text-sm opacity-70">No tutors to show yet.</div>
+          <div className="text-sm opacity-70">No tutors yet.</div>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {tutorPeek.map((t) => {
               const id = t._id || t.id;
               const price =
@@ -366,14 +376,11 @@ export default function Home() {
                       <div className="w-10 h-10 rounded-full border flex items-center justify-center text-sm font-semibold">
                         {t.name?.[0] || "?"}
                       </div>
-
                       <div className="min-w-0">
                         <div className="font-semibold">{t.name || "Tutor"}</div>
-
                         <div className="text-xs opacity-80 truncate">
                           {(t.subjects || []).slice(0, 3).join(" · ") || "—"}
                         </div>
-
                         <div className="text-xs opacity-70 mt-1">
                           {Number.isFinite(price)
                             ? `€ ${price.toFixed(2)}/h`
@@ -390,9 +397,9 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* BOTTOM UTILITY CARDS */}
+      {/* BOTTOM CARDS */}
       {/* ----------------------------------------------------- */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Tutor tools</div>
           <div className="flex flex-wrap gap-2">
@@ -406,16 +413,11 @@ export default function Home() {
               Payouts
             </Link>
           </div>
-          {MOCK && (
-            <div className="text-xs opacity-60 mt-2">Mock mode: simulated data.</div>
-          )}
         </div>
 
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Students</div>
-          <p className="text-sm opacity-80">
-            Manage your student list and bookings.
-          </p>
+          <p className="text-sm opacity-80">Student list & bookings.</p>
           <Link
             className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm"
             to="/students"
