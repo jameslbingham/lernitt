@@ -24,7 +24,7 @@ export default function Home() {
   const [favCount, setFavCount] = useState(0);
   const [tutorPeek, setTutorPeek] = useState([]);
 
-  // Load local favourites count
+  // Load favourites
   useEffect(() => {
     try {
       const ids = JSON.parse(localStorage.getItem("favTutors") || "[]");
@@ -34,6 +34,7 @@ export default function Home() {
     }
   }, []);
 
+  // Load home data
   useEffect(() => {
     let alive = true;
 
@@ -42,6 +43,7 @@ export default function Home() {
       setErr("");
 
       try {
+        // Notifications
         if (isAuthed) {
           const ns = await apiFetch("/api/notifications", { auth: true });
           if (alive) {
@@ -50,16 +52,13 @@ export default function Home() {
               : 0;
             setNotifUnread(unread);
           }
-        } else {
-          setNotifUnread(0);
-        }
+        } else setNotifUnread(0);
 
+        // Upcoming lessons
         if (isAuthed) {
           const lessons = await apiFetch("/api/lessons/mine", { auth: true });
           if (alive) {
-            const rows = (Array.isArray(lessons) ? lessons : []).filter(
-              Boolean
-            );
+            const rows = (Array.isArray(lessons) ? lessons : []).filter(Boolean);
             rows.sort(
               (a, b) =>
                 new Date(a.start || a.startTime || 0) -
@@ -72,15 +71,14 @@ export default function Home() {
               ) || null
             );
           }
-        } else {
-          setUpcoming(null);
-        }
+        } else setUpcoming(null);
 
+        // Tutor preview
         try {
           const res = await apiFetch("/api/tutors?page=1&limit=6");
           const list = Array.isArray(res)
             ? res
-            : res && Array.isArray(res.data)
+            : res?.data && Array.isArray(res.data)
             ? res.data
             : [];
           if (alive) setTutorPeek(list.slice(0, 6));
@@ -99,41 +97,30 @@ export default function Home() {
     };
   }, [isAuthed]);
 
+  // Next lesson summary
   const nextLesson = useMemo(() => {
     if (!upcoming) return null;
 
-    const startISO =
-      upcoming.start || upcoming.startTime || upcoming.begin;
+    const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
     const start = startISO ? new Date(startISO) : null;
-    const when = start
-      ? start.toLocaleString([], {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })
-      : "—";
-    const tutorName =
-      upcoming.tutorName || upcoming.tutor?.name || "Tutor";
-    const id = upcoming._id || upcoming.id;
-    const tutorId = String(
-      upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
-    );
-
-    // Canonical lifecycle: default "booked"
-    const status = upcoming.status
-      ? upcoming.status.toLowerCase()
-      : "booked";
 
     return {
-      id,
-      tutorName,
-      tutorId,
-      when,
+      id: upcoming._id || upcoming.id,
+      tutorName: upcoming.tutorName || upcoming.tutor?.name || "Tutor",
+      tutorId: String(
+        upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
+      ),
+      when: start
+        ? start.toLocaleString([], {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        : "—",
       duration:
         Number(
           upcoming.duration ||
             (upcoming.endTime
-              ? (new Date(upcoming.endTime) - new Date(startISO)) /
-                60000
+              ? (new Date(upcoming.endTime) - new Date(startISO)) / 60000
               : 0)
         ) || 0,
       isTrial: !!upcoming.isTrial,
@@ -141,81 +128,101 @@ export default function Home() {
         typeof upcoming.price === "number"
           ? upcoming.price
           : Number(upcoming.price) || 0,
-      status,
     };
   }, [upcoming]);
 
+  // Loading state
   if (loading) {
     return (
       <div className="p-4 space-y-4">
         <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            nav(`/tutors?q=${encodeURIComponent(q)}`);
-          }}
-          className="flex items-center gap-2"
-        >
-          <input
-            placeholder="Search tutors (e.g., English)"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="border rounded-2xl px-3 py-2 text-sm w-72"
-          />
-          <button
-            type="submit"
-            className="border rounded-2xl px-3 py-2 text-sm"
-          >
-            Search
-          </button>
-        </form>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Welcome + hero */}
-      <div style={{ paddingBottom: 16 }}>
-        <h1
+    <div className="space-y-10">
+      {/* ----------------------------------------------------- */}
+      {/* HERO SECTION (MARKETING) */}
+      {/* ----------------------------------------------------- */}
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          height: 360,
+          borderRadius: 20,
+          overflow: "hidden",
+          backgroundImage:
+            "url('/mnt/data/A_homepage_for_Lernitt,_an_online_live_lesson_plat.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        {/* Overlay */}
+        <div
           style={{
-            fontSize: 28,
-            fontWeight: 800,
-            marginBottom: 8,
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+          }}
+        />
+
+        {/* Text */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: "30px",
+            color: "white",
           }}
         >
-          Welcome to Lernitt
-        </h1>
-        <p style={{ fontSize: 16, opacity: 0.8 }}>
-          Lernitt is a live lesson marketplace. Students find tutors and
-          book lessons. Tutors apply to teach, set availability, and get
-          paid for completed lessons.
-        </p>
+          <h1
+            style={{
+              fontSize: 36,
+              fontWeight: 800,
+              maxWidth: 600,
+              lineHeight: 1.15,
+            }}
+          >
+            Book live 1-to-1 lessons with expert tutors
+          </h1>
 
-        {/* HERO: student vs tutor paths */}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            to="/signup"
-            className="rounded-2xl px-5 py-3 text-sm font-semibold border hover:shadow-md transition inline-flex flex-col"
+          <p
+            style={{
+              marginTop: 12,
+              fontSize: 18,
+              opacity: 0.9,
+              maxWidth: 520,
+            }}
           >
-            <span className="text-base">I&apos;m a student</span>
-            <span className="text-xs opacity-80">
-              Create a free account and book your first lesson.
-            </span>
-          </Link>
-          <Link
-            to="/signup"
-            className="rounded-2xl px-5 py-3 text-sm font-semibold border hover:shadow-md transition inline-flex flex-col"
-          >
-            <span className="text-base">I&apos;m a tutor</span>
-            <span className="text-xs opacity-80">
-              Apply to teach, then complete Welcome and Profile setup.
-            </span>
-          </Link>
+            Learn languages, skills, and more — with friendly tutors who teach
+            you live.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              to="/signup"
+              className="px-5 py-3 rounded-2xl text-sm font-semibold border border-white bg-white text-black hover:shadow-md transition"
+            >
+              I’m a student — Get started
+            </Link>
+
+            <Link
+              to="/signup?type=tutor"
+              className="px-5 py-3 rounded-2xl text-sm font-semibold border border-white text-white hover:bg-white hover:text-black transition"
+            >
+              I’m a tutor — Apply to teach
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Search bar */}
+      {/* ----------------------------------------------------- */}
+      {/* SEARCH BAR */}
+      {/* ----------------------------------------------------- */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -229,129 +236,93 @@ export default function Home() {
           onChange={(e) => setQ(e.target.value)}
           className="border rounded-2xl px-3 py-2 text-sm w-72"
         />
-        <button
-          type="submit"
-          className="border rounded-2xl px-3 py-2 text-sm"
-        >
+        <button type="submit" className="border rounded-2xl px-3 py-2 text-sm">
           Search
         </button>
       </form>
 
       {err && <div className="text-red-600 text-sm">{err}</div>}
 
+      {/* ----------------------------------------------------- */}
+      {/* CARDS: Get Started / Notifications / Upcoming Lesson */}
+      {/* ----------------------------------------------------- */}
       <div className="grid gap-3 md:grid-cols-3">
-        {/* Card: Get started */}
+        {/* GET STARTED */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Get started</div>
           <p className="text-sm opacity-80">
-            Students can browse tutors and book lessons. Tutors can manage
-            availability and see upcoming lessons.
+            Browse tutors, book lessons, manage availability.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/tutors"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/tutors">
               Find tutors
             </Link>
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/favourites"
-            >
-              Favourites{" "}
-              {favCount ? `(${favCount})` : ""}
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/favourites">
+              Favourites {favCount ? `(${favCount})` : ""}
             </Link>
             {isAuthed ? (
-              <Link
-                className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-                to="/my-lessons"
-              >
+              <Link className="border px-3 py-1 rounded-2xl text-sm" to="/my-lessons">
                 My Lessons
               </Link>
             ) : (
-              <Link
-                className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-                to="/login"
-              >
+              <Link className="border px-3 py-1 rounded-2xl text-sm" to="/login">
                 Log in
               </Link>
             )}
           </div>
         </div>
 
-        {/* Card: Notifications */}
+        {/* NOTIFICATIONS */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Notifications</div>
-          <p className="text-sm opacity-80">
-            Stay on top of booking updates and messages.
-          </p>
+          <p className="text-sm opacity-80">Your inbox for updates & messages.</p>
           <div className="mt-3 flex items-center gap-2">
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/notifications"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/notifications">
               Open inbox
             </Link>
             <span className="text-xs opacity-70">
-              {isAuthed
-                ? `Unread: ${notifUnread}`
-                : "Login to see your inbox"}
+              {isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
             </span>
           </div>
-          {MOCK && (
-            <div className="text-xs opacity-60 mt-2">
-              Mock mode: notifications are simulated.
-            </div>
-          )}
         </div>
 
-        {/* Card: Upcoming lesson */}
+        {/* UPCOMING LESSON */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Upcoming lesson</div>
+
           {!isAuthed && (
-            <p className="text-sm opacity-80">
-              Log in to see your schedule.
-            </p>
+            <p className="text-sm opacity-80">Log in to see your schedule.</p>
           )}
+
           {isAuthed && !nextLesson && (
-            <p className="text-sm opacity-80">
-              No upcoming lessons yet.
-            </p>
+            <p className="text-sm opacity-80">No upcoming lessons yet.</p>
           )}
+
           {isAuthed && nextLesson && (
             <>
               <div className="text-sm">
-                <div>
-                  <b>{nextLesson.tutorName}</b>{" "}
-                  <span className="opacity-70">
-                    ({nextLesson.when})
-                  </span>
-                </div>
+                <b>{nextLesson.tutorName}</b>{" "}
+                <span className="opacity-70">({nextLesson.when})</span>
                 <div className="opacity-80">
                   {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
                   {nextLesson.duration} min
                   {!nextLesson.isTrial && nextLesson.price ? (
-                    <>
-                      {" "}
-                      · € {euros(nextLesson.price)}
-                    </>
+                    <> · € {euros(nextLesson.price)}</>
                   ) : null}
                 </div>
               </div>
+
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-                  to={`/student-lesson/${encodeURIComponent(
-                    nextLesson.id
-                  )}`}
+                  className="border px-3 py-1 rounded-2xl text-sm"
+                  to={`/student-lesson/${nextLesson.id}`}
                 >
                   View details
                 </Link>
+
                 <Link
-                  className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-                  to={`/tutors/${encodeURIComponent(
-                    nextLesson.tutorId
-                  )}`}
+                  className="border px-3 py-1 rounded-2xl text-sm"
+                  to={`/tutors/${nextLesson.tutorId}`}
                 >
                   Tutor
                 </Link>
@@ -361,7 +332,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Tutor peek */}
+      {/* ----------------------------------------------------- */}
+      {/* POPULAR TUTORS */}
+      {/* ----------------------------------------------------- */}
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
           <div className="text-lg font-semibold">Popular tutors</div>
@@ -369,10 +342,9 @@ export default function Home() {
             See all
           </Link>
         </div>
+
         {tutorPeek.length === 0 ? (
-          <div className="text-sm opacity-70">
-            No tutors to show yet.
-          </div>
+          <div className="text-sm opacity-70">No tutors to show yet.</div>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tutorPeek.map((t) => {
@@ -383,28 +355,25 @@ export default function Home() {
                     ? t.price / 100
                     : t.price
                   : null;
+
               return (
                 <li
                   key={id}
                   className="border rounded-2xl p-3 hover:shadow-sm transition"
                 >
-                  <Link
-                    to={`/tutors/${encodeURIComponent(id)}`}
-                    className="block"
-                  >
+                  <Link to={`/tutors/${encodeURIComponent(id)}`} className="block">
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full border flex items-center justify-center text-sm font-semibold">
                         {t.name?.[0] || "?"}
                       </div>
+
                       <div className="min-w-0">
-                        <div className="font-semibold">
-                          {t.name || "Tutor"}
-                        </div>
+                        <div className="font-semibold">{t.name || "Tutor"}</div>
+
                         <div className="text-xs opacity-80 truncate">
-                          {(t.subjects || [])
-                            .slice(0, 3)
-                            .join(" · ") || "—"}
+                          {(t.subjects || []).slice(0, 3).join(" · ") || "—"}
                         </div>
+
                         <div className="text-xs opacity-70 mt-1">
                           {Number.isFinite(price)
                             ? `€ ${price.toFixed(2)}/h`
@@ -420,34 +389,25 @@ export default function Home() {
         )}
       </div>
 
-      {/* Quick admin / tutor utilities */}
+      {/* ----------------------------------------------------- */}
+      {/* BOTTOM UTILITY CARDS */}
+      {/* ----------------------------------------------------- */}
       <div className="grid gap-3 md:grid-cols-3">
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Tutor tools</div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/availability"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/availability">
               Availability
             </Link>
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/tutor-lessons"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/tutor-lessons">
               Tutor lessons
             </Link>
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/payouts"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/payouts">
               Payouts
             </Link>
           </div>
           {MOCK && (
-            <div className="text-xs opacity-60 mt-2">
-              Mock mode: data is simulated.
-            </div>
+            <div className="text-xs opacity-60 mt-2">Mock mode: simulated data.</div>
           )}
         </div>
 
@@ -457,7 +417,7 @@ export default function Home() {
             Manage your student list and bookings.
           </p>
           <Link
-            className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
+            className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm"
             to="/students"
           >
             Open Students
@@ -467,23 +427,13 @@ export default function Home() {
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Account</div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/profile"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/profile">
               Profile
             </Link>
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/notifications"
-            >
-              Notifications{" "}
-              {notifUnread ? `(${notifUnread})` : ""}
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/notifications">
+              Notifications {notifUnread ? `(${notifUnread})` : ""}
             </Link>
-            <Link
-              className="border px-3 py-1 rounded-2xl text-sm hover:shadow-sm"
-              to="/settings"
-            >
+            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/settings">
               Settings
             </Link>
           </div>
