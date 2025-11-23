@@ -24,6 +24,14 @@ export default function Home() {
   const [favCount, setFavCount] = useState(0);
   const [tutorPeek, setTutorPeek] = useState([]);
 
+  // Static subject categories for quick search
+  const categories = [
+    "English",
+    "Spanish",
+    "Maths",
+    "Piano",
+  ];
+
   // Load favourites
   useEffect(() => {
     try {
@@ -140,7 +148,7 @@ export default function Home() {
   return (
     <div className="space-y-10">
       {/* ----------------------------------------------------- */}
-      {/* HERO SECTION (Responsive) */}
+      {/* HERO SECTION (Responsive full-width image) */}
       {/* ----------------------------------------------------- */}
       <div
         style={{
@@ -203,7 +211,7 @@ export default function Home() {
 
           <div
             className="mt-4 flex flex-wrap gap-3"
-            style={{ maxWidth: 320 }}
+            style={{ maxWidth: 340 }}
           >
             <Link
               to="/signup"
@@ -223,30 +231,49 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* SEARCH BAR */}
+      {/* STICKY SEARCH + SUBJECT CATEGORIES */}
       {/* ----------------------------------------------------- */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          nav(`/tutors?q=${encodeURIComponent(q)}`);
-        }}
-        className="flex flex-col sm:flex-row items-center gap-2"
-      >
-        <input
-          placeholder="Search tutors (e.g., English)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="border rounded-2xl px-3 py-2 text-sm w-full sm:w-72"
-        />
-        <button
-          type="submit"
-          className="border rounded-2xl px-3 py-2 text-sm w-full sm:w-auto"
+      <div className="sticky top-2 z-10 bg-white/95 backdrop-blur border border-gray-200 rounded-2xl p-3 space-y-3">
+        {/* Search bar */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            nav(`/tutors?q=${encodeURIComponent(q)}`);
+          }}
+          className="flex flex-col sm:flex-row items-center gap-2"
         >
-          Search
-        </button>
-      </form>
+          <input
+            placeholder="Search tutors (e.g., English)"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="border rounded-2xl px-3 py-2 text-sm w-full sm:w-72"
+          />
+          <button
+            type="submit"
+            className="border rounded-2xl px-3 py-2 text-sm w-full sm:w-auto"
+          >
+            Search
+          </button>
+        </form>
 
-      {err && <div className="text-red-600 text-sm">{err}</div>}
+        {/* Subject categories */}
+        <div className="flex flex-wrap gap-2">
+          {categories.map((label) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() =>
+                nav(`/tutors?q=${encodeURIComponent(label)}`)
+              }
+              className="px-3 py-1 rounded-2xl text-xs sm:text-sm border border-gray-200 hover:border-gray-400 hover:shadow-sm transition bg-white"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {err && <div className="text-red-600 text-xs sm:text-sm">{err}</div>}
+      </div>
 
       {/* ----------------------------------------------------- */}
       {/* TOP CARDS */}
@@ -288,7 +315,10 @@ export default function Home() {
           <div className="font-semibold mb-1">Notifications</div>
           <p className="text-sm opacity-80">Your inbox.</p>
           <div className="mt-3 flex items-center gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/notifications">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm"
+              to="/notifications"
+            >
               Open inbox
             </Link>
             <span className="text-xs opacity-70">
@@ -343,7 +373,7 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* POPULAR TUTORS */}
+      {/* POPULAR TUTORS — IMPROVED CARDS */}
       {/* ----------------------------------------------------- */}
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
@@ -365,28 +395,54 @@ export default function Home() {
                     ? t.price / 100
                     : t.price
                   : null;
+              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
 
               return (
                 <li
                   key={id}
-                  className="border rounded-2xl p-3 hover:shadow-sm transition"
+                  className="border rounded-2xl p-3 hover:shadow-md transition bg-white flex flex-col h-full"
                 >
-                  <Link to={`/tutors/${encodeURIComponent(id)}`} className="block">
+                  <Link
+                    to={`/tutors/${encodeURIComponent(id)}`}
+                    className="flex-1 flex flex-col gap-3"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-full border flex items-center justify-center text-sm font-semibold">
                         {t.name?.[0] || "?"}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold">{t.name || "Tutor"}</div>
-                        <div className="text-xs opacity-80 truncate">
-                          {(t.subjects || []).slice(0, 3).join(" · ") || "—"}
+                        <div className="font-semibold truncate">
+                          {t.name || "Tutor"}
                         </div>
-                        <div className="text-xs opacity-70 mt-1">
-                          {Number.isFinite(price)
-                            ? `€ ${price.toFixed(2)}/h`
-                            : ""}
+                        <div className="text-xs opacity-80 truncate">
+                          {subjects.slice(0, 3).join(" · ") || "—"}
                         </div>
                       </div>
+                    </div>
+
+                    <div className="text-xs opacity-80">
+                      {Number.isFinite(price)
+                        ? `From € ${price.toFixed(2)}/h`
+                        : ""}
+                    </div>
+
+                    {subjects.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {subjects.slice(0, 2).map((s) => (
+                          <span
+                            key={s}
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2">
+                      <span className="inline-block text-xs text-gray-500">
+                        View profile →
+                      </span>
                     </div>
                   </Link>
                 </li>
@@ -413,6 +469,11 @@ export default function Home() {
               Payouts
             </Link>
           </div>
+          {MOCK && (
+            <div className="text-xs opacity-60 mt-2">
+              Mock mode: simulated data.
+            </div>
+          )}
         </div>
 
         <div className="border rounded-2xl p-4">
