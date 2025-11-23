@@ -1,4 +1,4 @@
-// client/src/pages/BookingConfirmation.jsx
+// UPDATED BookingConfirmation.jsx (A1 Safe Improvements)
 import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 
@@ -21,18 +21,14 @@ function downloadIcs(filename, content) {
   URL.revokeObjectURL(url);
 }
 
-/* ---------------- Lifecycle Translation (A1) ---------------- */
-// New lifecycle: booked → paid → confirmed → completed → cancelled → expired
+/* ---------------- Lifecycle Translation ---------------- */
 function translateStatus(raw) {
   switch ((raw || "").toLowerCase()) {
-    case "booked":               // unpaid booking
-      return "pending_payment";
-
-    // Legacy: remove old "pending" status, treat as unpaid booking
+    case "booked":
     case "pending":
       return "pending_payment";
 
-    case "paid":                 // paid, waiting tutor confirm
+    case "paid":
       return "paid_waiting_tutor";
 
     case "confirmed":
@@ -47,7 +43,6 @@ function translateStatus(raw) {
     case "expired":
       return "expired";
 
-    // Legacy: remove old reschedule_pending
     case "reschedule_pending":
       return "reschedule_requested";
 
@@ -69,7 +64,6 @@ export default function BookingConfirmation() {
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  // Read query params (for just-paid redirects)
   const search = new URLSearchParams(loc.search);
   const justPaid = search.get("paid") === "1";
   const providerParam = (search.get("provider") || "").toLowerCase();
@@ -78,13 +72,12 @@ export default function BookingConfirmation() {
       ? providerParam
       : null;
 
-  /* ----------------------- LOAD LESSON (+mark-paid) ----------------------- */
+  /* ----------------------- LOAD LESSON ----------------------- */
   useEffect(() => {
     (async () => {
       try {
         const token = localStorage.getItem("token");
 
-        // If coming back from payment success, mark the lesson as paid first
         if (justPaid && provider && token) {
           try {
             await fetch(`${API}/api/payments/${provider}/mark-paid`, {
@@ -100,7 +93,6 @@ export default function BookingConfirmation() {
           }
         }
 
-        // Now load the lesson
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const r = await fetch(
           `${API}/api/lessons/${encodeURIComponent(lessonId)}`,
@@ -127,7 +119,7 @@ export default function BookingConfirmation() {
     })();
   }, [lessonId, loc.search]);
 
-  /* -------------------- Load tutor timezone ------------------- */
+  /* ---------------- Load tutor timezone ---------------- */
   useEffect(() => {
     if (!lesson?.tutor) return;
     (async () => {
@@ -145,7 +137,9 @@ export default function BookingConfirmation() {
 
   /* --------------------------- Rendering Prep --------------------------- */
 
-  if (error) return <div style={{ padding: 16, color: "#b91c1c" }}>{error}</div>;
+  if (error)
+    return <div style={{ padding: 16, color: "#b91c1c" }}>{error}</div>;
+
   if (!lesson)
     return (
       <div style={{ padding: 16 }}>
@@ -269,10 +263,84 @@ END:VCALENDAR`.trim();
         → <b>3) Confirmed</b>
       </div>
 
+      {/* ---------------- NEW STATUS BOX (A1 SAFE UPDATE) ---------------- */}
+      {lesson.isTrial && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: "#d1fae5",
+            border: "1px solid #10b981",
+          }}
+        >
+          🎉 Your free 30-minute trial is confirmed!
+        </div>
+      )}
+
+      {!lesson.isTrial && status === "pending_payment" && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: "#fef9c3",
+            border: "1px solid #facc15",
+          }}
+        >
+          ⚠️ Your lesson is reserved but not paid yet.  
+          Please complete payment to confirm your booking.
+        </div>
+      )}
+
+      {!lesson.isTrial && status === "paid_waiting_tutor" && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: "#e0f2fe",
+            border: "1px solid #38bdf8",
+          }}
+        >
+          💳 Payment complete! Waiting for your tutor to confirm.
+        </div>
+      )}
+
+      {isConfirmed && !lesson.isTrial && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: "#d1fae5",
+            border: "1px solid #10b981",
+          }}
+        >
+          🎉 Your lesson is confirmed!
+        </div>
+      )}
+
+      {isTerminal && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            background: "#f3f4f6",
+            border: "1px solid #d1d5db",
+          }}
+        >
+          ⏱️ This lesson is already finished / cancelled / expired.
+        </div>
+      )}
+
+      {/* Back to tutors */}
       <Link to={backToTutors} className="text-sm underline">
         ← Back to tutors
       </Link>
 
+      {/* Heading */}
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
         {lesson.isTrial
           ? "Trial booked"
@@ -301,7 +369,7 @@ END:VCALENDAR`.trim();
         Times shown in your timezone: {tz}.
       </div>
 
-      {/* Trial banner */}
+      {/* Existing trial banner (kept unchanged) */}
       {lesson.isTrial && (
         <div
           style={{
@@ -316,7 +384,7 @@ END:VCALENDAR`.trim();
         </div>
       )}
 
-      {/* Payment pending */}
+      {/* Existing banners (kept) */}
       {!lesson.isTrial && status === "pending_payment" && (
         <div
           style={{
@@ -331,7 +399,6 @@ END:VCALENDAR`.trim();
         </div>
       )}
 
-      {/* Payment done, waiting tutor */}
       {!lesson.isTrial && status === "paid_waiting_tutor" && (
         <div
           style={{
