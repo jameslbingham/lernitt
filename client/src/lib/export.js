@@ -103,8 +103,8 @@ export async function exportXLSXFromRows(
   if (!rows || !rows.length) return;
   const { autoWidth = true, columns } = options;
 
-  // FIXED: Use Vercel/Vite compatible ESM build
-  const xlsxMod = await import("xlsx/build/xlsx.mjs");
+  // FIXED: Use correct Vercel/Vite compatible import
+  const xlsxMod = await import("xlsx");
   const XLSX = xlsxMod?.default || xlsxMod;
 
   const cols = collectColumns(rows, columns);
@@ -142,8 +142,8 @@ export async function exportXLSXFromTables(tables, filename = "export.xlsx", opt
   const names = Object.keys(tables || {});
   if (!names.length) return;
 
-  // FIXED: Use Vercel/Vite compatible ESM build
-  const xlsxMod = await import("xlsx/build/xlsx.mjs");
+  // FIXED: Use correct Vercel/Vite compatible import
+  const xlsxMod = await import("xlsx");
   const XLSX = xlsxMod?.default || xlsxMod;
 
   const wb = XLSX.utils.book_new();
