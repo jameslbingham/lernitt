@@ -38,9 +38,7 @@ function collectColumns(rows, explicitColumns) {
 function csvCell(value, delimiter = ",") {
   if (value === null || value === undefined) return "";
   let s = String(value);
-  // Escape double quotes
   if (s.includes('"')) s = s.replace(/"/g, '""');
-  // Quote if contains delimiter, quote, or newline
   if (s.includes(delimiter) || s.includes('"') || /\r|\n/.test(s)) {
     return `"${s}"`;
   }
@@ -49,7 +47,6 @@ function csvCell(value, delimiter = ",") {
 
 /**
  * Build CSV text from rows.
- * options: { columns?: string[], delimiter?: string, includeHeader?: boolean, bom?: boolean }
  */
 function buildCSV(rows, options = {}) {
   const {
@@ -70,14 +67,12 @@ function buildCSV(rows, options = {}) {
 
 /**
  * Export rows to CSV and trigger download.
- * options: { filename?: string, columns?: string[], delimiter?: string, bom?: boolean }
  */
 export function exportCSV(rows, filename = "export.csv", options = {}) {
   if (!rows || !rows.length) return;
   const { delimiter = ",", bom = true, columns, includeHeader = true } = options;
   const { csv } = buildCSV(rows, { delimiter, columns, includeHeader });
 
-  // Add UTF-8 BOM for Excel compatibility
   const prefix = bom ? "\uFEFF" : "";
   const blob = new Blob([prefix + csv], { type: "text/csv;charset=utf-8;" });
   downloadBlob(blob, filename);
@@ -93,13 +88,11 @@ function autoFitColumnWidths(rows, columns) {
       if (len + 2 > widths[i]) widths[i] = Math.min(len + 2, 60);
     });
   }
-  // XLSX expects width objects
   return widths.map((wch) => ({ wch }));
 }
 
 /**
  * Export rows to a single-sheet XLSX file.
- * options: { sheetName?: string, autoWidth?: boolean, columns?: string[] }
  */
 export async function exportXLSXFromRows(
   rows,
@@ -110,7 +103,8 @@ export async function exportXLSXFromRows(
   if (!rows || !rows.length) return;
   const { autoWidth = true, columns } = options;
 
-  const xlsxMod = await import("xlsx");
+  // FIXED: Use Vercel/Vite compatible ESM build
+  const xlsxMod = await import("xlsx/build/xlsx.mjs");
   const XLSX = xlsxMod?.default || xlsxMod;
 
   const cols = collectColumns(rows, columns);
@@ -118,11 +112,9 @@ export async function exportXLSXFromRows(
     const o = {};
     cols.forEach((c) => {
       const v = r?.[c];
-      // Prefer numbers to be numbers in Excel
       if (typeof v === "number") o[c] = v;
       else if (v === null || v === undefined) o[c] = "";
       else if (!Number.isNaN(v) && v !== "" && typeof v !== "object" && v !== true && v !== false) {
-        // try to coerce numeric strings safely (keep leading zeros as strings)
         const asNum = Number(v);
         o[c] = String(v).match(/^0\d+/) ? String(v) : Number.isFinite(asNum) ? asNum : String(v);
       } else {
@@ -145,13 +137,13 @@ export async function exportXLSXFromRows(
 
 /**
  * Export multiple named sheets: { SheetName: rows[], ... }
- * options: { autoWidth?: boolean }
  */
 export async function exportXLSXFromTables(tables, filename = "export.xlsx", options = {}) {
   const names = Object.keys(tables || {});
   if (!names.length) return;
 
-  const xlsxMod = await import("xlsx");
+  // FIXED: Use Vercel/Vite compatible ESM build
+  const xlsxMod = await import("xlsx/build/xlsx.mjs");
   const XLSX = xlsxMod?.default || xlsxMod;
 
   const wb = XLSX.utils.book_new();
@@ -187,7 +179,7 @@ export async function exportXLSXFromTables(tables, filename = "export.xlsx", opt
   XLSX.writeFile(wb, filename);
 }
 
-// Convenience re-exports (named used across tabs)
+// Convenience re-exports
 export default {
   exportCSV,
   exportXLSXFromRows,
