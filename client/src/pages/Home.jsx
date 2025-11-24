@@ -24,7 +24,7 @@ export default function Home() {
   const [favCount, setFavCount] = useState(0);
   const [tutorPeek, setTutorPeek] = useState([]);
 
-  // Static subject categories for quick search
+  // Static subject categories for quick search (search bar chips)
   const categories = ["English", "Spanish", "Maths", "Piano"];
 
   // Load favourites
@@ -55,7 +55,9 @@ export default function Home() {
               : 0;
             setNotifUnread(unread);
           }
-        } else setNotifUnread(0);
+        } else {
+          setNotifUnread(0);
+        }
 
         // upcoming lessons
         if (isAuthed) {
@@ -74,7 +76,9 @@ export default function Home() {
               ) || null
             );
           }
-        } else setUpcoming(null);
+        } else {
+          setUpcoming(null);
+        }
 
         // tutors
         try {
@@ -145,7 +149,7 @@ export default function Home() {
   return (
     <div className="space-y-10">
       {/* ----------------------------------------------------- */}
-      {/* HERO SECTION */}
+      {/* HERO SECTION (UNCHANGED) */}
       {/* ----------------------------------------------------- */}
       <div
         style={{
@@ -162,6 +166,7 @@ export default function Home() {
           backgroundPosition: "center",
         }}
       >
+        {/* Overlay */}
         <div
           style={{
             position: "absolute",
@@ -170,6 +175,7 @@ export default function Home() {
           }}
         />
 
+        {/* Text */}
         <div
           style={{
             position: "absolute",
@@ -226,9 +232,10 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* SEARCH + SUBJECT CATEGORIES */}
+      {/* STICKY SEARCH + SUBJECT CATEGORIES (ORIGINAL) */}
       {/* ----------------------------------------------------- */}
       <div className="sticky top-2 z-10 bg-white/95 backdrop-blur border border-gray-200 rounded-2xl p-3 space-y-3">
+        {/* Search bar */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -250,7 +257,7 @@ export default function Home() {
           </button>
         </form>
 
-        {/* categories */}
+        {/* Subject categories (chips) */}
         <div className="flex flex-wrap gap-2">
           {categories.map((label) => (
             <button
@@ -270,9 +277,10 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* TOP CARDS */}
+      {/* TOP CARDS (ORIGINAL) */}
       {/* ----------------------------------------------------- */}
       <div className="grid gap-3 md:grid-cols-3 sm:grid-cols-2 grid-cols-1">
+        {/* Get started */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Get started</div>
           <p className="text-sm opacity-80">
@@ -303,6 +311,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Notifications */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Notifications</div>
           <p className="text-sm opacity-80">Your inbox.</p>
@@ -319,6 +328,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Upcoming lesson */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Upcoming lesson</div>
 
@@ -364,7 +374,7 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* POPULAR TUTORS */}
+      {/* POPULAR TUTORS (ORIGINAL LIST) */}
       {/* ----------------------------------------------------- */}
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
@@ -386,9 +396,7 @@ export default function Home() {
                     ? t.price / 100
                     : t.price
                   : null;
-              const subjects = Array.isArray(t.subjects)
-                ? t.subjects
-                : [];
+              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
 
               return (
                 <li
@@ -446,34 +454,49 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* ⭐ NEW SECTIONS WILL BEGIN IN PART 2 ⭐ */}
+      {/* SECTION DIVIDER */}
       {/* ----------------------------------------------------- */}
+      <div className="border-t border-gray-200 my-6" />
+
       {/* ----------------------------------------------------- */}
-      {/* ⭐ NEW SECTION: SUBJECTS STRIP */}
+      {/* ⭐ NEW SECTION: POPULAR SUBJECTS STRIP (SOFT ACCENTS) */}
       {/* ----------------------------------------------------- */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="text-lg font-semibold">Popular subjects</div>
 
-        <div className="flex flex-wrap gap-2">
-          {["English", "Spanish", "Maths", "Piano", "French", "German", "Business English"].map(
-            (s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => nav(`/tutors?q=${encodeURIComponent(s)}`)}
-                className="px-4 py-2 rounded-2xl border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm transition text-sm"
-              >
-                {s}
-              </button>
-            )
-          )}
+        <div className="flex flex-wrap gap-3">
+          {[
+            { name: "English", icon: "🇬🇧" },
+            { name: "Spanish", icon: "🇪🇸" },
+            { name: "Maths", icon: "🧮" },
+            { name: "Piano", icon: "🎹" },
+            { name: "French", icon: "🇫🇷" },
+            { name: "German", icon: "🇩🇪" },
+            { name: "Japanese", icon: "🇯🇵" },
+            { name: "Business English", icon: "💼" },
+          ].map(({ name, icon }) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => nav(`/tutors?q=${encodeURIComponent(name)}`)}
+              className="px-4 py-2 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 hover:shadow-md transition text-sm flex items-center gap-2"
+            >
+              <span className="text-lg">{icon}</span>
+              {name}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* ⭐ NEW SECTION: TOP TUTORS CAROUSEL (simple grid) */}
+      {/* SECTION DIVIDER */}
       {/* ----------------------------------------------------- */}
-      <div className="space-y-3">
+      <div className="border-t border-gray-200 my-6" />
+
+      {/* ----------------------------------------------------- */}
+      {/* ⭐ NEW SECTION: TOP TUTORS (MARKETING GRID) */}
+      {/* ----------------------------------------------------- */}
+      <div className="space-y-4">
         <div className="flex items-baseline justify-between">
           <div className="text-lg font-semibold">Top tutors</div>
           <Link to="/tutors" className="text-sm underline">
@@ -484,21 +507,22 @@ export default function Home() {
         {tutorPeek.length === 0 ? (
           <div className="text-sm opacity-70">No tutors yet.</div>
         ) : (
-          <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {tutorPeek.map((t) => {
               const id = t._id || t.id;
               const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+
               return (
                 <li
                   key={id}
-                  className="border rounded-2xl p-4 bg-white hover:shadow-md transition flex flex-col gap-2"
+                  className="rounded-2xl p-4 bg-gradient-to-br from-white to-purple-50 border border-gray-200 hover:shadow-lg transition flex flex-col gap-3"
                 >
                   <Link
                     to={`/tutors/${encodeURIComponent(id)}`}
-                    className="flex flex-col gap-2"
+                    className="flex flex-col gap-3"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full border flex items-center justify-center text-base font-semibold">
+                      <div className="w-12 h-12 rounded-full border flex items-center justify-center text-base font-semibold bg-white shadow-sm">
                         {t.name?.[0] || "?"}
                       </div>
                       <div className="min-w-0">
@@ -511,24 +535,20 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="text-xs opacity-80">
-                      {subjects.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {subjects.slice(0, 3).map((s) => (
-                            <span
-                              key={s}
-                              className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200"
-                            >
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
+                    {subjects.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {subjects.slice(0, 3).map((s) => (
+                          <span
+                            key={s}
+                            className="text-[11px] px-2 py-1 rounded-full border border-gray-300 bg-white"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
-                    <div className="text-xs text-gray-500 mt-1">
-                      View profile →
-                    </div>
+                    <div className="text-xs text-gray-600">View profile →</div>
                   </Link>
                 </li>
               );
@@ -538,64 +558,73 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* ⭐ NEW SECTION: HOW LERNITT WORKS */}
+      {/* SECTION DIVIDER */}
+      {/* ----------------------------------------------------- */}
+      <div className="border-t border-gray-200 my-6" />
+
+      {/* ----------------------------------------------------- */}
+      {/* ⭐ NEW SECTION: HOW LERNITT WORKS (3 STEPS, ICONS) */}
       {/* ----------------------------------------------------- */}
       <div className="space-y-4">
         <div className="text-lg font-semibold">How Lernitt works</div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           {/* Step 1 */}
-          <div className="border rounded-2xl p-4 bg-white flex flex-col gap-2">
-            <div className="text-xl font-bold">1</div>
-            <div className="font-semibold">Find your tutor</div>
+          <div className="rounded-2xl p-5 bg-gradient-to-br from-white to-blue-50 border border-gray-200 flex flex-col gap-3">
+            <div className="text-3xl">🔎</div>
+            <div className="font-semibold">1. Find your tutor</div>
             <p className="text-sm opacity-80">
-              Browse friendly tutors for languages, skills and more. Check
+              Search friendly tutors for languages, skills and more. Check
               reviews, prices and availability.
             </p>
           </div>
 
           {/* Step 2 */}
-          <div className="border rounded-2xl p-4 bg-white flex flex-col gap-2">
-            <div className="text-xl font-bold">2</div>
-            <div className="font-semibold">Book your lesson</div>
+          <div className="rounded-2xl p-5 bg-gradient-to-br from-white to-green-50 border border-gray-200 flex flex-col gap-3">
+            <div className="text-3xl">📅</div>
+            <div className="font-semibold">2. Book your lesson</div>
             <p className="text-sm opacity-80">
-              Choose a time that works for you. Pay securely in seconds.
+              Choose a time that suits you. Pay securely in seconds.
             </p>
           </div>
 
           {/* Step 3 */}
-          <div className="border rounded-2xl p-4 bg-white flex flex-col gap-2">
-            <div className="text-xl font-bold">3</div>
-            <div className="font-semibold">Learn live</div>
+          <div className="rounded-2xl p-5 bg-gradient-to-br from-white to-yellow-50 border border-gray-200 flex flex-col gap-3">
+            <div className="text-3xl">🎥</div>
+            <div className="font-semibold">3. Learn live</div>
             <p className="text-sm opacity-80">
-              Meet your tutor online and enjoy a fun, interactive 1-to-1
-              lesson.
+              Meet your tutor online and enjoy a fun, interactive 1-to-1 lesson.
             </p>
           </div>
         </div>
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* EXISTING BOTTOM CARDS (UNCHANGED) */}
+      {/* SECTION DIVIDER */}
       {/* ----------------------------------------------------- */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        <div className="border rounded-2xl p-4">
+      <div className="border-t border-gray-200 my-6" />
+
+      {/* ----------------------------------------------------- */}
+      {/* BOTTOM CARDS (ORIGINAL, WITH LIGHT POLISH) */}
+      {/* ----------------------------------------------------- */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+        <div className="border rounded-2xl p-4 bg-white shadow-sm">
           <div className="font-semibold mb-1">Tutor tools</div>
           <div className="flex flex-wrap gap-2">
             <Link
-              className="border px-3 py-1 rounded-2xl text-sm"
+              className="border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
               to="/availability"
             >
               Availability
             </Link>
             <Link
-              className="border px-3 py-1 rounded-2xl text-sm"
+              className="border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
               to="/tutor-lessons"
             >
               Tutor lessons
             </Link>
             <Link
-              className="border px-3 py-1 rounded-2xl text-sm"
+              className="border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
               to="/payouts"
             >
               Payouts
@@ -608,35 +637,44 @@ export default function Home() {
           )}
         </div>
 
-        <div className="border rounded-2xl p-4">
+        <div className="border rounded-2xl p-4 bg-white shadow-sm">
           <div className="font-semibold mb-1">Students</div>
           <p className="text-sm opacity-80">Student list & bookings.</p>
           <Link
-            className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm"
+            className="mt-2 inline-block border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
             to="/students"
           >
             Open Students
           </Link>
         </div>
 
-        <div className="border rounded-2xl p-4">
+        <div className="border rounded-2xl p-4 bg-white shadow-sm">
           <div className="font-semibold mb-1">Account</div>
           <div className="flex flex-wrap gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/profile">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
+              to="/profile"
+            >
               Profile
             </Link>
             <Link
-              className="border px-3 py-1 rounded-2xl text-sm"
+              className="border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
               to="/notifications"
             >
               Notifications {notifUnread ? `(${notifUnread})` : ""}
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/settings">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm bg-white hover:bg-gray-50 transition"
+              to="/settings"
+            >
               Settings
             </Link>
           </div>
         </div>
       </div>
+
+      {/* EXTRA BOTTOM PADDING FOR MOBILE */}
+      <div className="pb-10" />
     </div>
   );
 }
