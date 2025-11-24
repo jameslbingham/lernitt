@@ -423,7 +423,7 @@ export default function Home() {
 
                     <div className="text-xs opacity-80">
                       {Number.isFinite(price)
-                        ? `From € ${price.toFixed(2)}/h`
+                        ? `From € {price.toFixed(2)}/h`
                         : ""}
                     </div>
 
