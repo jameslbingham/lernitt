@@ -257,8 +257,24 @@ export default function Tutors() {
     toast(ok ? "Link copied!" : "Copy failed");
   }
 
+  // NEW: quick subject filter handler
+  function handleQuickSubjectClick(subj) {
+    const nextSubject = subj === subject ? "" : subj;
+    setSubject(nextSubject);
+    const overrides = {
+      q,
+      subject: nextSubject,
+      minRating,
+      priceMin,
+      priceMax,
+    };
+    setPage(1);
+    load(1, overrides);
+  }
+
   return (
     <div className="p-4 space-y-4">
+      {/* Header row */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Tutors</h1>
         <div className="flex items-center gap-2">
@@ -276,6 +292,29 @@ export default function Tutors() {
             Clear filters
           </button>
         </div>
+      </div>
+
+      {/* NEW: Subject quick filter bar */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="opacity-70">Popular subjects:</span>
+        {["English", "Spanish", "Maths", "Piano"].map((subj) => {
+          const active = subject === subj;
+          return (
+            <button
+              key={subj}
+              type="button"
+              onClick={() => handleQuickSubjectClick(subj)}
+              className={[
+                "px-3 py-1 rounded-2xl border text-xs md:text-sm transition",
+                active
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white hover:bg-slate-50",
+              ].join(" ")}
+            >
+              {subj}
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -309,6 +348,10 @@ export default function Tutors() {
             <option value="English">English</option>
             <option value="IELTS">IELTS</option>
             <option value="Business English">Business English</option>
+            {/* NEW subjects to align with quick filters */}
+            <option value="Spanish">Spanish</option>
+            <option value="Maths">Maths</option>
+            <option value="Piano">Piano</option>
           </select>
         </div>
 
@@ -480,7 +523,7 @@ export default function Tutors() {
           {Array.from({ length: 6 }).map((_, i) => (
             <li
               key={i}
-              className="border rounded-2xl p-4 shadow-sm animate-pulse"
+              className="border rounded-2xl p-4 shadow-sm animate-pulse bg-white"
             >
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
@@ -503,7 +546,7 @@ export default function Tutors() {
 
       {/* Empty state */}
       {!loading && !error && tutors.length === 0 && (
-        <div className="border rounded-2xl p-8 text-center shadow-sm">
+        <div className="border rounded-2xl p-8 text-center shadow-sm bg-white">
           <div className="text-lg font-semibold mb-2">No tutors found</div>
           <p className="opacity-80 mb-4">
             Try clearing filters or changing your search.
@@ -557,14 +600,15 @@ export default function Tutors() {
             {displayedTutors.map((t) => {
               const tid = t._id || t.id;
               const isFav = favorites.has(tid);
-              const initial = t.name?.[0] || "?" ;
-
               return (
                 <li
                   key={tid}
                   title={`Open ${t.name}`}
-                  className="group relative border rounded-2xl p-4 shadow-sm hover:shadow-md transition hover:ring-1 hover:ring-gray-200 focus-within:ring-2"
+                  className="group relative border rounded-2xl bg-white overflow-hidden p-4 pt-5 shadow-sm hover:shadow-md transition hover:ring-1 hover:ring-gray-200 focus-within:ring-2"
                 >
+                  {/* Subtle top banner */}
+                  <div className="absolute inset-x-0 top-0 h-12 bg-slate-50 pointer-events-none" />
+
                   {/* Favourite toggle (on top) */}
                   <button
                     aria-label={
@@ -593,31 +637,28 @@ export default function Tutors() {
                   />
 
                   <div className="flex justify-between items-start relative z-10">
-                    <div>
+                    <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        {/* Square / rounded photo to match TutorProfile */}
-                        {t.avatar ? (
-                          <img
-                            src={t.avatar}
-                            alt={t.name || "Tutor"}
-                            className="w-12 h-12 rounded-2xl object-cover border"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-2xl border flex items-center justify-center text-sm font-semibold">
-                            {initial}
+                        <div className="w-12 h-12 rounded-full border flex items-center justify-center text-base font-semibold bg-white shadow-sm">
+                          {t.name?.[0] || "?"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-base font-semibold truncate">
+                            {t.name}
                           </div>
-                        )}
-
-                        <span className="text-lg font-semibold underline decoration-dotted group-hover:decoration-solid">
-                          {t.name}
-                        </span>
+                          <div className="text-xs opacity-70 truncate">
+                            {(t.subjects || [])
+                              .slice(0, 3)
+                              .join(" · ") || "—"}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-1">
                         {(t.subjects || ["—"]).map((s, i) => (
                           <span
                             key={i}
-                            className="text-xs px-2 py-1 border rounded-full"
+                            className="text-xs px-2 py-1 border rounded-full bg-white"
                           >
                             {s}
                           </span>
@@ -627,13 +668,17 @@ export default function Tutors() {
                       <div className="text-sm flex items-center gap-2 mt-1">
                         <StarRating
                           value={
-                            typeof t.avgRating === "number" ? t.avgRating : 0
+                            typeof t.avgRating === "number"
+                              ? t.avgRating
+                              : 0
                           }
                           readOnly
                           size={16}
                           showValue
                         />
-                        <span>({t.reviewsCount || 0} reviews)</span>
+                        <span className="text-xs opacity-80">
+                          ({t.reviewsCount || 0} reviews)
+                        </span>
                         {/* NEW: Write a review shortcut */}
                         <Link
                           to={`/tutors/${tid}?review=1`}
@@ -646,7 +691,7 @@ export default function Tutors() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2 ml-3">
-                      <div className="text-sm whitespace-nowrap">
+                      <div className="text-sm font-semibold whitespace-nowrap">
                         €{" "}
                         {(() => {
                           const p = eurosFromPrice(t.price);
@@ -656,12 +701,18 @@ export default function Tutors() {
                         })()}
                         /h
                       </div>
-                      {/* Quick Trial → preselect trial in booking */}
+
+                      {/* NEW: Trial badge */}
+                      <div className="text-[11px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                        Trial available
+                      </div>
+
+                      {/* NEW: Quick Trial → preselect trial in booking */}
                       <Link
                         to={`/book/${tid}`}
                         state={{ tutor: t, trial: true }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition"
+                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white"
                       >
                         Trial →
                       </Link>
@@ -676,7 +727,7 @@ export default function Tutors() {
                           },
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
+                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white"
                       >
                         Book
                       </Link>
