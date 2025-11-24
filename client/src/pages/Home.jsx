@@ -25,12 +25,7 @@ export default function Home() {
   const [tutorPeek, setTutorPeek] = useState([]);
 
   // Static subject categories for quick search
-  const categories = [
-    "English",
-    "Spanish",
-    "Maths",
-    "Piano",
-  ];
+  const categories = ["English", "Spanish", "Maths", "Piano"];
 
   // Load favourites
   useEffect(() => {
@@ -51,6 +46,7 @@ export default function Home() {
       setErr("");
 
       try {
+        // notifications
         if (isAuthed) {
           const ns = await apiFetch("/api/notifications", { auth: true });
           if (alive) {
@@ -61,6 +57,7 @@ export default function Home() {
           }
         } else setNotifUnread(0);
 
+        // upcoming lessons
         if (isAuthed) {
           const lessons = await apiFetch("/api/lessons/mine", { auth: true });
           if (alive) {
@@ -103,7 +100,7 @@ export default function Home() {
     };
   }, [isAuthed]);
 
-  // Next lesson summary
+  // Upcoming lesson summary
   const nextLesson = useMemo(() => {
     if (!upcoming) return null;
 
@@ -148,7 +145,7 @@ export default function Home() {
   return (
     <div className="space-y-10">
       {/* ----------------------------------------------------- */}
-      {/* HERO SECTION (Responsive full-width image) */}
+      {/* HERO SECTION */}
       {/* ----------------------------------------------------- */}
       <div
         style={{
@@ -165,7 +162,6 @@ export default function Home() {
           backgroundPosition: "center",
         }}
       >
-        {/* Overlay */}
         <div
           style={{
             position: "absolute",
@@ -174,7 +170,6 @@ export default function Home() {
           }}
         />
 
-        {/* Text */}
         <div
           style={{
             position: "absolute",
@@ -231,10 +226,9 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* STICKY SEARCH + SUBJECT CATEGORIES */}
+      {/* SEARCH + SUBJECT CATEGORIES */}
       {/* ----------------------------------------------------- */}
       <div className="sticky top-2 z-10 bg-white/95 backdrop-blur border border-gray-200 rounded-2xl p-3 space-y-3">
-        {/* Search bar */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -256,7 +250,7 @@ export default function Home() {
           </button>
         </form>
 
-        {/* Subject categories */}
+        {/* categories */}
         <div className="flex flex-wrap gap-2">
           {categories.map((label) => (
             <button
@@ -279,7 +273,6 @@ export default function Home() {
       {/* TOP CARDS */}
       {/* ----------------------------------------------------- */}
       <div className="grid gap-3 md:grid-cols-3 sm:grid-cols-2 grid-cols-1">
-        {/* Get started */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Get started</div>
           <p className="text-sm opacity-80">
@@ -310,7 +303,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Notifications */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Notifications</div>
           <p className="text-sm opacity-80">Your inbox.</p>
@@ -327,7 +319,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Upcoming lesson */}
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Upcoming lesson</div>
 
@@ -373,7 +364,7 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* POPULAR TUTORS — IMPROVED CARDS */}
+      {/* POPULAR TUTORS */}
       {/* ----------------------------------------------------- */}
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
@@ -395,7 +386,9 @@ export default function Home() {
                     ? t.price / 100
                     : t.price
                   : null;
-              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+              const subjects = Array.isArray(t.subjects)
+                ? t.subjects
+                : [];
 
               return (
                 <li
@@ -453,19 +446,158 @@ export default function Home() {
       </div>
 
       {/* ----------------------------------------------------- */}
-      {/* BOTTOM CARDS */}
+      {/* ⭐ NEW SECTIONS WILL BEGIN IN PART 2 ⭐ */}
+      {/* ----------------------------------------------------- */}
+      {/* ----------------------------------------------------- */}
+      {/* ⭐ NEW SECTION: SUBJECTS STRIP */}
+      {/* ----------------------------------------------------- */}
+      <div className="space-y-3">
+        <div className="text-lg font-semibold">Popular subjects</div>
+
+        <div className="flex flex-wrap gap-2">
+          {["English", "Spanish", "Maths", "Piano", "French", "German", "Business English"].map(
+            (s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => nav(`/tutors?q=${encodeURIComponent(s)}`)}
+                className="px-4 py-2 rounded-2xl border border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm transition text-sm"
+              >
+                {s}
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* ----------------------------------------------------- */}
+      {/* ⭐ NEW SECTION: TOP TUTORS CAROUSEL (simple grid) */}
+      {/* ----------------------------------------------------- */}
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <div className="text-lg font-semibold">Top tutors</div>
+          <Link to="/tutors" className="text-sm underline">
+            See all
+          </Link>
+        </div>
+
+        {tutorPeek.length === 0 ? (
+          <div className="text-sm opacity-70">No tutors yet.</div>
+        ) : (
+          <ul className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {tutorPeek.map((t) => {
+              const id = t._id || t.id;
+              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+              return (
+                <li
+                  key={id}
+                  className="border rounded-2xl p-4 bg-white hover:shadow-md transition flex flex-col gap-2"
+                >
+                  <Link
+                    to={`/tutors/${encodeURIComponent(id)}`}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full border flex items-center justify-center text-base font-semibold">
+                        {t.name?.[0] || "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">
+                          {t.name || "Tutor"}
+                        </div>
+                        <div className="text-xs opacity-80 truncate">
+                          {subjects.slice(0, 2).join(" · ") || "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-xs opacity-80">
+                      {subjects.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {subjects.slice(0, 3).map((s) => (
+                            <span
+                              key={s}
+                              className="text-[10px] px-2 py-0.5 rounded-full border border-gray-200"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="text-xs text-gray-500 mt-1">
+                      View profile →
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* ----------------------------------------------------- */}
+      {/* ⭐ NEW SECTION: HOW LERNITT WORKS */}
+      {/* ----------------------------------------------------- */}
+      <div className="space-y-4">
+        <div className="text-lg font-semibold">How Lernitt works</div>
+
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+          {/* Step 1 */}
+          <div className="border rounded-2xl p-4 bg-white flex flex-col gap-2">
+            <div className="text-xl font-bold">1</div>
+            <div className="font-semibold">Find your tutor</div>
+            <p className="text-sm opacity-80">
+              Browse friendly tutors for languages, skills and more. Check
+              reviews, prices and availability.
+            </p>
+          </div>
+
+          {/* Step 2 */}
+          <div className="border rounded-2xl p-4 bg-white flex flex-col gap-2">
+            <div className="text-xl font-bold">2</div>
+            <div className="font-semibold">Book your lesson</div>
+            <p className="text-sm opacity-80">
+              Choose a time that works for you. Pay securely in seconds.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="border rounded-2xl p-4 bg-white flex flex-col gap-2">
+            <div className="text-xl font-bold">3</div>
+            <div className="font-semibold">Learn live</div>
+            <p className="text-sm opacity-80">
+              Meet your tutor online and enjoy a fun, interactive 1-to-1
+              lesson.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ----------------------------------------------------- */}
+      {/* EXISTING BOTTOM CARDS (UNCHANGED) */}
       {/* ----------------------------------------------------- */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <div className="border rounded-2xl p-4">
           <div className="font-semibold mb-1">Tutor tools</div>
           <div className="flex flex-wrap gap-2">
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/availability">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm"
+              to="/availability"
+            >
               Availability
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/tutor-lessons">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm"
+              to="/tutor-lessons"
+            >
               Tutor lessons
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/payouts">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm"
+              to="/payouts"
+            >
               Payouts
             </Link>
           </div>
@@ -493,7 +625,10 @@ export default function Home() {
             <Link className="border px-3 py-1 rounded-2xl text-sm" to="/profile">
               Profile
             </Link>
-            <Link className="border px-3 py-1 rounded-2xl text-sm" to="/notifications">
+            <Link
+              className="border px-3 py-1 rounded-2xl text-sm"
+              to="/notifications"
+            >
               Notifications {notifUnread ? `(${notifUnread})` : ""}
             </Link>
             <Link className="border px-3 py-1 rounded-2xl text-sm" to="/settings">
