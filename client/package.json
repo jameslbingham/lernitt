@@ -15,7 +15,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.25.1",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+
+    /* ⭐ THIS was missing and caused all Vercel failures */
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
