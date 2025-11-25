@@ -149,7 +149,7 @@ export default function Home() {
   return (
     <div className="space-y-10">
       {/* ----------------------------------------------------- */}
-      {/* HERO SECTION (UNCHANGED) */}
+      {/* HERO SECTION (FIXED, PURE CSS BACKGROUND) */}
       {/* ----------------------------------------------------- */}
       <div
         style={{
@@ -160,18 +160,43 @@ export default function Home() {
           maxHeight: 420,
           borderRadius: 20,
           overflow: "hidden",
-          backgroundImage:
-            "url('/mnt/data/A_homepage_for_Lernitt,_an_online_live_lesson_plat.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          background: `
+            linear-gradient(135deg, #6366F1 0%, #8B5CF6 40%, #EC4899 100%)
+          `,
         }}
       >
-        {/* Overlay */}
+        {/* Soft abstract glow shapes */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-20%",
+            left: "-10%",
+            width: "60%",
+            height: "60%",
+            background:
+              "radial-gradient(circle, rgba(255,255,255,0.35), transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: "-20%",
+            right: "-10%",
+            width: "55%",
+            height: "55%",
+            background:
+              "radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%)",
+            filter: "blur(50px)",
+          }}
+        />
+
+        {/* Dark overlay for readable text */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: "rgba(0,0,0,0.45)",
+            background: "rgba(0,0,0,0.35)",
           }}
         />
 
@@ -423,7 +448,7 @@ export default function Home() {
 
                     <div className="text-xs opacity-80">
                       {Number.isFinite(price)
-                        ? `From € {price.toFixed(2)}/h`
+                        ? `From € ${price.toFixed(2)}/h`
                         : ""}
                     </div>
 
