@@ -7,6 +7,8 @@
 // -----------------------------------------------------------------------------
 // Added in this sweep:
 // - FAQ “Ask Us” drawer (categories → questions → answers)
+// - FAQ search bar (always visible) searching questions + answers
+// - Highlighting of search term in results
 // - Tutor avatars with coloured backgrounds
 // - Improved spacing rhythm (pt-20/pb-20, space-y-16)
 // - Slight motion: hover lift / transitions
@@ -91,6 +93,39 @@ const FAQ_DATA = {
 };
 
 // -----------------------------------------------------------------------------
+// Helper: highlight search matches in text
+// -----------------------------------------------------------------------------
+function highlightMatch(text, query) {
+  if (!query) return text;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const parts = [];
+  let lastIndex = 0;
+  let index;
+
+  while ((index = lowerText.indexOf(lowerQuery, lastIndex)) !== -1) {
+    if (index > lastIndex) {
+      parts.push(text.slice(lastIndex, index));
+    }
+    parts.push(
+      <mark
+        key={index}
+        className="rounded-sm bg-yellow-200 px-0.5 text-black dark:bg-yellow-300"
+      >
+        {text.slice(index, index + query.length)}
+      </mark>
+    );
+    lastIndex = index + query.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}
+
+// -----------------------------------------------------------------------------
 // Small reusable theme toggle button (bottom-right)
 // -----------------------------------------------------------------------------
 function ThemeToggle({ theme, onToggle }) {
@@ -123,20 +158,43 @@ function AskUsButton({ onClick }) {
 }
 
 // -----------------------------------------------------------------------------
-// FAQ drawer (right-side slide-in)
+// FAQ drawer (right-side slide-in) with search + highlight
 // -----------------------------------------------------------------------------
 function FaqDrawer({ open, onClose, theme }) {
   const [activeCategory, setActiveCategory] = useState(
     Object.keys(FAQ_DATA)[0] || ""
   );
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(null);
+  const [search, setSearch] = useState("");
 
+  // Flatten all FAQ items for search
+  const allFaqItems = useMemo(() => {
+    const items = [];
+    for (const [category, list] of Object.entries(FAQ_DATA)) {
+      list.forEach((it) => items.push({ ...it, category }));
+    }
+    return items;
+  }, []);
+
+  // Reset state when panel opens
   useEffect(() => {
     if (open) {
       setActiveCategory(Object.keys(FAQ_DATA)[0] || "");
       setActiveQuestionIndex(null);
+      setSearch("");
     }
   }, [open]);
+
+  const trimmed = search.trim().toLowerCase();
+  const inSearchMode = trimmed.length > 0;
+
+  const visibleItems = inSearchMode
+    ? allFaqItems.filter((item) => {
+        const q = item.q.toLowerCase();
+        const a = item.a.toLowerCase();
+        return q.includes(trimmed) || a.includes(trimmed);
+      })
+    : FAQ_DATA[activeCategory] || [];
 
   const baseBg =
     theme === "dark"
@@ -168,6 +226,7 @@ function FaqDrawer({ open, onClose, theme }) {
           open ? "translate-x-0" : "translate-x-full"
         } transition-transform`}
       >
+        {/* Header */}
         <div
           className={`flex items-center justify-between border-b px-4 py-3 ${panelBg}`}
         >
@@ -187,34 +246,78 @@ function FaqDrawer({ open, onClose, theme }) {
         </div>
 
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Categories */}
-          <div className="flex flex-wrap gap-2 border-b px-4 py-3 text-xs">
-            {Object.keys(FAQ_DATA).map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => {
-                  setActiveCategory(cat);
+          {/* Search bar */}
+          <div className="border-b px-4 py-3">
+            <div
+              className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+                theme === "dark"
+                  ? "border-slate-600 bg-slate-900"
+                  : "border-gray-300 bg-white"
+              }`}
+            >
+              <span>🔍</span>
+              <input
+                type="text"
+                placeholder="Search questions…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
                   setActiveQuestionIndex(null);
                 }}
-                className={`rounded-full px-3 py-1 ${
-                  cat === activeCategory
-                    ? "bg-indigo-600 text-white"
-                    : "border border-gray-300 bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+                className="flex-1 bg-transparent text-xs outline-none placeholder:text-xs"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setActiveQuestionIndex(null);
+                  }}
+                  className="text-[11px] opacity-70 hover:opacity-100"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {inSearchMode && (
+              <p className="mt-2 text-[11px] opacity-70">
+                Showing {visibleItems.length} result
+                {visibleItems.length === 1 ? "" : "s"} for{" "}
+                <span className="font-semibold">"{search}"</span>
+              </p>
+            )}
           </div>
 
+          {/* Categories (hidden in search mode) */}
+          {!inSearchMode && (
+            <div className="flex flex-wrap gap-2 border-b px-4 py-3 text-xs">
+              {Object.keys(FAQ_DATA).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setActiveCategory(cat);
+                    setActiveQuestionIndex(null);
+                  }}
+                  className={`rounded-full px-3 py-1 ${
+                    cat === activeCategory
+                      ? "bg-indigo-600 text-white"
+                      : "border border-gray-300 bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Questions + answers */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 text-sm space-y-4">
-            {(FAQ_DATA[activeCategory] || []).map((item, index) => {
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-sm">
+            {visibleItems.map((item, index) => {
               const openItem = index === activeQuestionIndex;
               return (
                 <div
-                  key={item.q}
+                  key={`${item.q}-${item.category || index}`}
                   className={`rounded-xl border p-3 ${
                     theme === "dark"
                       ? "border-slate-700 bg-slate-900"
@@ -226,23 +329,38 @@ function FaqDrawer({ open, onClose, theme }) {
                     onClick={() =>
                       setActiveQuestionIndex(openItem ? null : index)
                     }
-                    className="flex w-full items-center justify-between gap-2 text-left"
+                    className="flex w-full items-start justify-between gap-2 text-left"
                   >
-                    <span className="font-semibold">{item.q}</span>
-                    <span className="text-xs opacity-70">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-semibold">
+                        {inSearchMode
+                          ? highlightMatch(item.q, search)
+                          : item.q}
+                      </span>
+                      {item.category && inSearchMode && (
+                        <span className="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] opacity-80">
+                          {item.category}
+                        </span>
+                      )}
+                    </div>
+                    <span className="mt-1 text-xs opacity-70">
                       {openItem ? "−" : "+"}
                     </span>
                   </button>
                   {openItem && (
-                    <p className="mt-2 text-xs opacity-80">{item.a}</p>
+                    <p className="mt-2 text-xs opacity-80">
+                      {inSearchMode
+                        ? highlightMatch(item.a, search)
+                        : item.a}
+                    </p>
                   )}
                 </div>
               );
             })}
 
-            {(FAQ_DATA[activeCategory] || []).length === 0 && (
+            {visibleItems.length === 0 && (
               <p className="text-xs opacity-70">
-                No questions in this category yet.
+                No questions match your search yet.
               </p>
             )}
           </div>
@@ -347,8 +465,8 @@ function MarketingHomepage({ theme }) {
                 Learn anything with friendly tutors — live, 1-to-1.
               </h1>
               <p className="max-w-md text-base opacity-90 sm:text-lg">
-                Languages, skills, and more. Book your first lesson in minutes and
-                learn in a relaxed, live video session.
+                Languages, skills, and more. Book your first lesson in minutes
+                and learn in a relaxed, live video session.
               </p>
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -373,7 +491,7 @@ function MarketingHomepage({ theme }) {
 
             {/* Simple hero “graphic” block (placeholder for future SVG) */}
             <div className="mt-4 w-full max-w-sm sm:mt-0">
-              <div className="h-52 rounded-2xl bg-white/10 p-4 backdrop-blur-sm shadow-lg flex flex-col justify-between">
+              <div className="flex h-52 flex-col justify-between rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur-sm">
                 <div className="space-y-2">
                   <div className="h-3 w-24 rounded-full bg-white/40" />
                   <div className="h-3 w-32 rounded-full bg-white/30" />
