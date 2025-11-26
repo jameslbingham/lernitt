@@ -180,7 +180,9 @@ router.get("/:tutorId/slots", async (req, res) => {
       if (ex) {
         ranges = ex.open ? (ex.ranges || []) : [];
       } else {
-        const dowIndex = day.weekday % 7;
+        // ✅ FIXED: correct weekly DOW mapping (Luxon Sunday=7 → DB Sunday=0)
+        const dowIndex = (day.weekday === 7 ? 0 : day.weekday);
+
         const dayWeekly = (avail.weekly || []).filter(
           (w) => w.dow === dowIndex
         );
