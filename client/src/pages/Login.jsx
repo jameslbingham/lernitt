@@ -66,7 +66,13 @@ export default function Login() {
       if (mode === "signup") {
         const data = await apiFetch(`${API}/api/auth/signup`, {
           method: "POST",
-          body: { email, password },
+          body: {
+            email,
+            password,
+            // simple fallback name + default student role
+            name: email.split("@")[0] || "User",
+            role: "student",
+          },
         });
 
         if (!data?.token || !data?.user) {
