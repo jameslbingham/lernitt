@@ -1,18 +1,27 @@
 // client/src/pages/Home.jsx
 // -----------------------------------------------------------------------------
-// Option C-1 with theme support
-// - Visitors (not authed): Marketing Homepage
-// - Logged-in users: Functional homepage (Chat 83)
-// - Shared: Light/Dark theme toggle
+// Option C-1: Two internal homepages + shared UI
+// - Visitors (not authed): MarketingHomepage
+// - Logged-in users: LoggedInHomepage (Chat 83 logic preserved)
+// - Shared: Dark/light theme toggle, FAQ side panel, Ask Us button
 // -----------------------------------------------------------------------------
-// All existing features preserved: search, categories, tutorPeek, upcoming,
-// notifications, favourites, mock/live support.
+// Added in this sweep:
+// - FAQ “Ask Us” drawer (categories → questions → answers)
+// - Tutor avatars with coloured backgrounds
+// - Improved spacing rhythm (pt-20/pb-20, space-y-16)
+// - Slight motion: hover lift / transitions
+// - Better shadows & gradients for cards and chips
+// - "Try a free trial lesson" badge in hero
+// - Microcopy under hero CTAs
+// - Footer navigation (About | Tutors | Pricing | Contact | Terms | Privacy)
+// - All existing behaviours from Chat 83 preserved
 // -----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
+import Footer from "../components/Footer.jsx";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -24,14 +33,72 @@ function euros(n) {
 }
 
 // -----------------------------------------------------------------------------
-// Small reusable theme toggle
+// FAQ data (you can freely edit this content)
+// -----------------------------------------------------------------------------
+const FAQ_DATA = {
+  "Lessons & Booking": [
+    {
+      q: "How do lessons work?",
+      a: "You choose a tutor, pick a time, and join a live video lesson via Lernitt at the scheduled time.",
+    },
+    {
+      q: "Can I reschedule a lesson?",
+      a: "Yes. You can request a new time up to your tutor’s reschedule deadline shown on the lesson page.",
+    },
+    {
+      q: "Do you offer trial lessons?",
+      a: "Many tutors offer shorter, cheaper trial lessons so you can try one session before booking a full package.",
+    },
+  ],
+  "Payments & Refunds": [
+    {
+      q: "How do payments work?",
+      a: "You pay securely online when you book. Funds are held until the lesson is completed, then released to the tutor.",
+    },
+    {
+      q: "Can I get a refund?",
+      a: "If a lesson is cancelled according to policy, or if there is a verified issue, you can request a refund from your lesson page.",
+    },
+    {
+      q: "Which currencies do you support?",
+      a: "Right now, lessons are charged in USD. Your bank or card provider may convert from your local currency.",
+    },
+  ],
+  "Tutors & Requirements": [
+    {
+      q: "Who can teach on Lernitt?",
+      a: "Tutors must complete an application, verify their identity if required, and agree to Lernitt’s tutor policies.",
+    },
+    {
+      q: "How are tutors rated?",
+      a: "After each lesson, students can leave a rating and optional review. These help future students choose tutors.",
+    },
+  ],
+  "Account & Technical": [
+    {
+      q: "What do I need for a lesson?",
+      a: "You need a stable internet connection, a computer or phone, a microphone, and ideally a webcam and headphones.",
+    },
+    {
+      q: "Do I need to install extra software?",
+      a: "No. Lessons run in the browser using Lernitt’s built-in video tool.",
+    },
+    {
+      q: "I can’t join my lesson. What should I do?",
+      a: "First, refresh the page and check your internet. If it still fails, contact your tutor and Lernitt support with details.",
+    },
+  ],
+};
+
+// -----------------------------------------------------------------------------
+// Small reusable theme toggle button (bottom-right)
 // -----------------------------------------------------------------------------
 function ThemeToggle({ theme, onToggle }) {
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/90 px-4 py-2 text-xs font-medium shadow-sm backdrop-blur hover:shadow-md"
+      className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/90 px-4 py-2 text-xs font-medium shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <span>{theme === "dark" ? "🌙" : "☀️"}</span>
       <span>{theme === "dark" ? "Dark" : "Light"} mode</span>
@@ -39,10 +106,164 @@ function ThemeToggle({ theme, onToggle }) {
   );
 }
 
+// -----------------------------------------------------------------------------
+// Ask Us button (bottom-left)
+// -----------------------------------------------------------------------------
+function AskUsButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="fixed bottom-4 left-4 z-30 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
+    >
+      <span>❓</span>
+      <span>Ask us</span>
+    </button>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// FAQ drawer (right-side slide-in)
+// -----------------------------------------------------------------------------
+function FaqDrawer({ open, onClose, theme }) {
+  const [activeCategory, setActiveCategory] = useState(
+    Object.keys(FAQ_DATA)[0] || ""
+  );
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(null);
+
+  useEffect(() => {
+    if (open) {
+      setActiveCategory(Object.keys(FAQ_DATA)[0] || "");
+      setActiveQuestionIndex(null);
+    }
+  }, [open]);
+
+  const baseBg =
+    theme === "dark"
+      ? "bg-slate-950 text-slate-50"
+      : "bg-white text-slate-900";
+
+  const panelBg =
+    theme === "dark"
+      ? "bg-slate-900 border-slate-700"
+      : "bg-white border-gray-200";
+
+  return (
+    <div
+      className={`fixed inset-0 z-40 transition ${
+        open ? "pointer-events-auto" : "pointer-events-none"
+      }`}
+    >
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 bg-black/40 transition-opacity ${
+          open ? "opacity-100" : "opacity-0"
+        }`}
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div
+        className={`absolute right-0 top-0 flex h-full w-full max-w-md transform flex-col border-l ${baseBg} ${
+          open ? "translate-x-0" : "translate-x-full"
+        } transition-transform`}
+      >
+        <div
+          className={`flex items-center justify-between border-b px-4 py-3 ${panelBg}`}
+        >
+          <div>
+            <div className="text-sm font-semibold">Help & FAQ</div>
+            <div className="text-xs opacity-70">
+              Find quick answers to common questions.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Categories */}
+          <div className="flex flex-wrap gap-2 border-b px-4 py-3 text-xs">
+            {Object.keys(FAQ_DATA).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setActiveQuestionIndex(null);
+                }}
+                className={`rounded-full px-3 py-1 ${
+                  cat === activeCategory
+                    ? "bg-indigo-600 text-white"
+                    : "border border-gray-300 bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Questions + answers */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 text-sm space-y-4">
+            {(FAQ_DATA[activeCategory] || []).map((item, index) => {
+              const openItem = index === activeQuestionIndex;
+              return (
+                <div
+                  key={item.q}
+                  className={`rounded-xl border p-3 ${
+                    theme === "dark"
+                      ? "border-slate-700 bg-slate-900"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveQuestionIndex(openItem ? null : index)
+                    }
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                  >
+                    <span className="font-semibold">{item.q}</span>
+                    <span className="text-xs opacity-70">
+                      {openItem ? "−" : "+"}
+                    </span>
+                  </button>
+                  {openItem && (
+                    <p className="mt-2 text-xs opacity-80">{item.a}</p>
+                  )}
+                </div>
+              );
+            })}
+
+            {(FAQ_DATA[activeCategory] || []).length === 0 && (
+              <p className="text-xs opacity-70">
+                No questions in this category yet.
+              </p>
+            )}
+          </div>
+
+          <div className="border-t px-4 py-3 text-xs opacity-70">
+            Still stuck? You can also contact support from your account area.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// MAIN HOME COMPONENT (decides which homepage to show)
+// -----------------------------------------------------------------------------
 export default function Home() {
   const { isAuthed } = useAuth();
 
   const [theme, setTheme] = useState("light");
+  const [faqOpen, setFaqOpen] = useState(false);
 
   // Load stored theme once
   useEffect(() => {
@@ -68,19 +289,26 @@ export default function Home() {
   const toggleTheme = () =>
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
+  const closeFaq = () => setFaqOpen(false);
+  const openFaq = () => setFaqOpen(true);
+
   if (!isAuthed) {
     return (
       <>
-        <MarketingHomepage theme={theme} onToggleTheme={toggleTheme} />
+        <MarketingHomepage theme={theme} />
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        <AskUsButton onClick={openFaq} />
+        <FaqDrawer open={faqOpen} onClose={closeFaq} theme={theme} />
       </>
     );
   }
 
   return (
     <>
-      <LoggedInHomepage theme={theme} onToggleTheme={toggleTheme} />
+      <LoggedInHomepage theme={theme} />
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      <AskUsButton onClick={openFaq} />
+      <FaqDrawer open={faqOpen} onClose={closeFaq} theme={theme} />
     </>
   );
 }
@@ -90,208 +318,242 @@ export default function Home() {
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
   const baseBg =
-    theme === "dark" ? "bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900";
-  const cardBg = theme === "dark" ? "bg-slate-900 border-slate-700" : "bg-white";
+    theme === "dark"
+      ? "bg-slate-950 text-slate-50"
+      : "bg-slate-50 text-slate-900";
+  const cardBg =
+    theme === "dark"
+      ? "bg-slate-900 border-slate-700"
+      : "bg-white border-gray-200";
   const subtleBg =
     theme === "dark"
       ? "from-slate-900 to-slate-800 border-slate-700"
       : "from-white to-gray-50 border-gray-200";
 
   return (
-    <div className={`${baseBg} space-y-20 pb-20 pt-6`}>
-      {/* HERO SECTION */}
-      <section className="mx-auto w-full max-w-6xl px-4">
-        <div className="relative h-[60vh] min-h-[320px] overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+    <div className={`${baseBg} min-h-screen`}>
+      <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
+        {/* HERO SECTION */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
           <div className="absolute inset-0 bg-black/30" />
-          <div className="relative flex h-full items-center justify-center px-6 text-center text-white">
-            <div className="max-w-2xl space-y-5">
+          <div className="relative flex flex-col items-center justify-center gap-8 px-6 py-12 text-center text-white sm:flex-row sm:items-center sm:justify-between sm:text-left">
+            <div className="max-w-xl space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+                <span>✨</span>
+                <span>Try a free trial lesson</span>
+              </div>
+
               <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">
                 Learn anything with friendly tutors — live, 1-to-1.
               </h1>
-              <p className="mx-auto max-w-xl text-base sm:text-lg opacity-90">
-                Languages, skills, and more. Book your first lesson today.
+              <p className="max-w-md text-base opacity-90 sm:text-lg">
+                Languages, skills, and more. Book your first lesson in minutes and
+                learn in a relaxed, live video session.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-4">
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
                   to="/signup"
-                  className="rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black shadow-sm transition hover:shadow-lg"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   I’m a student — Get started
                 </Link>
                 <Link
                   to="/signup?type=tutor"
-                  className="rounded-xl border border-white px-6 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black"
+                  className="inline-flex items-center justify-center rounded-xl border border-white px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
                 >
                   I’m a tutor — Apply
                 </Link>
               </div>
+
+              <p className="text-xs opacity-80">
+                Only takes a minute to sign up. No long forms.
+              </p>
+            </div>
+
+            {/* Simple hero “graphic” block (placeholder for future SVG) */}
+            <div className="mt-4 w-full max-w-sm sm:mt-0">
+              <div className="h-52 rounded-2xl bg-white/10 p-4 backdrop-blur-sm shadow-lg flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="h-3 w-24 rounded-full bg-white/40" />
+                  <div className="h-3 w-32 rounded-full bg-white/30" />
+                  <div className="h-3 w-20 rounded-full bg-white/20" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 w-16 rounded-full bg-white/30" />
+                  <div className="h-3 w-28 rounded-full bg-white/20" />
+                  <div className="h-3 w-24 rounded-full bg-white/10" />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* WHY LERNITT */}
-      <section className="mx-auto max-w-6xl px-4 space-y-8">
-        <div className="text-center space-y-3">
-          <h2 className="text-3xl font-bold">Why Lernitt?</h2>
-          <p className="mx-auto max-w-2xl text-sm opacity-80">
-            A simple platform that connects learners and tutors worldwide for
-            live, 1-to-1 lessons.
+        {/* WHY LERNITT */}
+        <section className="space-y-6">
+          <div className="space-y-3 text-center">
+            <h2 className="text-3xl font-bold">Why Lernitt?</h2>
+            <p className="mx-auto max-w-2xl text-sm opacity-80">
+              A simple platform that connects learners and tutors worldwide for
+              live, 1-to-1 lessons.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                icon: "🎯",
+                title: "Lessons that fit your life",
+                text: "Book tutors across timezones with flexible scheduling.",
+              },
+              {
+                icon: "💬",
+                title: "Real conversation",
+                text: "Learn with real humans in live sessions, not scripts.",
+              },
+              {
+                icon: "🧑‍🏫",
+                title: "Hand-picked tutors",
+                text: "Teachers with profiles, reviews, and clear pricing.",
+              },
+              {
+                icon: "📚",
+                title: "Any subject",
+                text: "Languages, business English, maths, piano, and more.",
+              },
+              {
+                icon: "🌍",
+                title: "Global access",
+                text: "Meet tutors from all over the world, 24/7.",
+              },
+              {
+                icon: "💸",
+                title: "Transparent pricing",
+                text: "You always see the full cost before you book.",
+              },
+            ].map(({ icon, title, text }) => (
+              <div
+                key={title}
+                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              >
+                <div className="text-3xl">{icon}</div>
+                <div className="text-lg font-semibold">{title}</div>
+                <p className="text-sm opacity-80">{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* HOW IT WORKS */}
+        <section className="space-y-6">
+          <div className="space-y-3 text-center">
+            <h2 className="text-3xl font-bold">How Lernitt works</h2>
+            <p className="mx-auto max-w-2xl text-sm opacity-80">
+              Getting started takes just a few minutes.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-3">
+            {[
+              {
+                icon: "🔎",
+                title: "1. Find a tutor",
+                text: "Search tutors for languages, skills, and more.",
+              },
+              {
+                icon: "📅",
+                title: "2. Book a time",
+                text: "Choose a slot that fits your schedule.",
+              },
+              {
+                icon: "🎥",
+                title: "3. Learn live",
+                text: "Meet your tutor online and enjoy your lesson.",
+              },
+            ].map(({ icon, title, text }) => (
+              <div
+                key={title}
+                className={`space-y-4 rounded-2xl border p-6 bg-gradient-to-br ${subtleBg} shadow-sm`}
+              >
+                <div className="text-4xl">{icon}</div>
+                <div className="text-lg font-semibold">{title}</div>
+                <p className="text-sm opacity-80">{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* TESTIMONIALS */}
+        <section className="space-y-6">
+          <div className="space-y-3 text-center">
+            <h2 className="text-3xl font-bold">What learners say</h2>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            {[
+              {
+                name: "Emma",
+                text: "My English improved faster than I expected. Lessons are fun and relaxed!",
+              },
+              {
+                name: "Diego",
+                text: "Booking was easy. Great tutors and clear pricing.",
+              },
+              {
+                name: "Sofia",
+                text: "I practice speaking every week now — I love the flexibility.",
+              },
+              {
+                name: "Liam",
+                text: "Amazing tutors. Very helpful and patient.",
+              },
+            ].map(({ name, text }) => (
+              <div
+                key={name}
+                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              >
+                <p className="text-sm italic opacity-90">“{text}”</p>
+                <div className="text-xs font-semibold opacity-70">— {name}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section className="space-y-4 text-center">
+          <h2 className="text-3xl font-bold">Ready to start learning?</h2>
+          <p className="mx-auto max-w-md text-sm opacity-80">
+            Find the perfect tutor and book your first lesson in minutes.
           </p>
-        </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            {
-              icon: "🎯",
-              title: "Lessons that fit your life",
-              text: "Book tutors across timezones with flexible scheduling.",
-            },
-            {
-              icon: "💬",
-              title: "Real conversation",
-              text: "Learn with real humans in live sessions, not scripts.",
-            },
-            {
-              icon: "🧑‍🏫",
-              title: "Hand-picked tutors",
-              text: "Teachers with profiles, reviews, and clear pricing.",
-            },
-            {
-              icon: "📚",
-              title: "Any subject",
-              text: "Languages, business English, maths, piano, and more.",
-            },
-            {
-              icon: "🌍",
-              title: "Global access",
-              text: "Meet tutors from all over the world, 24/7.",
-            },
-            {
-              icon: "💸",
-              title: "Transparent pricing",
-              text: "You always see the full cost before you book.",
-            },
-          ].map(({ icon, title, text }) => (
-            <div
-              key={title}
-              className={`space-y-3 rounded-2xl border p-6 shadow-sm ${cardBg}`}
+          <div className="flex justify-center gap-4">
+            <Link
+              to="/signup"
+              className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
             >
-              <div className="text-3xl">{icon}</div>
-              <div className="text-lg font-semibold">{title}</div>
-              <p className="text-sm opacity-80">{text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="mx-auto max-w-6xl px-4 space-y-8">
-        <div className="text-center space-y-3">
-          <h2 className="text-3xl font-bold">How Lernitt works</h2>
-          <p className="mx-auto max-w-2xl text-sm opacity-80">
-            Getting started takes just a few minutes.
-          </p>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-3">
-          {[
-            {
-              icon: "🔎",
-              title: "1. Find a tutor",
-              text: "Search tutors for languages, skills, and more.",
-            },
-            {
-              icon: "📅",
-              title: "2. Book a time",
-              text: "Choose a slot that fits your schedule.",
-            },
-            {
-              icon: "🎥",
-              title: "3. Learn live",
-              text: "Meet your tutor online and enjoy your lesson.",
-            },
-          ].map(({ icon, title, text }) => (
-            <div
-              key={title}
-              className={`space-y-4 rounded-2xl border p-6 bg-gradient-to-br ${subtleBg}`}
+              Get Started
+            </Link>
+            <Link
+              to="/tutors"
+              className={`rounded-xl border px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "border-slate-600 bg-slate-900"
+                  : "border-gray-300 bg-white"
+              }`}
             >
-              <div className="text-4xl">{icon}</div>
-              <div className="text-lg font-semibold">{title}</div>
-              <p className="text-sm opacity-80">{text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+              Browse Tutors
+            </Link>
+          </div>
+        </section>
+      </main>
 
-      {/* TESTIMONIALS */}
-      <section className="mx-auto max-w-6xl px-4 space-y-8">
-        <div className="text-center space-y-3">
-          <h2 className="text-3xl font-bold">What learners say</h2>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-2">
-          {[
-            {
-              name: "Emma",
-              text: "My English improved faster than I expected. Lessons are fun and relaxed!",
-            },
-            {
-              name: "Diego",
-              text: "Booking was easy. Great tutors and clear pricing.",
-            },
-            {
-              name: "Sofia",
-              text: "I practice speaking every week now — I love the flexibility.",
-            },
-            {
-              name: "Liam",
-              text: "Amazing tutors. Very helpful and patient.",
-            },
-          ].map(({ name, text }) => (
-            <div
-              key={name}
-              className={`space-y-3 rounded-2xl border p-6 shadow-sm ${cardBg}`}
-            >
-              <p className="text-sm italic opacity-90">“{text}”</p>
-              <div className="text-xs font-semibold opacity-70">— {name}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FINAL CTA */}
-      <section className="mx-auto max-w-3xl px-4 text-center space-y-6">
-        <h2 className="text-3xl font-bold">Ready to start learning?</h2>
-        <p className="mx-auto max-w-md text-sm opacity-80">
-          Find the perfect tutor and book your first lesson in minutes.
-        </p>
-
-        <div className="flex justify-center gap-4">
-          <Link
-            to="/signup"
-            className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-          >
-            Get Started
-          </Link>
-          <Link
-            to="/tutors"
-            className={`rounded-xl border px-6 py-3 text-sm font-semibold transition ${
-              theme === "dark"
-                ? "border-slate-600 bg-slate-900 hover:bg-slate-800"
-                : "border-gray-300 bg-white hover:shadow-md"
-            }`}
-          >
-            Browse Tutors
-          </Link>
-        </div>
-      </section>
+      <Footer theme={theme} />
     </div>
   );
 }
 
 // -----------------------------------------------------------------------------
-// LOGGED-IN HOMEPAGE (full Chat 83 features preserved)
+// LOGGED-IN HOMEPAGE (full Chat 83 features preserved + refinements)
 // -----------------------------------------------------------------------------
 function LoggedInHomepage({ theme }) {
   const [q, setQ] = useState("");
@@ -351,8 +613,7 @@ function LoggedInHomepage({ theme }) {
             );
             setUpcoming(
               rows.find(
-                (l) =>
-                  new Date(l.start || l.startTime || 0) > new Date()
+                (l) => new Date(l.start || l.startTime || 0) > new Date()
               ) || null
             );
           }
@@ -418,23 +679,10 @@ function LoggedInHomepage({ theme }) {
     };
   }, [upcoming]);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div
-        className={`p-4 space-y-4 ${
-          theme === "dark"
-            ? "bg-slate-950 text-slate-50"
-            : "bg-white text-slate-900"
-        }`}
-      >
-        <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
-      </div>
-    );
-  }
-
   const baseBg =
-    theme === "dark" ? "bg-slate-950 text-slate-50" : "bg-white text-slate-900";
+    theme === "dark"
+      ? "bg-slate-950 text-slate-50"
+      : "bg-white text-slate-900";
   const cardBg =
     theme === "dark"
       ? "bg-slate-900 border-slate-700"
@@ -443,381 +691,434 @@ function LoggedInHomepage({ theme }) {
     theme === "dark"
       ? "from-slate-900 to-slate-800 border-slate-700"
       : "from-white to-blue-50 border-gray-200";
+  const avatarBg =
+    theme === "dark"
+      ? "bg-gradient-to-br from-indigo-500 to-sky-500"
+      : "bg-gradient-to-br from-indigo-100 to-sky-200";
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={`${baseBg} p-4 space-y-4`}>
+        <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
+      </div>
+    );
+  }
 
   return (
-    <div className={`${baseBg} space-y-10 pb-10 pt-6`}>
-      {/* HERO SECTION (GRADIENT) */}
-      <div className="relative mx-auto w-full max-w-6xl h-[55vh] min-h-[260px] max-h-[420px] overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center">
-        <div className="absolute inset-0 bg-black/30" />
+    <div className={`${baseBg} min-h-screen`}>
+      <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
+        {/* HERO SECTION (GRADIENT) */}
+        <section className="relative flex overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+          <div className="absolute inset-0 bg-black/30" />
 
-        <div className="relative z-10 px-6 max-w-xl space-y-4 text-white">
-          <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight">
-            Book live 1-to-1 lessons with expert tutors
-          </h1>
+          <div className="relative flex w-full flex-col items-start gap-4 px-6 py-10 text-white sm:max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+              <span>✨</span>
+              <span>Try a free trial lesson</span>
+            </div>
 
-          <p className="text-base sm:text-lg opacity-90">
-            Learn languages, skills, and more — with friendly tutors who teach you
-            live.
-          </p>
+            <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+              Book live 1-to-1 lessons with expert tutors
+            </h1>
 
-          <div className="mt-4 flex flex-wrap gap-3 max-w-[340px]">
-            <Link
-              to="/signup"
-              className="w-full sm:w-auto rounded-xl bg-white px-5 py-3 text-center text-sm font-semibold text-black shadow-sm transition hover:shadow-md"
-            >
-              I’m a student — Get started
-            </Link>
+            <p className="text-base opacity-90 sm:text-lg">
+              Learn languages, skills, and more — with friendly tutors who teach
+              you live.
+            </p>
 
-            <Link
-              to="/signup?type=tutor"
-              className="w-full sm:w-auto rounded-xl border border-white px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white hover:text-black"
-            >
-              I’m a tutor — Apply to teach
-            </Link>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Link
+                to="/signup"
+                className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                I’m a student — Get started
+              </Link>
+
+              <Link
+                to="/signup?type=tutor"
+                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
+              >
+                I’m a tutor — Apply to teach
+              </Link>
+            </div>
+
+            <p className="text-xs opacity-80">
+              Only takes a minute to sign up. No long forms.
+            </p>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* SEARCH + CATEGORIES */}
-      <div className="mx-auto w-full max-w-6xl">
-        <div
-          className={`sticky top-2 z-10 rounded-2xl border p-3 shadow-sm backdrop-blur ${
-            theme === "dark"
-              ? "bg-slate-900/95 border-slate-700"
-              : "bg-white/95 border-gray-200"
-          } space-y-3`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              nav(`/tutors?q=${encodeURIComponent(q)}`);
-            }}
-            className="flex flex-col items-center gap-2 sm:flex-row"
+        {/* SEARCH + CATEGORIES */}
+        <section>
+          <div
+            className={`sticky top-2 z-10 space-y-3 rounded-2xl border p-3 shadow-sm backdrop-blur ${
+              theme === "dark"
+                ? "bg-slate-900/95 border-slate-700"
+                : "bg-white/95 border-gray-200"
+            }`}
           >
-            <input
-              placeholder="Search tutors (e.g., English)"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
-            />
-            <button
-              type="submit"
-              className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                nav(`/tutors?q=${encodeURIComponent(q)}`);
+              }}
+              className="flex flex-col items-center gap-2 sm:flex-row"
             >
-              Search
-            </button>
-          </form>
-
-          <div className="flex flex-wrap gap-2">
-            {categories.map((label) => (
+              <input
+                placeholder="Search tutors (e.g., English)"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
+              />
               <button
-                key={label}
-                type="button"
-                onClick={() => nav(`/tutors?q=${encodeURIComponent(label)}`)}
-                className="rounded-xl border px-3 py-1 text-xs sm:text-sm hover:border-gray-400 hover:shadow-sm bg-white"
+                type="submit"
+                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
               >
-                {label}
+                Search
               </button>
-            ))}
+            </form>
+
+            <div className="flex flex-wrap gap-2">
+              {categories.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() =>
+                    nav(`/tutors?q=${encodeURIComponent(label)}`)
+                  }
+                  className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {err && <div className="text-xs text-red-500">{err}</div>}
           </div>
+        </section>
 
-          {err && <div className="text-xs text-red-500">{err}</div>}
-        </div>
-      </div>
-
-      {/* TOP CARDS — Get Started / Notifications / Upcoming */}
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-        {/* Get started */}
-        <div className={`rounded-xl border p-4 shadow-sm ${cardBg}`}>
-          <div className="mb-1 font-semibold">Get started</div>
-          <p className="text-sm opacity-80">
-            Browse tutors, book lessons, manage availability.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link className="rounded-xl border px-3 py-1 text-sm" to="/tutors">
-              Find tutors
-            </Link>
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/favourites"
+        {/* TOP CARDS — Get Started / Notifications / Upcoming */}
+        <section>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {/* Get started */}
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
             >
-              Favourites {favCount ? `(${favCount})` : ""}
-            </Link>
-            {isAuthed ? (
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/my-lessons"
-              >
-                My Lessons
-              </Link>
-            ) : (
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/login"
-              >
-                Log in
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* Notifications */}
-        <div className={`rounded-xl border p-4 shadow-sm ${cardBg}`}>
-          <div className="mb-1 font-semibold">Notifications</div>
-          <p className="text-sm opacity-80">Your inbox.</p>
-          <div className="mt-3 flex items-center gap-2">
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/notifications"
-            >
-              Open inbox
-            </Link>
-            <span className="text-xs opacity-70">
-              {isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
-            </span>
-          </div>
-        </div>
-
-        {/* Upcoming lesson */}
-        <div className={`rounded-xl border p-4 shadow-sm ${cardBg}`}>
-          <div className="mb-1 font-semibold">Upcoming lesson</div>
-
-          {!isAuthed && (
-            <p className="text-sm opacity-80">Log in to see your schedule.</p>
-          )}
-
-          {isAuthed && !nextLesson && (
-            <p className="text-sm opacity-80">No upcoming lessons.</p>
-          )}
-
-          {isAuthed && nextLesson && (
-            <>
-              <div className="text-sm">
-                <b>{nextLesson.tutorName}</b>{" "}
-                <span className="opacity-70">({nextLesson.when})</span>
-                <div className="opacity-80">
-                  {nextLesson.isTrial ? "Trial" : "Paid"} · {nextLesson.duration}{" "}
-                  min
-                  {!nextLesson.isTrial && nextLesson.price ? (
-                    <> · € {euros(nextLesson.price)}</>
-                  ) : null}
-                </div>
-              </div>
-
+              <div className="mb-1 font-semibold">Get started</div>
+              <p className="text-sm opacity-80">
+                Browse tutors, book lessons, manage availability.
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
-                  to={`/student-lesson/${nextLesson.id}`}
+                  to="/tutors"
                 >
-                  View details
+                  Find tutors
                 </Link>
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
-                  to={`/tutors/${nextLesson.tutorId}`}
+                  to="/favourites"
                 >
-                  Tutor
+                  Favourites {favCount ? `(${favCount})` : ""}
+                </Link>
+                {isAuthed ? (
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to="/my-lessons"
+                  >
+                    My Lessons
+                  </Link>
+                ) : (
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to="/login"
+                  >
+                    Log in
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Notifications */}
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Notifications</div>
+              <p className="text-sm opacity-80">Your inbox.</p>
+              <div className="mt-3 flex items-center gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/notifications"
+                >
+                  Open inbox
+                </Link>
+                <span className="text-xs opacity-70">
+                  {isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
+                </span>
+              </div>
+            </div>
+
+            {/* Upcoming lesson */}
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Upcoming lesson</div>
+
+              {!isAuthed && (
+                <p className="text-sm opacity-80">
+                  Log in to see your schedule.
+                </p>
+              )}
+
+              {isAuthed && !nextLesson && (
+                <p className="text-sm opacity-80">No upcoming lessons.</p>
+              )}
+
+              {isAuthed && nextLesson && (
+                <>
+                  <div className="text-sm">
+                    <b>{nextLesson.tutorName}</b>{" "}
+                    <span className="opacity-70">({nextLesson.when})</span>
+                    <div className="opacity-80">
+                      {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
+                      {nextLesson.duration} min
+                      {!nextLesson.isTrial && nextLesson.price ? (
+                        <> · € {euros(nextLesson.price)}</>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      className="rounded-xl border px-3 py-1 text-sm"
+                      to={`/student-lesson/${nextLesson.id}`}
+                    >
+                      View details
+                    </Link>
+                    <Link
+                      className="rounded-xl border px-3 py-1 text-sm"
+                      to={`/tutors/${nextLesson.tutorId}`}
+                    >
+                      Tutor
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* POPULAR TUTORS */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <div className="text-lg font-semibold">Popular tutors</div>
+            <Link to="/tutors" className="text-sm underline">
+              See all
+            </Link>
+          </div>
+
+          {tutorPeek.length === 0 ? (
+            <div className="text-sm opacity-70">No tutors yet.</div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {tutorPeek.map((t) => {
+                const id = t._id || t.id;
+                const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+
+                return (
+                  <li
+                    key={id}
+                    className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+                  >
+                    <Link
+                      to={`/tutors/${encodeURIComponent(id)}`}
+                      className="flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
+                        >
+                          {t.name?.[0] || "?"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">
+                            {t.name || "Tutor"}
+                          </div>
+                          <div className="truncate text-xs opacity-80">
+                            {subjects.slice(0, 2).join(" · ") || "—"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {subjects.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {subjects.slice(0, 3).map((s) => (
+                            <span
+                              key={s}
+                              className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="text-xs text-gray-600">
+                        View profile →
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* POPULAR SUBJECTS */}
+        <section className="space-y-4">
+          <div className="text-lg font-semibold">Popular subjects</div>
+
+          <div className="flex flex-wrap gap-3">
+            {[
+              { name: "English", icon: "🇬🇧" },
+              { name: "Spanish", icon: "🇪🇸" },
+              { name: "Maths", icon: "🧮" },
+              { name: "Piano", icon: "🎹" },
+              { name: "French", icon: "🇫🇷" },
+              { name: "German", icon: "🇩🇪" },
+              { name: "Japanese", icon: "🇯🇵" },
+              { name: "Business English", icon: "💼" },
+            ].map(({ name, icon }) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() =>
+                  nav(`/tutors?q=${encodeURIComponent(name)}`)
+                }
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
+              >
+                <span className="text-lg">{icon}</span>
+                {name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* HOW LERNITT WORKS (from Chat 83, restyled) */}
+        <section className="space-y-4">
+          <div className="text-lg font-semibold">How Lernitt works</div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+            >
+              <div className="text-3xl">🔎</div>
+              <div className="font-semibold">1. Find your tutor</div>
+              <p className="text-sm opacity-80">
+                Search friendly tutors for languages, skills and more.
+              </p>
+            </div>
+
+            <div
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+            >
+              <div className="text-3xl">📅</div>
+              <div className="font-semibold">2. Book your lesson</div>
+              <p className="text-sm opacity-80">
+                Choose a time that suits you.
+              </p>
+            </div>
+
+            <div
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+            >
+              <div className="text-3xl">🎥</div>
+              <div className="font-semibold">3. Learn live</div>
+              <p className="text-sm opacity-80">
+                Meet your tutor online in a fun, interactive lesson.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* BOTTOM CARDS */}
+        <section>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Tutor tools</div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/availability"
+                >
+                  Availability
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/tutor-lessons"
+                >
+                  Tutor lessons
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/payouts"
+                >
+                  Payouts
                 </Link>
               </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* POPULAR TUTORS */}
-      <div className="mx-auto w-full max-w-6xl space-y-2">
-        <div className="flex items-baseline justify-between">
-          <div className="text-lg font-semibold">Popular tutors</div>
-          <Link to="/tutors" className="text-sm underline">
-            See all
-          </Link>
-        </div>
-
-        {tutorPeek.length === 0 ? (
-          <div className="text-sm opacity-70">No tutors yet.</div>
-        ) : (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {tutorPeek.map((t) => {
-              const id = t._id || t.id;
-              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
-
-              return (
-                <li
-                  key={id}
-                  className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm ${cardBg}`}
-                >
-                  <Link
-                    to={`/tutors/${encodeURIComponent(id)}`}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full border bg-gray-50 text-base font-semibold">
-                        {t.name?.[0] || "?"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold">
-                          {t.name || "Tutor"}
-                        </div>
-                        <div className="truncate text-xs opacity-80">
-                          {subjects.slice(0, 2).join(" · ") || "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {subjects.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {subjects.slice(0, 3).map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="text-xs text-gray-600">
-                      View profile →
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* POPULAR SUBJECTS */}
-      <div className="mx-auto w-full max-w-6xl space-y-4">
-        <div className="text-lg font-semibold">Popular subjects</div>
-
-        <div className="flex flex-wrap gap-3">
-          {[
-            { name: "English", icon: "🇬🇧" },
-            { name: "Spanish", icon: "🇪🇸" },
-            { name: "Maths", icon: "🧮" },
-            { name: "Piano", icon: "🎹" },
-            { name: "French", icon: "🇫🇷" },
-            { name: "German", icon: "🇩🇪" },
-            { name: "Japanese", icon: "🇯🇵" },
-            { name: "Business English", icon: "💼" },
-          ].map(({ name, icon }) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => nav(`/tutors?q=${encodeURIComponent(name)}`)}
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm hover:shadow-md bg-gradient-to-br ${subtleBg}`}
-            >
-              <span className="text-lg">{icon}</span>
-              {name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* HOW LERNITT WORKS (from Chat 83) */}
-      <div className="mx-auto w-full max-w-6xl space-y-4">
-        <div className="text-lg font-semibold">How Lernitt works</div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div
-            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-          >
-            <div className="text-3xl">🔎</div>
-            <div className="font-semibold">1. Find your tutor</div>
-            <p className="text-sm opacity-80">
-              Search friendly tutors for languages, skills and more.
-            </p>
-          </div>
-
-          <div
-            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-          >
-            <div className="text-3xl">📅</div>
-            <div className="font-semibold">2. Book your lesson</div>
-            <p className="text-sm opacity-80">
-              Choose a time that suits you.
-            </p>
-          </div>
-
-          <div
-            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-          >
-            <div className="text-3xl">🎥</div>
-            <div className="font-semibold">3. Learn live</div>
-            <p className="text-sm opacity-80">
-              Meet your tutor online in a fun, interactive lesson.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* BOTTOM CARDS */}
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-        <div className={`rounded-xl border p-4 shadow-sm ${cardBg}`}>
-          <div className="mb-1 font-semibold">Tutor tools</div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/availability"
-            >
-              Availability
-            </Link>
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/tutor-lessons"
-            >
-              Tutor lessons
-            </Link>
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/payouts"
-            >
-              Payouts
-            </Link>
-          </div>
-          {MOCK && (
-            <div className="mt-2 text-xs opacity-60">
-              Mock mode: simulated data.
+              {MOCK && (
+                <div className="mt-2 text-xs opacity-60">
+                  Mock mode: simulated data.
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className={`rounded-xl border p-4 shadow-sm ${cardBg}`}>
-          <div className="mb-1 font-semibold">Students</div>
-          <p className="text-sm opacity-80">Student list & bookings.</p>
-          <Link
-            className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
-            to="/students"
-          >
-            Open Students
-          </Link>
-        </div>
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Students</div>
+              <p className="text-sm opacity-80">Student list & bookings.</p>
+              <Link
+                className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
+                to="/students"
+              >
+                Open Students
+              </Link>
+            </div>
 
-        <div className={`rounded-xl border p-4 shadow-sm ${cardBg}`}>
-          <div className="mb-1 font-semibold">Account</div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/profile"
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
             >
-              Profile
-            </Link>
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/notifications"
-            >
-              Notifications {notifUnread ? `(${notifUnread})` : ""}
-            </Link>
-            <Link
-              className="rounded-xl border px-3 py-1 text-sm"
-              to="/settings"
-            >
-              Settings
-            </Link>
+              <div className="mb-1 font-semibold">Account</div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/profile"
+                >
+                  Profile
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/notifications"
+                >
+                  Notifications {notifUnread ? `(${notifUnread})` : ""}
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/settings"
+                >
+                  Settings
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
+
+      <Footer theme={theme} />
     </div>
   );
 }
