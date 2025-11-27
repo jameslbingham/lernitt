@@ -6,6 +6,7 @@
 // - Shared: Dark/light theme toggle, FAQ side panel, Ask Us button
 // -----------------------------------------------------------------------------
 // Added in this sweep:
+// homepage minor update
 // - FAQ “Ask Us” drawer (categories → questions → answers)
 // - FAQ search bar (always visible) searching questions + answers
 // - Highlighting of search term in results
