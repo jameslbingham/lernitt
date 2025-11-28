@@ -150,7 +150,9 @@ export default function App({ mockMode }) {
 
   return (
     <BrowserRouter>
-      <Nav />
+
+      {/* UPDATED AS REQUESTED */}
+      {window.location.pathname !== "/" && <Nav />}
 
       {import.meta.env.VITE_MOCK === "1" && (
         <div
@@ -233,7 +235,10 @@ export default function App({ mockMode }) {
               <Route path="/lesson-ended" element={<LessonEnded />} />
 
               {/* NEW — Lesson recordings page */}
-              <Route path="/lesson-recordings" element={<LessonRecordings />} />
+              <Route
+                path="/lesson-recordings"
+                element={<LessonRecordings />}
+              />
             </Route>
 
             {/* Fallback */}
