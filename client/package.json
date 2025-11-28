@@ -2,6 +2,7 @@
   "name": "client",
   "private": true,
   "version": "1.0.0",
+  "description": "Lernitt Frontend - Force Deploy 28Nov",
   "type": "module",
   "scripts": {
     "dev:mock": "VITE_MOCK=1 vite --port 5173",
