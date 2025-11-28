@@ -288,7 +288,7 @@ function FaqDrawer({ open, onClose, theme }) {
             )}
           </div>
 
-          {/* Categories (hidden in search mode) */}
+          {/* Categories */}
           {!inSearchMode && (
             <div className="flex flex-wrap gap-2 border-b px-4 py-3 text-xs">
               {Object.keys(FAQ_DATA).map((cat) => (
@@ -311,7 +311,7 @@ function FaqDrawer({ open, onClose, theme }) {
             </div>
           )}
 
-          {/* Questions + answers */}
+          {/* Questions */}
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-sm">
             {visibleItems.map((item, index) => {
               const openItem = index === activeQuestionIndex;
@@ -347,6 +347,7 @@ function FaqDrawer({ open, onClose, theme }) {
                       {openItem ? "−" : "+"}
                     </span>
                   </button>
+
                   {openItem && (
                     <p className="mt-2 text-xs opacity-80">
                       {inSearchMode
@@ -373,12 +374,11 @@ function FaqDrawer({ open, onClose, theme }) {
     </div>
   );
 }
-
 // -----------------------------------------------------------------------------
 // MAIN HOME COMPONENT (decides which homepage to show)
 // -----------------------------------------------------------------------------
 export default function Home() {
-  const { isAuthed } = useAuth();
+  // Removed: const { isAuthed } = useAuth();
 
   const [theme, setTheme] = useState("light");
   const [faqOpen, setFaqOpen] = useState(false);
@@ -410,20 +410,10 @@ export default function Home() {
   const closeFaq = () => setFaqOpen(false);
   const openFaq = () => setFaqOpen(true);
 
-  if (!isAuthed) {
-    return (
-      <>
-        <MarketingHomepage theme={theme} />
-        <ThemeToggle theme={theme} onToggle={toggleTheme} />
-        <AskUsButton onClick={openFaq} />
-        <FaqDrawer open={faqOpen} onClose={closeFaq} theme={theme} />
-      </>
-    );
-  }
-
+  // NEW: Always return the Marketing Homepage
   return (
     <>
-      <LoggedInHomepage theme={theme} />
+      <MarketingHomepage theme={theme} />
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       <AskUsButton onClick={openFaq} />
       <FaqDrawer open={faqOpen} onClose={closeFaq} theme={theme} />
@@ -489,7 +479,7 @@ function MarketingHomepage({ theme }) {
               </p>
             </div>
 
-            {/* Simple hero “graphic” block (placeholder for future SVG) */}
+            {/* Simple hero “graphic” block */}
             <div className="mt-4 w-full max-w-sm sm:mt-0">
               <div className="flex h-52 flex-col justify-between rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur-sm">
                 <div className="space-y-2">
@@ -552,7 +542,11 @@ function MarketingHomepage({ theme }) {
             ].map(({ icon, title, text }) => (
               <div
                 key={title}
-                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  theme === "dark"
+                    ? "bg-slate-900 border-slate-700"
+                    : "bg-white border-gray-200"
+                }`}
               >
                 <div className="text-3xl">{icon}</div>
                 <div className="text-lg font-semibold">{title}</div>
@@ -591,7 +585,11 @@ function MarketingHomepage({ theme }) {
             ].map(({ icon, title, text }) => (
               <div
                 key={title}
-                className={`space-y-4 rounded-2xl border p-6 bg-gradient-to-br ${subtleBg} shadow-sm`}
+                className={`space-y-4 rounded-2xl border p-6 bg-gradient-to-br ${
+                  theme === "dark"
+                    ? "from-slate-900 to-slate-800 border-slate-700"
+                    : "from-white to-gray-50 border-gray-200"
+                } shadow-sm`}
               >
                 <div className="text-4xl">{icon}</div>
                 <div className="text-lg font-semibold">{title}</div>
@@ -628,7 +626,11 @@ function MarketingHomepage({ theme }) {
             ].map(({ name, text }) => (
               <div
                 key={name}
-                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  theme === "dark"
+                    ? "bg-slate-900 border-slate-700"
+                    : "bg-white border-gray-200"
+                }`}
               >
                 <p className="text-sm italic opacity-90">“{text}”</p>
                 <div className="text-xs font-semibold opacity-70">— {name}</div>
@@ -669,7 +671,6 @@ function MarketingHomepage({ theme }) {
     </div>
   );
 }
-
 // -----------------------------------------------------------------------------
 // LOGGED-IN HOMEPAGE (full Chat 83 features preserved + refinements)
 // -----------------------------------------------------------------------------
@@ -921,7 +922,11 @@ function LoggedInHomepage({ theme }) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
             {/* Get started */}
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
             >
               <div className="mb-1 font-semibold">Get started</div>
               <p className="text-sm opacity-80">
@@ -960,7 +965,11 @@ function LoggedInHomepage({ theme }) {
 
             {/* Notifications */}
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
             >
               <div className="mb-1 font-semibold">Notifications</div>
               <p className="text-sm opacity-80">Your inbox.</p>
@@ -979,7 +988,11 @@ function LoggedInHomepage({ theme }) {
 
             {/* Upcoming lesson */}
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
             >
               <div className="mb-1 font-semibold">Upcoming lesson</div>
 
@@ -1047,7 +1060,11 @@ function LoggedInHomepage({ theme }) {
                 return (
                   <li
                     key={id}
-                    className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+                    className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                      theme === "dark"
+                        ? "bg-slate-900 border-slate-700"
+                        : "bg-white border-gray-200"
+                    }`}
                   >
                     <Link
                       to={`/tutors/${encodeURIComponent(id)}`}
@@ -1055,7 +1072,11 @@ function LoggedInHomepage({ theme }) {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
+                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${
+                            theme === "dark"
+                              ? "bg-gradient-to-br from-indigo-500 to-sky-500"
+                              : "bg-gradient-to-br from-indigo-100 to-sky-200"
+                          }`}
                         >
                           {t.name?.[0] || "?"}
                         </div>
@@ -1114,7 +1135,11 @@ function LoggedInHomepage({ theme }) {
                 onClick={() =>
                   nav(`/tutors?q=${encodeURIComponent(name)}`)
                 }
-                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${
+                  theme === "dark"
+                    ? "from-slate-900 to-slate-800 border-slate-700"
+                    : "from-white to-blue-50 border-gray-200"
+                }`}
               >
                 <span className="text-lg">{icon}</span>
                 {name}
@@ -1123,13 +1148,17 @@ function LoggedInHomepage({ theme }) {
           </div>
         </section>
 
-        {/* HOW LERNITT WORKS (from Chat 83, restyled) */}
+        {/* HOW LERNITT WORKS (restyled) */}
         <section className="space-y-4">
           <div className="text-lg font-semibold">How Lernitt works</div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${
+                theme === "dark"
+                  ? "from-slate-900 to-slate-800 border-slate-700"
+                  : "from-white to-blue-50 border-gray-200"
+              }`}
             >
               <div className="text-3xl">🔎</div>
               <div className="font-semibold">1. Find your tutor</div>
@@ -1139,17 +1168,25 @@ function LoggedInHomepage({ theme }) {
             </div>
 
             <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${
+                theme === "dark"
+                  ? "from-slate-900 to-slate-800 border-slate-700"
+                  : "from-white to-blue-50 border-gray-200"
+              }`}
             >
               <div className="text-3xl">📅</div>
               <div className="font-semibold">2. Book your lesson</div>
-              <p className="text-sm opacity-80">
+              <p className="text-sm.opacity-80">
                 Choose a time that suits you.
               </p>
             </div>
 
             <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${
+                theme === "dark"
+                  ? "from-slate-900 to-slate-800 border-slate-700"
+                  : "from-white to-blue-50 border-gray-200"
+              }`}
             >
               <div className="text-3xl">🎥</div>
               <div className="font-semibold">3. Learn live</div>
@@ -1164,7 +1201,11 @@ function LoggedInHomepage({ theme }) {
         <section>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
             >
               <div className="mb-1 font-semibold">Tutor tools</div>
               <div className="flex flex-wrap gap-2">
@@ -1188,14 +1229,18 @@ function LoggedInHomepage({ theme }) {
                 </Link>
               </div>
               {MOCK && (
-                <div className="mt-2 text-xs opacity-60">
+                <div className="mt-2 text-xs.opacity-60">
                   Mock mode: simulated data.
                 </div>
               )}
             </div>
 
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
             >
               <div className="mb-1 font-semibold">Students</div>
               <p className="text-sm opacity-80">Student list & bookings.</p>
@@ -1208,10 +1253,14 @@ function LoggedInHomepage({ theme }) {
             </div>
 
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
             >
               <div className="mb-1 font-semibold">Account</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex.flex-wrap gap-2">
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
                   to="/profile"
