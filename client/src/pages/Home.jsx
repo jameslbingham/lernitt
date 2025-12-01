@@ -25,6 +25,9 @@ import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import Footer from "../components/Footer.jsx";
 
+// NEW: Lernitt logo image (with light blue background strip)
+import logo from "../assets/lernitt-logo.png";
+
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
 // Small helper for price formatting
@@ -133,7 +136,7 @@ function ThemeToggle({ theme, onToggle }) {
     <button
       type="button"
       onClick={onToggle}
-      className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/90 px-4 py-2 text-xs font-medium shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-md"
+      className="fixed.bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white/90 px-4 py-2 text-xs font-medium shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <span>{theme === "dark" ? "🌙" : "☀️"}</span>
       <span>{theme === "dark" ? "Dark" : "Light"} mode</span>
@@ -149,7 +152,7 @@ function AskUsButton({ onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="fixed bottom-4 left-4 z-30 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
+      className="fixed.bottom-4 left-4 z-30 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
     >
       <span>❓</span>
       <span>Ask us</span>
@@ -222,7 +225,7 @@ function FaqDrawer({ open, onClose, theme }) {
 
       {/* Panel */}
       <div
-        className={`absolute right-0 top-0 flex h-full w-full max-w-md transform flex-col border-l ${baseBg} ${
+        className={`absolute right-0 top-0.flex h-full w-full max-w-md transform flex-col border-l ${baseBg} ${
           open ? "translate-x-0" : "translate-x-full"
         } transition-transform`}
       >
@@ -232,8 +235,8 @@ function FaqDrawer({ open, onClose, theme }) {
         >
           <div>
             <div className="text-sm font-semibold">Help & FAQ</div>
-            <div className="text-xs opacity-70">
-              Find quick answers to common questions.
+            <div className="text-xs.opacity-70">
+              Find.quick answers to common questions.
             </div>
           </div>
           <button
@@ -361,7 +364,7 @@ function FaqDrawer({ open, onClose, theme }) {
 
             {visibleItems.length === 0 && (
               <p className="text-xs opacity-70">
-                No questions match your search yet.
+                No questions.match your search yet.
               </p>
             )}
           </div>
@@ -374,6 +377,7 @@ function FaqDrawer({ open, onClose, theme }) {
     </div>
   );
 }
+
 // -----------------------------------------------------------------------------
 // MAIN HOME COMPONENT (decides which homepage to show)
 // -----------------------------------------------------------------------------
@@ -425,10 +429,11 @@ export default function Home() {
 // MARKETING HOMEPAGE (shown only when NOT logged in)
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
+  // light mode now uses explicit hex background #E9F1F7
   const baseBg =
     theme === "dark"
       ? "bg-slate-950 text-slate-50"
-      : "bg-slate-50 text-slate-900";
+      : "text-slate-900";
   const cardBg =
     theme === "dark"
       ? "bg-slate-900 border-slate-700"
@@ -439,8 +444,16 @@ function MarketingHomepage({ theme }) {
       : "from-white to-gray-50 border-gray-200";
 
   return (
-    <div className={`${baseBg} min-h-screen`}>
-      <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
+    <div
+      className={`${baseBg} min-h-screen`}
+      style={theme === "dark" ? undefined : { backgroundColor: "#E9F1F7" }}
+    >
+      {/* Logo bar at top, left-aligned, small padding */}
+      <header className="px-4 pt-4 pb-2">
+        <img src={logo} alt="Lernitt logo" className="h-10 w-auto" />
+      </header>
+
+      <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-4 pb-20">
         {/* HERO SECTION */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
           <div className="absolute inset-0 bg-black/30" />
@@ -561,7 +574,7 @@ function MarketingHomepage({ theme }) {
           <div className="space-y-3 text-center">
             <h2 className="text-3xl font-bold">How Lernitt works</h2>
             <p className="mx-auto max-w-2xl text-sm opacity-80">
-              Getting started takes just a few minutes.
+              Getting.started takes just a few minutes.
             </p>
           </div>
 
@@ -574,12 +587,12 @@ function MarketingHomepage({ theme }) {
               },
               {
                 icon: "📅",
-                title: "2. Book a time",
+                title: "2. Book a.time",
                 text: "Choose a slot that fits your schedule.",
               },
               {
                 icon: "🎥",
-                title: "3. Learn live",
+                title: "3. Learn.live",
                 text: "Meet your tutor online and enjoy your lesson.",
               },
             ].map(({ icon, title, text }) => (
@@ -643,7 +656,7 @@ function MarketingHomepage({ theme }) {
         <section className="space-y-4 text-center">
           <h2 className="text-3xl font-bold">Ready to start learning?</h2>
           <p className="mx-auto max-w-md text-sm opacity-80">
-            Find the perfect tutor and book your first lesson in minutes.
+            Find the perfect tutor and book your first.lesson in minutes.
           </p>
 
           <div className="flex justify-center gap-4">
@@ -671,6 +684,7 @@ function MarketingHomepage({ theme }) {
     </div>
   );
 }
+
 // -----------------------------------------------------------------------------
 // LOGGED-IN HOMEPAGE (full Chat 83 features preserved + refinements)
 // -----------------------------------------------------------------------------
@@ -1171,12 +1185,12 @@ function LoggedInHomepage({ theme }) {
               className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${
                 theme === "dark"
                   ? "from-slate-900 to-slate-800 border-slate-700"
-                  : "from-white to-blue-50 border-gray-200"
+                  : "from-white to-blue-50.border-gray-200"
               }`}
             >
               <div className="text-3xl">📅</div>
               <div className="font-semibold">2. Book your lesson</div>
-              <p className="text-sm.opacity-80">
+              <p className="text-sm opacity-80">
                 Choose a time that suits you.
               </p>
             </div>
@@ -1201,7 +1215,7 @@ function LoggedInHomepage({ theme }) {
         <section>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`rounded-xl border p-4 shadow-sm transition.hover:-translate-y-0.5 hover:shadow-md ${
                 theme === "dark"
                   ? "bg-slate-900 border-slate-700"
                   : "bg-white border-gray-200"
@@ -1229,7 +1243,7 @@ function LoggedInHomepage({ theme }) {
                 </Link>
               </div>
               {MOCK && (
-                <div className="mt-2 text-xs.opacity-60">
+                <div className="mt-2 text-xs opacity-60">
                   Mock mode: simulated data.
                 </div>
               )}
@@ -1243,7 +1257,7 @@ function LoggedInHomepage({ theme }) {
               }`}
             >
               <div className="mb-1 font-semibold">Students</div>
-              <p className="text-sm opacity-80">Student list & bookings.</p>
+              <p className="text-sm.opacity-80">Student list & bookings.</p>
               <Link
                 className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
                 to="/students"
@@ -1260,9 +1274,9 @@ function LoggedInHomepage({ theme }) {
               }`}
             >
               <div className="mb-1 font-semibold">Account</div>
-              <div className="flex.flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
+                  className="rounded-xl.border px-3 py-1 text-sm"
                   to="/profile"
                 >
                   Profile
