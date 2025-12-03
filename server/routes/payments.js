@@ -17,7 +17,7 @@ const PLATFORM_CURRENCY = "USD";
    ============================================ */
 router.post('/stripe', auth, async (req, res) => {
   try {
-    console.log('[PAY][stripe] body:', req.body);
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
     const { amount, lesson } = req.body;
     const currency = PLATFORM_CURRENCY;
@@ -28,20 +28,14 @@ router.post('/stripe', auth, async (req, res) => {
       return res.status(403).json({ message: 'Not allowed' });
     }
 
-    let clientSecret = `cs_test_${Math.random().toString(36).slice(2, 12)}`;
-    let paymentIntentId = `pi_test_${Math.random().toString(36).slice(2, 12)}`;
+    // ALWAYS create a real PaymentIntent
+    const pi = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      metadata: { lesson }
+    });
 
-    if (hasStripeKeys) {
-      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-      const pi = await stripe.paymentIntents.create({
-        amount,
-        currency,
-        metadata: { lesson }
-      });
-      clientSecret = pi.client_secret;
-      paymentIntentId = pi.id;
-    }
-
+    // Save real PaymentIntent data
     const payment = await Payment.create({
       user: req.user.id,
       lesson,
@@ -50,17 +44,18 @@ router.post('/stripe', auth, async (req, res) => {
       currency,
       status: 'pending',
       providerIds: {
-        paymentIntentId,
-        clientSecret
+        paymentIntentId: pi.id,
+        clientSecret: pi.client_secret
       },
-      meta: { simulated: !hasStripeKeys }
+      meta: { simulated: false }
     });
 
     return res.json({
-      simulated: !hasStripeKeys,
-      clientSecret,
+      simulated: false,
+      clientSecret: pi.client_secret,
       paymentId: payment._id,
-      status: payment.status
+      status: payment.status,
+      intentId: pi.id
     });
   } catch (err) {
     console.error('[PAY][stripe] error:', err);
