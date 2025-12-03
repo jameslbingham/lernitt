@@ -17,45 +17,44 @@ module.exports = async (req, res) => {
       event = typeof raw === 'string' ? JSON.parse(raw) : raw;
     }
   } catch (err) {
+    console.error('Stripe webhook signature error:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   try {
     if (event.type === 'payment_intent.succeeded') {
       const pi = event.data.object;
-      console.log('Webhook got PI (succeeded):', pi.id);
+      console.log('Webhook PI succeeded:', pi.id);
 
-      const updated = await Payment.findOneAndUpdate(
+      // Update Payment to succeeded
+      const payment = await Payment.findOneAndUpdate(
         { provider: 'stripe', 'providerIds.paymentIntentId': pi.id },
         { status: 'succeeded' },
         { new: true }
       );
-      console.log('Updated doc (succeeded):', updated?._id || 'none');
-
-      // Mark the related lesson as paid
-      const intent = event.data.object;
-      const payment = await Payment.findOne({
-        provider: 'stripe',
-        'providerIds.paymentIntentId': intent.id
-      });
 
       if (payment && payment.lesson) {
-        await Lesson.findByIdAndUpdate(payment.lesson, {
-          isPaid: true,
-          payment: payment._id
-        });
+        // Update related Lesson lifecycle → paid
+        const lesson = await Lesson.findById(payment.lesson);
+        if (lesson) {
+          lesson.status = 'paid';
+          lesson.isPaid = true;
+          lesson.paidAt = new Date();
+          lesson.payment = payment._id;
+          await lesson.save();
+        }
       }
     } else if (event.type === 'payment_intent.payment_failed') {
       const pi = event.data.object;
-      console.log('Webhook got PI (failed):', pi.id);
-      const updated = await Payment.findOneAndUpdate(
+      console.log('Webhook PI failed:', pi.id);
+
+      await Payment.findOneAndUpdate(
         { provider: 'stripe', 'providerIds.paymentIntentId': pi.id },
         { status: 'failed' },
         { new: true }
       );
-      console.log('Updated doc (failed):', updated?._id || 'none');
     } else {
-      console.log('Ignoring event type:', event.type);
+      console.log('Stripe webhook: ignoring event type:', event.type);
     }
 
     return res.json({ received: true });
