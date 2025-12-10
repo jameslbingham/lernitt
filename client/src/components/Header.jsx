@@ -1,12 +1,5 @@
 // client/src/components/Header.jsx
-// Clean single-row header (Option 1)
-// - Shows logo
-// - Shows Browse Tutors
-// - Shows “Sign up as Student” + “Sign up as Tutor”
-// - Shows Login / Logout
-// - Shows My Lessons, Favourites, Notifications when logged in
-// - Works for admin, tutor, and student roles
-// ---------------------------------------------------------------
+// Desktop header unchanged + new mobile hamburger menu (Option B-2)
 
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -19,9 +12,10 @@ import logo from "../assets/lernitt-logo.png";
 export default function Header() {
   const { isAuthed, user, logout, getToken } = useAuth();
   const [unread, setUnread] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false); // NEW: mobile menu toggle
   const navigate = useNavigate();
 
-  // Load unread notifications
+  // Load unread notifications (unchanged)
   useEffect(() => {
     async function loadUnread() {
       const token = getToken();
@@ -54,8 +48,8 @@ export default function Header() {
           <img src={logo} alt="Lernitt logo" className="h-9 w-auto" />
         </Link>
 
-        {/* MIDDLE: Main navigation */}
-        <nav className="flex items-center gap-4 text-sm font-medium">
+        {/* DESKTOP NAV — visible on medium screens and up */}
+        <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
           <Link to="/tutors" className="hover:opacity-75">
             Browse Tutors
           </Link>
@@ -74,14 +68,14 @@ export default function Header() {
                 Notifications {unread > 0 && `(${unread})`}
               </Link>
 
-              {/* Tutor menu */}
+              {/* Tutor Dashboard */}
               {user?.role === "tutor" && (
                 <Link to="/tutor" className="hover:opacity-75">
                   Tutor Dashboard
                 </Link>
               )}
 
-              {/* Admin menu */}
+              {/* Admin */}
               {user?.role === "admin" && (
                 <Link to="/admin" className="hover:opacity-75">
                   Admin
@@ -91,11 +85,10 @@ export default function Header() {
           )}
         </nav>
 
-        {/* RIGHT SIDE BUTTONS */}
-        <div className="flex items-center gap-3 text-sm font-medium">
+        {/* DESKTOP RIGHT BUTTONS */}
+        <div className="hidden md:flex items-center gap-3 text-sm font-medium">
           {!isAuthed ? (
             <>
-              {/* Visitor buttons */}
               <Link
                 to="/signup"
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition"
@@ -119,7 +112,6 @@ export default function Header() {
             </>
           ) : (
             <>
-              {/* Logged-in user */}
               <span className="opacity-70 text-xs">
                 {user?.email || "User"}
               </span>
@@ -133,7 +125,90 @@ export default function Header() {
             </>
           )}
         </div>
+
+        {/* MOBILE MENU BUTTON — visible on small screens */}
+        <button
+          className="md:hidden flex items-center px-3 py-2 border rounded-lg hover:bg-gray-100"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          ☰
+        </button>
       </div>
+
+      {/* MOBILE DROPDOWN MENU (when hamburger is open) */}
+      {menuOpen && (
+        <div className="md:hidden border-t bg-white shadow-inner px-4 py-3 space-y-3 text-sm">
+          <Link to="/tutors" className="block hover:opacity-75">
+            Browse Tutors
+          </Link>
+
+          {isAuthed && (
+            <>
+              <Link to="/my-lessons" className="block hover:opacity-75">
+                My Lessons
+              </Link>
+
+              <Link to="/favourites" className="block hover:opacity-75">
+                Favourites
+              </Link>
+
+              <Link to="/notifications" className="block hover:opacity-75">
+                Notifications {unread > 0 && `(${unread})`}
+              </Link>
+
+              {user?.role === "tutor" && (
+                <Link to="/tutor" className="block hover:opacity-75">
+                  Tutor Dashboard
+                </Link>
+              )}
+
+              {user?.role === "admin" && (
+                <Link to="/admin" className="block hover:opacity-75">
+                  Admin
+                </Link>
+              )}
+            </>
+          )}
+
+          {!isAuthed ? (
+            <>
+              <Link
+                to="/signup"
+                className="block rounded-lg bg-indigo-600 px-4 py-2 text-white text-center hover:bg-indigo-700 transition"
+              >
+                Sign up as Student
+              </Link>
+
+              <Link
+                to="/signup?type=tutor"
+                className="block rounded-lg border border-indigo-600 px-4 py-2 text-indigo-600 text-center hover:bg-indigo-50 transition"
+              >
+                Sign up as Tutor
+              </Link>
+
+              <Link
+                to="/login"
+                className="block rounded-lg px-3 py-2 text-center hover:bg-gray-100 transition"
+              >
+                Login
+              </Link>
+            </>
+          ) : (
+            <>
+              <span className="block opacity-70 text-xs px-1">
+                {user?.email}
+              </span>
+
+              <button
+                onClick={() => logout()}
+                className="block w-full rounded-lg border px-3 py-2 text-center hover:bg-gray-50 transition"
+              >
+                Logout
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </header>
   );
 }
