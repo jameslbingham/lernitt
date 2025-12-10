@@ -150,22 +150,10 @@ export default function App({ mockMode }) {
 
   return (
     <BrowserRouter>
+      {/* NEW: always show Nav, even on homepage */}
+      <Nav />
 
-      {/* UPDATED AS REQUESTED */}
-      {window.location.pathname !== "/" && <Nav />}
-
-      {import.meta.env.VITE_MOCK === "1" && (
-        <div
-          style={{
-            background: "#fef3c7",
-            color: "#92400e",
-            padding: "6px 12px",
-            textAlign: "center",
-          }}
-        >
-          ⚠️ MOCK MODE: No real backend. Data is simulated.
-        </div>
-      )}
+      {/* REMOVED: mock-mode banner */}
 
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
         <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
