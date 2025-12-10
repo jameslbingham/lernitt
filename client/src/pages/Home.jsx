@@ -26,7 +26,8 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import Footer from "../components/Footer.jsx";
 
 // NEW: Lernitt logo image (with light blue background strip)
-import logo from "../assets/lernitt-logo.png";
+// NOTE: logo import removed because the global header now owns the logo
+// import logo from "../assets/lernitt-logo.png";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -152,7 +153,7 @@ function AskUsButton({ onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="fixed.bottom-4 left-4 z-30 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
+      className="fixed.bottom-4 left-4 z-30.inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
     >
       <span>❓</span>
       <span>Ask us</span>
@@ -426,14 +427,12 @@ export default function Home() {
 }
 
 // -----------------------------------------------------------------------------
-// MARKETING HOMEPAGE (shown only when NOT logged in)
+// MARKETING HOMEPAGE (shown only when NOT logged in / but now for everyone)
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
   // light mode now uses explicit hex background #E9F1F7
   const baseBg =
-    theme === "dark"
-      ? "bg-slate-950 text-slate-50"
-      : "text-slate-900";
+    theme === "dark" ? "bg-slate-950 text-slate-50" : "text-slate-900";
   const cardBg =
     theme === "dark"
       ? "bg-slate-900 border-slate-700"
@@ -448,10 +447,7 @@ function MarketingHomepage({ theme }) {
       className={`${baseBg} min-h-screen`}
       style={theme === "dark" ? undefined : { backgroundColor: "#E9F1F7" }}
     >
-      {/* Logo bar at top, left-aligned, small padding */}
-      <header className="px-4 pt-4 pb-2">
-        <img src={logo} alt="Lernitt logo" className="h-10 w-auto" />
-      </header>
+      {/* NOTE: old internal logo header removed so the new global header from App.jsx can be used */}
 
       <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-4 pb-20">
         {/* HERO SECTION */}
@@ -687,6 +683,7 @@ function MarketingHomepage({ theme }) {
 
 // -----------------------------------------------------------------------------
 // LOGGED-IN HOMEPAGE (full Chat 83 features preserved + refinements)
+// (NOTE: currently not rendered, but left intact as you requested)
 // -----------------------------------------------------------------------------
 function LoggedInHomepage({ theme }) {
   const [q, setQ] = useState("");
@@ -870,7 +867,7 @@ function LoggedInHomepage({ theme }) {
 
               <Link
                 to="/signup?type=tutor"
-                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
+                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white transition.hover:-translate-y-0.5 hover:bg-white hover:text-black"
               >
                 I’m a tutor — Apply to teach
               </Link>
@@ -896,7 +893,7 @@ function LoggedInHomepage({ theme }) {
                 e.preventDefault();
                 nav(`/tutors?q=${encodeURIComponent(q)}`);
               }}
-              className="flex flex-col items-center gap-2 sm:flex-row"
+              className="flex flex-col items-center gap-2.sm:flex-row"
             >
               <input
                 placeholder="Search tutors (e.g., English)"
@@ -906,7 +903,7 @@ function LoggedInHomepage({ theme }) {
               />
               <button
                 type="submit"
-                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
+                className="w-full rounded-xl.border px-3 py-2 text-sm sm:w-auto"
               >
                 Search
               </button>
@@ -948,7 +945,7 @@ function LoggedInHomepage({ theme }) {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
+                  className="rounded-xl.border px-3 py-1 text-sm"
                   to="/tutors"
                 >
                   Find tutors
@@ -1002,7 +999,7 @@ function LoggedInHomepage({ theme }) {
 
             {/* Upcoming lesson */}
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5.hover:shadow-md ${
                 theme === "dark"
                   ? "bg-slate-900 border-slate-700"
                   : "bg-white border-gray-200"
@@ -1011,7 +1008,7 @@ function LoggedInHomepage({ theme }) {
               <div className="mb-1 font-semibold">Upcoming lesson</div>
 
               {!isAuthed && (
-                <p className="text-sm opacity-80">
+                <p className="text-sm.opacity-80">
                   Log in to see your schedule.
                 </p>
               )}
@@ -1086,7 +1083,7 @@ function LoggedInHomepage({ theme }) {
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${
+                          className={`flex h-12 w-12.items-center justify-center rounded-full border text-base font-semibold shadow-inner ${
                             theme === "dark"
                               ? "bg-gradient-to-br from-indigo-500 to-sky-500"
                               : "bg-gradient-to-br from-indigo-100 to-sky-200"
@@ -1250,7 +1247,7 @@ function LoggedInHomepage({ theme }) {
             </div>
 
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`rounded-xl border p-4 shadow-sm.transition hover:-translate-y-0.5 hover:shadow-md ${
                 theme === "dark"
                   ? "bg-slate-900 border-slate-700"
                   : "bg-white border-gray-200"
@@ -1267,7 +1264,7 @@ function LoggedInHomepage({ theme }) {
             </div>
 
             <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`rounded-xl border p-4 shadow-sm.transition hover:-translate-y-0.5 hover:shadow-md ${
                 theme === "dark"
                   ? "bg-slate-900 border-slate-700"
                   : "bg-white border-gray-200"
