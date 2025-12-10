@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
+import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
 import { useAuth } from "./hooks/useAuth.jsx";
 
