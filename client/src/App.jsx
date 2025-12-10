@@ -35,12 +35,9 @@ const Availability = lazy(() => import("./pages/Availability.jsx"));
 const MyLessons = lazy(() => import("./pages/MyLessons.jsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
-// NEW — lazy import LessonEnded
 const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
-// NEW — lazy import LessonRecordings
 const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
 
-// NEW — signup + setup pages
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
 const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
@@ -150,11 +147,10 @@ export default function App({ mockMode }) {
 
   return (
     <BrowserRouter>
-      {/* NEW: always show Nav, even on homepage */}
+      {/* ALWAYS show Nav — this is the ONLY change you requested */}
       <Nav />
 
-      {/* REMOVED: mock-mode banner */}
-
+      {/* KEEP your main wrapper exactly the same */}
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
         <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
           <Routes>
@@ -162,11 +158,12 @@ export default function App({ mockMode }) {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
 
-            {/* NEW ROUTES */}
+            {/* Signup + Setup */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/welcome-setup" element={<WelcomeSetup />} />
             <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
 
+            {/* Tutors / students */}
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/tutors/:id" element={<TutorProfile />} />
             <Route path="/book/:tutorId" element={<BookLesson />} />
@@ -201,7 +198,7 @@ export default function App({ mockMode }) {
               }
             />
 
-            {/* Auth-protected routes */}
+            {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/availability" element={<Availability />} />
               <Route path="/my-lessons" element={<MyLessons />} />
@@ -216,13 +213,13 @@ export default function App({ mockMode }) {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/tutor" element={<TutorDashboard />} />
 
-              {/* NEW — Video lesson route */}
+              {/* Video lesson */}
               <Route path="/video" element={<VideoLesson />} />
 
-              {/* NEW — Lesson ended summary page */}
+              {/* Lesson ended */}
               <Route path="/lesson-ended" element={<LessonEnded />} />
 
-              {/* NEW — Lesson recordings page */}
+              {/* Recordings */}
               <Route
                 path="/lesson-recordings"
                 element={<LessonRecordings />}
