@@ -11,17 +11,16 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
-import Favourites from "./pages/Favourites.jsx";
-import { apiFetch } from "./lib/apiFetch.js";
 import { useAuth } from "./hooks/useAuth.jsx";
+import { apiFetch } from "./lib/apiFetch.js";
 
-// NEW: Global header
+// NEW: Global header (always visible)
 import Header from "./components/Header.jsx";
 
 // NEW (static import)
 import VideoLesson from "./pages/VideoLesson.jsx";
 
-// ---- Lazy imports -------------------------------------------------------
+// Lazy imports -------------------------------------------------------
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -54,11 +53,12 @@ import TutorDashboard from "./pages/TutorDashboard";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
-// ---- Admin Guard --------------------------------------------------------
+// -------------------------------------------------------------------------
+// Admin guard
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
-
   const loc = useLocation();
+
   if (!token) {
     const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
     return <Navigate to={`/login?next=${next}`} replace />;
@@ -77,31 +77,27 @@ export default function App({ mockMode }) {
 
   return (
     <BrowserRouter>
-      {/* NEW: global header always visible */}
+      {/* GLOBAL HEADER — always visible, no Nav */}
       <Header />
-
-      {/* REMOVED: mock mode banner (you requested clean layout) */}
 
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
         <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
           <Routes>
+
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-
-            {/* Signup + onboarding */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/welcome-setup" element={<WelcomeSetup />} />
             <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
 
-            {/* Main marketplace routes */}
+            {/* Marketplace */}
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/tutors/:id" element={<TutorProfile />} />
             <Route path="/book/:tutorId" element={<BookLesson />} />
             <Route path="/pay/:lessonId" element={<Pay />} />
             <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
             <Route path="/students" element={<Students />} />
-            <Route path="/favourites" element={<Favourites />} />
 
             {/* Admin */}
             <Route
@@ -112,6 +108,7 @@ export default function App({ mockMode }) {
                 </AdminGuard>
               }
             />
+
             <Route
               path="/admin/payouts"
               element={
@@ -120,6 +117,7 @@ export default function App({ mockMode }) {
                 </AdminGuard>
               }
             />
+
             <Route
               path="/admin/*"
               element={
@@ -129,7 +127,7 @@ export default function App({ mockMode }) {
               }
             />
 
-            {/* Auth-protected */}
+            {/* Auth-protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/availability" element={<Availability />} />
               <Route path="/my-lessons" element={<MyLessons />} />
@@ -142,6 +140,7 @@ export default function App({ mockMode }) {
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/notifications" element={<Notifications />} />
+
               <Route path="/tutor" element={<TutorDashboard />} />
 
               {/* Video lessons */}
@@ -152,6 +151,7 @@ export default function App({ mockMode }) {
 
             {/* Fallback */}
             <Route path="*" element={<Home />} />
+
           </Routes>
         </Suspense>
       </main>
