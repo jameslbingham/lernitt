@@ -6,16 +6,16 @@ import {
   BrowserRouter,
   Routes,
   Route,
-  Link,
-  useNavigate,
   Navigate,
   useLocation,
 } from "react-router-dom";
 
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
-import Favourites from "./pages/Favourites.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
 import { useAuth } from "./hooks/useAuth.jsx";
+
+// NEW: Global header
+import Header from "./components/Header.jsx";
 
 // NEW (static import)
 import VideoLesson from "./pages/VideoLesson.jsx";
@@ -35,9 +35,12 @@ const Availability = lazy(() => import("./pages/Availability.jsx"));
 const MyLessons = lazy(() => import("./pages/MyLessons.jsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
+// NEW — lazy import LessonEnded
 const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
+// NEW — lazy import LessonRecordings
 const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
 
+// NEW — signup + setup pages
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
 const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
@@ -53,104 +56,31 @@ const API = import.meta.env.VITE_API || "http://localhost:5000";
 // ---- Admin Guard --------------------------------------------------------
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
-  const loc = useLocation();
 
+  const loc = useLocation();
   if (!token) {
     const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
+
   if (!user || user.role !== "admin") {
     return <Navigate to="/" replace />;
   }
+
   return children;
 }
 // -------------------------------------------------------------------------
-
-function Nav() {
-  const nav = useNavigate();
-  const [unread, setUnread] = useState(0);
-  const { isAuthed, user, logout, getToken } = useAuth();
-
-  async function fetchUnread() {
-    const token = getToken();
-    if (!token) return setUnread(0);
-    try {
-      const list = await apiFetch(`${API}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUnread(Array.isArray(list) ? list.filter((n) => !n.read).length : 0);
-    } catch {
-      setUnread(0);
-    }
-  }
-
-  useEffect(() => {
-    fetchUnread();
-    const id = setInterval(fetchUnread, 2000);
-    const onAuth = () => fetchUnread();
-    window.addEventListener("auth-change", onAuth);
-    return () => {
-      clearInterval(id);
-      window.removeEventListener("auth-change", onAuth);
-    };
-  }, []);
-
-  return (
-    <nav style={{ padding: 12 }}>
-      <Link to="/">Home</Link> | <Link to="/tutors">Tutors</Link> |{" "}
-      <Link to="/favourites">Favourites</Link> |{" "}
-      <Link to="/my-lessons">My Lessons</Link> |{" "}
-      <Link to="/tutor-lessons">Tutor Lessons</Link> |{" "}
-      <Link to="/students">Students</Link> |{" "}
-      <Link to="/availability">Availability</Link> |{" "}
-      <Link to="/payouts">Payouts</Link> | <Link to="/profile">Profile</Link> |{" "}
-      <Link to="/settings">Settings</Link> |{" "}
-      <Link to="/notifications">
-        Notifications{unread ? ` (${unread})` : ""}
-      </Link>{" "}
-      {user?.role === "admin" && <> | <Link to="/admin">Admin</Link></>}
-      {" | "} <Link to="/tutor">Tutor Dashboard</Link>
-      {isAuthed ? (
-        <>
-          {" | "}
-          <button
-            type="button"
-            onClick={() => logout()}
-            style={{ cursor: "pointer" }}
-          >
-            Logout
-          </button>
-        </>
-      ) : (
-        <>
-          {" | "}
-          <Link to="/login">Login</Link>
-          {" | "}
-          <Link to="/signup">
-            <strong>Sign up</strong>
-          </Link>
-          {" | "}
-          <Link to="/signup?type=tutor">Apply as a Tutor</Link>
-        </>
-      )}
-      {isAuthed && (
-        <div style={{ marginTop: 6, fontSize: "0.8rem", opacity: 0.7 }}>
-          Logged in as {user?.email || user?.role}
-        </div>
-      )}
-    </nav>
-  );
-}
 
 export default function App({ mockMode }) {
   console.log("App rendering, mockMode =", mockMode);
 
   return (
     <BrowserRouter>
-      {/* ALWAYS show Nav — this is the ONLY change you requested */}
-      <Nav />
+      {/* NEW: global header always visible */}
+      <Header />
 
-      {/* KEEP your main wrapper exactly the same */}
+      {/* REMOVED: mock mode banner (you requested clean layout) */}
+
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
         <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
           <Routes>
@@ -158,12 +88,12 @@ export default function App({ mockMode }) {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
 
-            {/* Signup + Setup */}
+            {/* Signup + onboarding */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/welcome-setup" element={<WelcomeSetup />} />
             <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
 
-            {/* Tutors / students */}
+            {/* Main marketplace routes */}
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/tutors/:id" element={<TutorProfile />} />
             <Route path="/book/:tutorId" element={<BookLesson />} />
@@ -172,7 +102,7 @@ export default function App({ mockMode }) {
             <Route path="/students" element={<Students />} />
             <Route path="/favourites" element={<Favourites />} />
 
-            {/* Admin routes */}
+            {/* Admin */}
             <Route
               path="/admin"
               element={
@@ -198,7 +128,7 @@ export default function App({ mockMode }) {
               }
             />
 
-            {/* Protected routes */}
+            {/* Auth-protected */}
             <Route element={<ProtectedRoute />}>
               <Route path="/availability" element={<Availability />} />
               <Route path="/my-lessons" element={<MyLessons />} />
@@ -213,17 +143,10 @@ export default function App({ mockMode }) {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/tutor" element={<TutorDashboard />} />
 
-              {/* Video lesson */}
+              {/* Video lessons */}
               <Route path="/video" element={<VideoLesson />} />
-
-              {/* Lesson ended */}
               <Route path="/lesson-ended" element={<LessonEnded />} />
-
-              {/* Recordings */}
-              <Route
-                path="/lesson-recordings"
-                element={<LessonRecordings />}
-              />
+              <Route path="/lesson-recordings" element={<LessonRecordings />} />
             </Route>
 
             {/* Fallback */}
