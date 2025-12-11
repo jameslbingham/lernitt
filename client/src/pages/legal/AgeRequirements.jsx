@@ -202,6 +202,7 @@ export default function AgeRequirements() {
         <li>Email: support@lernitt.com</li>
         <li>Legal: legal@lernitt.com</li>
         <li>Privacy: privacy@lernitt.com</li>
+        <li>Postal: Lernitt Pty Ltd, Victoria, Australia</li>
       </ul>
       <p>We aim to respond promptly and in line with our Complaints Policy.</p>
     </div>
