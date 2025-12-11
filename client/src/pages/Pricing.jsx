@@ -11,7 +11,7 @@ export default function Pricing() {
       <section className="text-center mb-12">
         <h1 className="text-3xl font-bold mb-3">Simple, Fair & Transparent Pricing</h1>
         <p className="text-slate-600 text-lg">
-          Lernitt gives students flexibility and gives tutors the best earnings in the industry.
+          Lernitt is built for real learning — flexible pricing for students, and industry-leading earnings for tutors.
         </p>
       </section>
 
@@ -22,23 +22,28 @@ export default function Pricing() {
         <h2 className="text-2xl font-semibold mb-4">Pricing for Students</h2>
 
         <p className="mb-4 text-slate-700">
-          Lernitt is designed to give every student access to the right tutor—no matter your budget.
-          Each tutor sets their own hourly rate based on their skills, demand, and experience. This
-          gives you a wide range of price options, from affordable beginners to highly experienced
-          experts.
+          Great tutors shouldn’t be limited to those with the highest budgets. On Lernitt,{" "}
+          <strong>every tutor sets their own hourly rate</strong>, giving you a broad range of price points —
+          from accessible beginners to highly specialised experts.
+        </p>
+
+        <p className="mb-4 text-slate-700">
+          You stay in control: no subscriptions, no lock-ins, no long-term commitments. Pay only for
+          the lessons you book, with complete transparency before checkout.
         </p>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h3 className="font-semibold text-blue-700 mb-2">🎁 You get 3 FREE trial lessons</h3>
           <p className="text-blue-800">
-            Try any tutor before committing. You can take up to <strong>three free 30-minute trials</strong> with different tutors.
+            Try any tutor before committing. You can take up to <strong>three free 30-minute trials</strong> with different tutors — 
+            a simple way to find the perfect match.
           </p>
         </div>
 
         <ul className="list-disc pl-5 space-y-2 text-slate-700 mb-6">
-          <li>Choose from tutors at all price levels</li>
-          <li>No subscriptions or lock-in contracts</li>
-          <li>Pay only for the lessons you book</li>
+          <li>Tutors for every budget, subject and skill level</li>
+          <li>No subscriptions or hidden fees</li>
+          <li>Transparent lesson pricing — always shown upfront</li>
           <li>Secure payments through Stripe or PayPal</li>
         </ul>
 
@@ -59,23 +64,30 @@ export default function Pricing() {
         <h2 className="text-2xl font-semibold mb-4">Pricing for Tutors</h2>
 
         <p className="mb-4 text-slate-700">
-          Lernitt is built to empower tutors. Unlike other platforms that take 20–33% of your income,
-          Lernitt keeps commission low and transparent—so you earn more from every lesson.
+          Lernitt is designed by someone with over 10 years of online tutoring experience — a platform 
+          that finally respects tutors and pays them what they deserve. Unlike many competitors that
+          take 20–33% commission, Lernitt keeps things simple, fair and tutor-friendly.
         </p>
 
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
           <h3 className="font-semibold text-green-700 mb-2">💰 Only 15% tutor commission</h3>
           <p className="text-green-800">
-            You keep <strong>85% of every lesson</strong>. Our competitors usually take far more.
+            You keep <strong>85% of every lesson</strong>. Our low commission means more income, more freedom,
+            and more long-term earning potential.
           </p>
         </div>
 
+        <p className="mb-4 text-slate-700">
+          Set your own rate, teach when you want, and grow your business with modern tools made specifically 
+          for professional online tutors.
+        </p>
+
         <ul className="list-disc pl-5 space-y-2 text-slate-700 mb-6">
-          <li>Set your own hourly rate</li>
-          <li>No joining fees & no monthly fees</li>
+          <li>Set your own hourly prices</li>
+          <li>No joining fees, no monthly fees</li>
           <li>Automatic payouts to your bank or PayPal</li>
-          <li>Fast scheduling, booking and lesson tools</li>
-          <li>More earnings on every lesson you teach</li>
+          <li>Scheduling, booking and messaging tools built for tutor success</li>
+          <li>More earnings per lesson compared to major competitors</li>
         </ul>
 
         <div className="text-center">
