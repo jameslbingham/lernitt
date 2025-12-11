@@ -16,6 +16,8 @@ import { apiFetch } from "./lib/apiFetch.js";
 
 // GLOBAL HEADER
 import Header from "./components/Header.jsx";
+// GLOBAL FOOTER — NEW
+import Footer from "./components/Footer.jsx";
 
 // STATIC IMPORT
 import VideoLesson from "./pages/VideoLesson.jsx";
@@ -173,6 +175,9 @@ export default function App({ mockMode }) {
           </Routes>
         </Suspense>
       </main>
+
+      {/* GLOBAL FOOTER — NEW */}
+      <Footer />
     </BrowserRouter>
   );
 }
