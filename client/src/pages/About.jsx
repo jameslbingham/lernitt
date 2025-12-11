@@ -12,7 +12,8 @@ export default function About() {
             About Lernitt
           </h1>
           <p className="mx-auto max-w-2xl text-sm opacity-80 sm:text-base">
-            A global learning platform built by a real tutor — for students and tutors everywhere.
+            A global learning platform built by a real tutor — designed with the heart,
+            insight and experience of someone who understands both sides of the lesson.
           </p>
         </section>
 
@@ -22,13 +23,16 @@ export default function About() {
         >
           <h2 className="text-2xl font-bold">Our Story</h2>
           <p className="text-sm opacity-85 leading-relaxed">
-            Lernitt was founded with a simple idea: learning works best when students connect with
-            tutors who truly understand their goals. Many platforms feel complicated, expensive,
-            or impersonal — we wanted to fix that.
+            Lernitt was created from a simple belief: learning works best when real people
+            connect — with clarity, fairness and genuine understanding. After more than
+            a decade teaching online and supporting students from all over the world, our
+            founder saw what worked, what didn’t, and what students and tutors wished existed.
           </p>
           <p className="text-sm opacity-85 leading-relaxed">
-            Our mission is to create a platform that is friendly, simple, affordable, and genuinely
-            helpful for both sides of the learning experience.
+            Having lived as an expat for over 10 years in Asia and Europe, working and
+            teaching across cultures, he gained a deep understanding of what learners
+            truly need — and what kind of platform actually supports tutors. Lernitt was
+            built to be friendly, simple, and human-centred, not corporate or complicated.
           </p>
         </section>
 
@@ -38,18 +42,22 @@ export default function About() {
         >
           <h2 className="text-2xl font-bold">Built by a Tutor Who Understands Both Sides</h2>
           <p className="text-sm leading-relaxed opacity-90">
-            Lernitt is not a corporate project. It was created by a tutor with over{" "}
-            <strong className="font-semibold">10 years of real online teaching experience</strong>,
-            thousands of lessons taught, and a deep understanding of what students actually need to succeed.
+            Lernitt is not a Silicon Valley tech product — it is a platform shaped by real
+            teaching experience. With over <strong className="font-semibold">10 years of
+            online tutoring</strong> and thousands of lessons taught, our founder has helped
+            students achieve remarkable results: job interviews, language exams, career
+            transitions and life-changing confidence.
           </p>
           <p className="text-sm leading-relaxed opacity-90">
-            Our founder has helped students achieve outstanding results — from job interview success to 
-            language exam passes and real-world confidence. That insight shapes every feature on Lernitt.
+            Because he has also spent years studying languages online himself, Lernitt was
+            built with empathy for both perspectives. We know what motivates students. We
+            know what makes a truly great tutor. And we know how important it is for a
+            learning platform to feel simple, welcoming and trustworthy.
           </p>
           <p className="text-sm leading-relaxed opacity-90">
-            Because he has also been a student learning languages online, Lernitt is built with empathy 
-            for both perspectives. We know what motivates students. We know what makes a great tutor. 
-            And we know what gets in the way — so we designed a platform that removes everything unnecessary.
+            This blend of teaching expertise, learner insight, and global experience informs
+            every part of Lernitt — from the design choices to the lesson tools to the fair,
+            transparent pricing structure.
           </p>
         </section>
 
@@ -64,13 +72,15 @@ export default function About() {
             <div className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gradient-to-br from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 p-6 shadow-sm">
               <h3 className="text-lg font-semibold">For Students</h3>
               <p className="text-sm opacity-85 leading-relaxed">
-                Lernitt offers tutors at every price point, from budget-friendly options to highly
-                experienced specialists. With{" "}
-                <strong className="font-semibold">three free trial lessons</strong>, students can explore 
-                different tutors, styles, and subjects before committing.
+                Lernitt offers tutors at every price point, from affordable beginners to
+                highly experienced specialists. With{" "}
+                <strong className="font-semibold">three free trial lessons</strong>, you can
+                explore different tutors, teaching styles and subjects before choosing the
+                right match.
               </p>
               <p className="text-sm opacity-85 leading-relaxed">
-                You choose the tutor that matches your goals — guided by real experience and transparent pricing.
+                You stay in control — choosing the tutor who fits your learning goals,
+                personality and budget.
               </p>
             </div>
 
@@ -78,17 +88,14 @@ export default function About() {
             <div className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gradient-to-br from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 p-6 shadow-sm">
               <h3 className="text-lg font-semibold">For Tutors</h3>
               <p className="text-sm opacity-85 leading-relaxed">
-                Lernitt gives tutors more freedom, more support, and{" "}
-                <strong className="font-semibold">significantly lower commission fees</strong> than other platforms.
+                Lernitt gives tutors a fairer platform — with a transparent{" "}
+                <strong className="font-semibold">15% commission</strong> so you keep more of
+                what you earn.
               </p>
               <p className="text-sm opacity-85 leading-relaxed">
-                With a transparent{" "}
-                <strong className="font-semibold">15% commission</strong>, tutors keep far more of
-                what they earn — while still accessing a growing global audience.
-              </p>
-              <p className="text-sm opacity-85 leading-relaxed">
-                We built the tools tutors actually need: simple scheduling, clear payouts, fair pricing,
-                and a platform designed by someone who knows the job.
+                Because Lernitt is built by a tutor, the tools are practical, the layout is
+                clean, and the system supports your success rather than restricting it.
+                Scheduling is simple, communication is clear, and payouts are fast.
               </p>
             </div>
           </div>
@@ -100,13 +107,14 @@ export default function About() {
         >
           <h2 className="text-2xl font-bold">Our Mission</h2>
           <p className="text-sm opacity-85 leading-relaxed">
-            Lernitt exists to make high-quality learning accessible — and to empower tutors with
-            the tools and fairness they deserve. When both sides thrive, learning becomes smoother,
-            faster, and more enjoyable.
+            Lernitt exists to make high-quality learning accessible and to give tutors the
+            fairness and support they deserve. Great learning happens when tutors feel valued
+            and students feel confident — and our platform is built to make that possible.
           </p>
           <p className="text-sm opacity-85 leading-relaxed">
-            We believe learning should feel personal. Human. Motivating. And supported by a platform
-            that truly understands what happens in real lessons — because we’ve been there.
+            We believe learning should feel personal, motivating and human. And we believe
+            in a platform designed by someone who has lived the real tutoring experience —
+            both as a teacher and as a student.
           </p>
         </section>
 
