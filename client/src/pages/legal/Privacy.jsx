@@ -39,7 +39,7 @@ export default function Privacy() {
       <p><strong>b)</strong> For all privacy enquiries, contact:</p>
       <ul>
         <li>Email: privacy@lernitt.com</li>
-        <li>Postal: Lernitt Pty Ltd, NSW, Australia (address to be inserted)</li>
+        <li>Postal: Lernitt Pty Ltd, <strong>Victoria, Australia</strong> (address to be inserted)</li>
       </ul>
       <p>
         <strong>c)</strong> For GDPR matters, Lernitt acts as a Data Controller for personal
@@ -350,7 +350,7 @@ export default function Privacy() {
       <ul>
         <li>Email: privacy@lernitt.com</li>
         <li>Support: contact form on our website</li>
-        <li>Postal: Lernitt Pty Ltd, NSW, Australia</li>
+        <li>Postal: Lernitt Pty Ltd, <strong>Victoria, Australia</strong></li>
       </ul>
       <p>We aim to respond within a reasonable timeframe.</p>
     </div>
