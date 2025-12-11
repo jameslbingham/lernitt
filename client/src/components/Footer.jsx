@@ -19,6 +19,7 @@ export default function Footer({ theme = "light" }) {
         </div>
 
         <nav className="flex flex-wrap gap-4 text-xs sm:text-sm">
+          {/* Primary navigation */}
           <Link to="/about" className="hover:underline">
             About
           </Link>
@@ -31,11 +32,22 @@ export default function Footer({ theme = "light" }) {
           <Link to="/contact" className="hover:underline">
             Contact
           </Link>
+
+          {/* Legal links */}
           <Link to="/terms" className="hover:underline">
             Terms
           </Link>
           <Link to="/privacy" className="hover:underline">
             Privacy
+          </Link>
+          <Link to="/cookies" className="hover:underline">
+            Cookies
+          </Link>
+          <Link to="/complaints" className="hover:underline">
+            Complaints
+          </Link>
+          <Link to="/age-requirements" className="hover:underline">
+            Age requirements
           </Link>
         </nav>
       </div>
