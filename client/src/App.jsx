@@ -14,13 +14,13 @@ import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth } from "./hooks/useAuth.jsx";
 import { apiFetch } from "./lib/apiFetch.js";
 
-// NEW: Global header (always visible)
+// GLOBAL HEADER
 import Header from "./components/Header.jsx";
 
-// NEW (static import)
+// STATIC IMPORT
 import VideoLesson from "./pages/VideoLesson.jsx";
 
-// Lazy imports -------------------------------------------------------
+// LAZY IMPORTS -------------------------------------------------------
 const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -35,21 +35,33 @@ const Availability = lazy(() => import("./pages/Availability.jsx"));
 const MyLessons = lazy(() => import("./pages/MyLessons.jsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
-// NEW — lazy import LessonEnded
 const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
-// NEW — lazy import LessonRecordings
-const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
+const LessonRecordings = lazy(() =>
+  import("./pages/LessonRecordings.jsx")
+);
 
-// NEW — signup + setup pages
+// Signup + setup pages
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
-const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
+const TutorProfileSetup = lazy(() =>
+  import("./pages/TutorProfileSetup.jsx")
+);
 
+// Tutor & student lesson pages
 import TutorLessons from "./pages/TutorLessons.jsx";
 import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
 import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
 import TutorDashboard from "./pages/TutorDashboard";
+
+// LEGAL PAGES — NEW
+const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
+const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
+const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
+const Complaints = lazy(() => import("./pages/legal/Complaints.jsx"));
+const AgeRequirements = lazy(() =>
+  import("./pages/legal/AgeRequirements.jsx")
+);
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 
@@ -77,7 +89,7 @@ export default function App({ mockMode }) {
 
   return (
     <BrowserRouter>
-      {/* GLOBAL HEADER — always visible, no Nav */}
+      {/* GLOBAL HEADER */}
       <Header />
 
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
@@ -99,7 +111,14 @@ export default function App({ mockMode }) {
             <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
             <Route path="/students" element={<Students />} />
 
-            {/* Admin */}
+            {/* LEGAL ROUTES — NEW */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/cookies" element={<Cookies />} />
+            <Route path="/complaints" element={<Complaints />} />
+            <Route path="/age-requirements" element={<AgeRequirements />} />
+
+            {/* ADMIN */}
             <Route
               path="/admin"
               element={
@@ -127,7 +146,7 @@ export default function App({ mockMode }) {
               }
             />
 
-            {/* Auth-protected routes */}
+            {/* AUTH-PROTECTED ROUTES */}
             <Route element={<ProtectedRoute />}>
               <Route path="/availability" element={<Availability />} />
               <Route path="/my-lessons" element={<MyLessons />} />
@@ -149,9 +168,8 @@ export default function App({ mockMode }) {
               <Route path="/lesson-recordings" element={<LessonRecordings />} />
             </Route>
 
-            {/* Fallback */}
+            {/* FALLBACK */}
             <Route path="*" element={<Home />} />
-
           </Routes>
         </Suspense>
       </main>
