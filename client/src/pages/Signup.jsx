@@ -26,18 +26,14 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      // MOCK MODE
       if (MOCK) {
         login("mock-token", { email, role, name });
-        if (role === "tutor") {
-          nav("/tutor-profile-setup", { replace: true });
-        } else {
-          nav("/welcome-setup", { replace: true });
-        }
+        nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup", {
+          replace: true,
+        });
         return;
       }
 
-      // REAL SIGNUP
       const data = await apiFetch(`${API}/api/auth/signup`, {
         method: "POST",
         body: { email, password, name, role },
@@ -48,12 +44,9 @@ export default function Signup() {
       }
 
       login(data.token, data.user);
-
-      if (role === "tutor") {
-        nav("/tutor-profile-setup", { replace: true });
-      } else {
-        nav("/welcome-setup", { replace: true });
-      }
+      nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup", {
+        replace: true,
+      });
     } catch (e2) {
       setErr(e2?.message || "Signup failed");
     } finally {
@@ -62,159 +55,135 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 px-4 py-10">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
+      <main className="mx-auto max-w-4xl px-4 pt-20 pb-20 space-y-12">
 
-        {/* ================================
-            HEADER
-        ================================= */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-extrabold mb-3">Create Your Account</h1>
-          <p className="text-slate-600 dark:text-slate-300">
-            Join a learning community built for real progress — whether you're a student or a tutor.
+        {/* HERO */}
+        <section className="text-center space-y-4">
+          <h1 className="text-4xl font-extrabold sm:text-5xl">
+            Create Your Lernitt Account
+          </h1>
+          <p className="mx-auto max-w-2xl text-sm sm:text-base opacity-80">
+            Join a learning platform built by someone who understands both students and tutors —
+            because he’s been both.
           </p>
-        </div>
+        </section>
 
-        {/* ================================
-            BIG ROLE CARDS
-        ================================= */}
-        <div className="grid sm:grid-cols-2 gap-6 mb-12">
-          {/* STUDENT CARD */}
-          <button
-            type="button"
-            onClick={() => setRole("student")}
-            className={`rounded-2xl border p-6 text-left shadow-sm transition 
-              ${role === "student"
-                ? "border-blue-600 ring-2 ring-blue-400 bg-blue-50"
-                : "border-slate-300 bg-white dark:bg-slate-900"
-              }`}
-          >
-            <h3 className="text-xl font-bold mb-2">I'm a Student</h3>
-            <p className="text-sm opacity-80 mb-3">
-              Find the perfect tutor at your price level. No subscriptions, no lock-ins.
-            </p>
-            <ul className="text-sm list-disc pl-4 space-y-1 opacity-80">
-              <li>3 free trial lessons</li>
-              <li>Choose tutors across all price points</li>
-              <li>Transparent pricing per lesson</li>
-              <li>Learn flexibly, on your schedule</li>
-            </ul>
-          </button>
+        {/* FOUNDER TRUST BLOCK */}
+        <section className="rounded-2xl border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 p-8 shadow-sm space-y-4">
+          <h2 className="text-xl font-bold text-indigo-700 dark:text-indigo-300">
+            Why Lernitt?
+          </h2>
+          <p className="text-sm leading-relaxed opacity-90">
+            Lernitt was founded by a tutor with over <strong>10 years of online teaching experience</strong>,
+            thousands of lessons taught, and real success helping students pass exams and land jobs.
+          </p>
+          <p className="text-sm leading-relaxed opacity-90">
+            Having also studied languages online and lived as an expat across Asia and Europe,
+            Lernitt is designed with empathy for both sides of the learning experience.
+          </p>
+          <p className="text-sm leading-relaxed opacity-90">
+            That means clearer expectations, fairer systems, and a platform that respects your time.
+          </p>
+        </section>
 
-          {/* TUTOR CARD */}
-          <button
-            type="button"
-            onClick={() => setRole("tutor")}
-            className={`rounded-2xl border p-6 text-left shadow-sm transition 
-              ${role === "tutor"
-                ? "border-green-600 ring-2 ring-green-400 bg-green-50"
-                : "border-slate-300 bg-white dark:bg-slate-900"
-              }`}
-          >
-            <h3 className="text-xl font-bold mb-2">I'm a Tutor</h3>
-            <p className="text-sm opacity-80 mb-3">
-              Earn more teaching online with a platform built by a real tutor.
-            </p>
-            <ul className="text-sm list-disc pl-4 space-y-1 opacity-80">
-              <li>Only 15% commission — you keep 85%</li>
-              <li>Set your own hourly rate</li>
-              <li>No joining or subscription fees</li>
-              <li>Scheduling, messaging & payout tools included</li>
-            </ul>
-          </button>
-        </div>
+        {/* SIGNUP CARD */}
+        <section className="mx-auto max-w-md rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
 
-        {/* ================================
-            ERROR BANNER
-        ================================= */}
-        {err && (
-          <div
-            role="alert"
-            className="mb-6 rounded-lg border border-red-300 bg-red-50 text-red-700 p-3 text-sm"
-          >
-            {err}
-          </div>
-        )}
+          <h2 className="text-2xl font-bold text-center">Get Started</h2>
 
-        {/* ================================
-            SIGNUP FORM
-        ================================= */}
-        <div className="max-w-md mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 shadow-sm">
-          <form onSubmit={onSubmit} className="space-y-6">
+          {err && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {err}
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="space-y-4">
 
             {/* NAME */}
-            <div>
-              <label className="block mb-1 text-sm font-medium">Full Name</label>
+            <label className="block text-sm font-medium">
+              Full Name
               <input
                 type="text"
-                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+                required
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-            </div>
+            </label>
 
             {/* EMAIL */}
-            <div>
-              <label className="block mb-1 text-sm font-medium">Email</label>
+            <label className="block text-sm font-medium">
+              Email
               <input
                 type="email"
-                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
                 autoComplete="username"
-                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-            </div>
+            </label>
 
             {/* PASSWORD */}
-            <div>
-              <label className="block mb-1 text-sm font-medium">Password</label>
-              <div className="relative">
+            <label className="block text-sm font-medium">
+              Password
+              <div className="relative mt-1">
                 <input
                   type={showPw ? "text" : "password"}
-                  required={!MOCK}
-                  placeholder={MOCK ? "(ignored in mock mode)" : ""}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required={!MOCK}
+                  placeholder={MOCK ? "(ignored in mock mode)" : ""}
                   autoComplete="new-password"
-                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 pr-16"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs border border-slate-300 dark:border-slate-600 px-2 py-1 rounded-md bg-white dark:bg-slate-800"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border px-2 py-1 text-xs"
                 >
                   {showPw ? "Hide" : "Show"}
                 </button>
               </div>
-            </div>
+            </label>
 
-            {/* HIDDEN ROLE FIELD */}
-            <input type="hidden" value={role} readOnly />
+            {/* ROLE */}
+            <label className="block text-sm font-medium">
+              I want to sign up as
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="student">Student</option>
+                <option value="tutor">Tutor</option>
+              </select>
+            </label>
 
-            {/* SUBMIT BUTTON */}
+            {/* SUBMIT */}
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 rounded-lg font-semibold text-white transition 
-                ${role === "tutor" ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
-                ${loading ? "opacity-50 cursor-not-allowed" : ""}
-              `}
+              className="w-full rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
             >
-              {loading ? "Creating…" : `Sign up as ${role}`}
+              {loading ? "Creating account…" : "Create Account"}
             </button>
           </form>
 
-          {/* LOGIN LINK */}
-          <div className="text-center mt-4 text-sm">
+          {/* LOGIN */}
+          <p className="text-center text-sm opacity-80">
             Already have an account?{" "}
-            <Link to="/login" className="underline">
+            <Link to="/login" className="font-semibold underline">
               Log in
             </Link>
-          </div>
-        </div>
-      </div>
+          </p>
+        </section>
+
+      </main>
     </div>
   );
 }
