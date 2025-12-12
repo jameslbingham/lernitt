@@ -15,19 +15,24 @@ export default function Contact() {
           </p>
         </section>
 
-        {/* FOUNDER TRUST BLOCK — NEW */}
+        {/* FOUNDER TRUST BLOCK */}
         <section className="rounded-2xl border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 p-8 shadow-sm space-y-4">
           <h2 className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
             Real People. Real Experience.
           </h2>
           <p className="text-sm leading-relaxed opacity-90">
-            Lernitt was founded by someone with over <strong>10 years of online tutoring experience</strong>,
-            thousands of lessons taught, and firsthand experience learning languages online as a student.
+            Lernitt was founded by someone with over{" "}
+            <strong>10 years of online tutoring experience</strong>, thousands of lessons taught,
+            and firsthand experience learning languages online as a student.
           </p>
           <p className="text-sm leading-relaxed opacity-90">
             Having lived and worked as an expat across Asia and Europe, we understand what students
             and tutors actually need — clear communication, fair systems, and responsive support.
-            That same understanding shapes how we handle every message you send us.
+          </p>
+          {/* SHORT TRUST ADDITION */}
+          <p className="text-sm leading-relaxed opacity-90">
+            You’re not contacting a faceless corporation — you’re contacting a platform built by a
+            real tutor who still cares deeply about teaching quality and learner outcomes.
           </p>
         </section>
 
@@ -106,7 +111,6 @@ export default function Contact() {
               contacting Lernitt.
             </p>
           </div>
-
         </section>
 
         {/* RESPONSE TIME */}
@@ -116,6 +120,11 @@ export default function Contact() {
             Our team aims to reply within <strong>24–48 hours</strong>.
             Complaints or urgent matters may be prioritised.
           </p>
+        </section>
+
+        {/* JURISDICTION */}
+        <section className="text-center text-xs opacity-70">
+          Lernitt operates under the laws of <strong>Victoria, Australia</strong>.
         </section>
 
         {/* LINKS TO POLICIES */}
