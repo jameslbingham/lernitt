@@ -14,7 +14,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("student"); // default
+  const [role, setRole] = useState("student");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,10 +47,8 @@ export default function Signup() {
         throw new Error("Invalid signup response from server");
       }
 
-      // Store token + user
       login(data.token, data.user);
 
-      // Redirect based on role
       if (role === "tutor") {
         nav("/tutor-profile-setup", { replace: true });
       } else {
@@ -64,152 +62,158 @@ export default function Signup() {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: 20 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 10 }}>
-        Create Account
-      </h1>
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 px-4 py-10">
+      <div className="max-w-5xl mx-auto">
 
-      {err && (
-        <div
-          role="alert"
-          style={{
-            color: "#b91c1c",
-            marginBottom: 10,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            padding: "8px 12px",
-            borderRadius: 8,
-          }}
-        >
-          {err}
+        {/* ================================
+            HEADER
+        ================================= */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-extrabold mb-3">Create Your Account</h1>
+          <p className="text-slate-600 dark:text-slate-300">
+            Join a learning community built for real progress — whether you're a student or a tutor.
+          </p>
         </div>
-      )}
 
-      <form onSubmit={onSubmit}>
-        {/* NAME */}
-        <label style={{ display: "block", marginBottom: 12 }}>
-          Full Name
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            style={{
-              display: "block",
-              width: "100%",
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              marginTop: 4,
-            }}
-          />
-        </label>
-
-        {/* EMAIL */}
-        <label style={{ display: "block", marginBottom: 12 }}>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="username"
-            style={{
-              display: "block",
-              width: "100%",
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              marginTop: 4,
-            }}
-          />
-        </label>
-
-        {/* PASSWORD */}
-        <label style={{ display: "block", marginBottom: 12 }}>
-          Password
-          <div style={{ position: "relative" }}>
-            <input
-              type={showPw ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required={!MOCK}
-              placeholder={MOCK ? "(ignored in mock mode)" : ""}
-              autoComplete="new-password"
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "8px 36px 8px 8px",
-                borderRadius: 8,
-                border: "1px solid #e5e7eb",
-                marginTop: 4,
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              style={{
-                position: "absolute",
-                right: 6,
-                top: "50%",
-                transform: "translateY(-50%)",
-                padding: "4px 8px",
-                border: "1px solid #e5e7eb",
-                borderRadius: 6,
-                background: "white",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              {showPw ? "Hide" : "Show"}
-            </button>
-          </div>
-        </label>
-
-        {/* ROLE SELECTOR */}
-        <label style={{ display: "block", marginBottom: 20 }}>
-          I want to sign up as:
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              marginTop: 6,
-            }}
+        {/* ================================
+            BIG ROLE CARDS
+        ================================= */}
+        <div className="grid sm:grid-cols-2 gap-6 mb-12">
+          {/* STUDENT CARD */}
+          <button
+            type="button"
+            onClick={() => setRole("student")}
+            className={`rounded-2xl border p-6 text-left shadow-sm transition 
+              ${role === "student"
+                ? "border-blue-600 ring-2 ring-blue-400 bg-blue-50"
+                : "border-slate-300 bg-white dark:bg-slate-900"
+              }`}
           >
-            <option value="student">Student</option>
-            <option value="tutor">Tutor</option>
-          </select>
-        </label>
+            <h3 className="text-xl font-bold mb-2">I'm a Student</h3>
+            <p className="text-sm opacity-80 mb-3">
+              Find the perfect tutor at your price level. No subscriptions, no lock-ins.
+            </p>
+            <ul className="text-sm list-disc pl-4 space-y-1 opacity-80">
+              <li>3 free trial lessons</li>
+              <li>Choose tutors across all price points</li>
+              <li>Transparent pricing per lesson</li>
+              <li>Learn flexibly, on your schedule</li>
+            </ul>
+          </button>
 
-        {/* SUBMIT BUTTON */}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: "10px 14px",
-            border: "1px solid #e5e7eb",
-            borderRadius: 10,
-            minWidth: 140,
-            cursor: loading ? "not-allowed" : "pointer",
-            background: "#4f46e5",
-            color: "white",
-          }}
-        >
-          {loading ? "Creating…" : "Sign up"}
-        </button>
-      </form>
+          {/* TUTOR CARD */}
+          <button
+            type="button"
+            onClick={() => setRole("tutor")}
+            className={`rounded-2xl border p-6 text-left shadow-sm transition 
+              ${role === "tutor"
+                ? "border-green-600 ring-2 ring-green-400 bg-green-50"
+                : "border-slate-300 bg-white dark:bg-slate-900"
+              }`}
+          >
+            <h3 className="text-xl font-bold mb-2">I'm a Tutor</h3>
+            <p className="text-sm opacity-80 mb-3">
+              Earn more teaching online with a platform built by a real tutor.
+            </p>
+            <ul className="text-sm list-disc pl-4 space-y-1 opacity-80">
+              <li>Only 15% commission — you keep 85%</li>
+              <li>Set your own hourly rate</li>
+              <li>No joining or subscription fees</li>
+              <li>Scheduling, messaging & payout tools included</li>
+            </ul>
+          </button>
+        </div>
 
-      {/* Login link */}
-      <div style={{ marginTop: 16 }}>
-        Already have an account?{" "}
-        <Link to="/login" style={{ textDecoration: "underline" }}>
-          Log in
-        </Link>
+        {/* ================================
+            ERROR BANNER
+        ================================= */}
+        {err && (
+          <div
+            role="alert"
+            className="mb-6 rounded-lg border border-red-300 bg-red-50 text-red-700 p-3 text-sm"
+          >
+            {err}
+          </div>
+        )}
+
+        {/* ================================
+            SIGNUP FORM
+        ================================= */}
+        <div className="max-w-md mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 shadow-sm">
+          <form onSubmit={onSubmit} className="space-y-6">
+
+            {/* NAME */}
+            <div>
+              <label className="block mb-1 text-sm font-medium">Full Name</label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+              />
+            </div>
+
+            {/* EMAIL */}
+            <div>
+              <label className="block mb-1 text-sm font-medium">Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800"
+              />
+            </div>
+
+            {/* PASSWORD */}
+            <div>
+              <label className="block mb-1 text-sm font-medium">Password</label>
+              <div className="relative">
+                <input
+                  type={showPw ? "text" : "password"}
+                  required={!MOCK}
+                  placeholder={MOCK ? "(ignored in mock mode)" : ""}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-800 pr-16"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs border border-slate-300 dark:border-slate-600 px-2 py-1 rounded-md bg-white dark:bg-slate-800"
+                >
+                  {showPw ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            {/* HIDDEN ROLE FIELD */}
+            <input type="hidden" value={role} readOnly />
+
+            {/* SUBMIT BUTTON */}
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-3 rounded-lg font-semibold text-white transition 
+                ${role === "tutor" ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}
+                ${loading ? "opacity-50 cursor-not-allowed" : ""}
+              `}
+            >
+              {loading ? "Creating…" : `Sign up as ${role}`}
+            </button>
+          </form>
+
+          {/* LOGIN LINK */}
+          <div className="text-center mt-4 text-sm">
+            Already have an account?{" "}
+            <Link to="/login" className="underline">
+              Log in
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
