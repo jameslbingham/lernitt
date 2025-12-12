@@ -1,7 +1,7 @@
 // client/src/App.jsx
 console.log("App.jsx loaded");
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -12,11 +12,10 @@ import {
 
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth } from "./hooks/useAuth.jsx";
-import { apiFetch } from "./lib/apiFetch.js";
 
 // GLOBAL HEADER
 import Header from "./components/Header.jsx";
-// GLOBAL FOOTER — NEW
+// GLOBAL FOOTER
 import Footer from "./components/Footer.jsx";
 
 // STATIC IMPORT
@@ -54,9 +53,14 @@ import TutorLessons from "./pages/TutorLessons.jsx";
 import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
 import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
-import TutorDashboard from "./pages/TutorDashboard";
+import TutorDashboard from "./pages/TutorDashboard.jsx";
 
-// LEGAL PAGES — NEW
+// PUBLIC INFO PAGES ✅
+const About = lazy(() => import("./pages/About.jsx"));
+const Pricing = lazy(() => import("./pages/Pricing.jsx"));
+const Contact = lazy(() => import("./pages/Contact.jsx"));
+
+// LEGAL PAGES
 const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
 const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
 const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
@@ -65,7 +69,8 @@ const AgeRequirements = lazy(() =>
   import("./pages/legal/AgeRequirements.jsx")
 );
 
-const API = import.meta.env.VITE_API || "http://localhost:5000";
+// 404 PAGE ✅
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 // -------------------------------------------------------------------------
 // Admin guard
@@ -86,12 +91,9 @@ function AdminGuard({ children }) {
 }
 // -------------------------------------------------------------------------
 
-export default function App({ mockMode }) {
-  console.log("App rendering, mockMode =", mockMode);
-
+export default function App() {
   return (
     <BrowserRouter>
-      {/* GLOBAL HEADER */}
       <Header />
 
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
@@ -102,6 +104,12 @@ export default function App({ mockMode }) {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+
+            {/* Public info pages ✅ */}
+            <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/contact" element={<Contact />} />
+
             <Route path="/welcome-setup" element={<WelcomeSetup />} />
             <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
 
@@ -110,17 +118,20 @@ export default function App({ mockMode }) {
             <Route path="/tutors/:id" element={<TutorProfile />} />
             <Route path="/book/:tutorId" element={<BookLesson />} />
             <Route path="/pay/:lessonId" element={<Pay />} />
-            <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
+            <Route
+              path="/confirm/:lessonId"
+              element={<BookingConfirmation />}
+            />
             <Route path="/students" element={<Students />} />
 
-            {/* LEGAL ROUTES — NEW */}
+            {/* Legal */}
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/complaints" element={<Complaints />} />
             <Route path="/age-requirements" element={<AgeRequirements />} />
 
-            {/* ADMIN */}
+            {/* Admin */}
             <Route
               path="/admin"
               element={
@@ -129,7 +140,6 @@ export default function App({ mockMode }) {
                 </AdminGuard>
               }
             />
-
             <Route
               path="/admin/payouts"
               element={
@@ -138,7 +148,6 @@ export default function App({ mockMode }) {
                 </AdminGuard>
               }
             />
-
             <Route
               path="/admin/*"
               element={
@@ -148,7 +157,7 @@ export default function App({ mockMode }) {
               }
             />
 
-            {/* AUTH-PROTECTED ROUTES */}
+            {/* Auth-protected */}
             <Route element={<ProtectedRoute />}>
               <Route path="/availability" element={<Availability />} />
               <Route path="/my-lessons" element={<MyLessons />} />
@@ -161,22 +170,23 @@ export default function App({ mockMode }) {
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/notifications" element={<Notifications />} />
-
               <Route path="/tutor" element={<TutorDashboard />} />
 
-              {/* Video lessons */}
+              {/* Video */}
               <Route path="/video" element={<VideoLesson />} />
               <Route path="/lesson-ended" element={<LessonEnded />} />
-              <Route path="/lesson-recordings" element={<LessonRecordings />} />
+              <Route
+                path="/lesson-recordings"
+                element={<LessonRecordings />}
+              />
             </Route>
 
-            {/* FALLBACK */}
-            <Route path="*" element={<Home />} />
+            {/* 404 fallback ✅ */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>
 
-      {/* GLOBAL FOOTER — NEW */}
       <Footer />
     </BrowserRouter>
   );
