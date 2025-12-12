@@ -180,7 +180,9 @@ function FaqDrawer({ open, onClose, theme }) {
         } transition-transform`}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between border-b px-4 py-3 ${panelBg}`}>
+        <div
+          className={`flex items-center justify-between border-b px-4 py-3 ${panelBg}`}
+        >
           <div>
             <div className="text-sm font-semibold">Help & FAQ</div>
             <div className="text-xs opacity-70">Find quick answers.</div>
@@ -332,9 +334,16 @@ export default function Home() {
   return (
     <>
       <MarketingHomepage theme={theme} />
-      <ThemeToggle theme={theme} onToggle={() => setTheme(t => t === "dark" ? "light" : "dark")} />
+      <ThemeToggle
+        theme={theme}
+        onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+      />
       <AskUsButton onClick={() => setFaqOpen(true)} />
-      <FaqDrawer open={faqOpen} onClose={() => setFaqOpen(false)} theme={theme} />
+      <FaqDrawer
+        open={faqOpen}
+        onClose={() => setFaqOpen(false)}
+        theme={theme}
+      />
     </>
   );
 }
@@ -396,16 +405,51 @@ function MarketingHomepage({ theme }) {
               <div className="flex h-52 flex-col justify-between rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur-sm">
                 <div className="space-y-2">
                   <div className="h-3 w-24 rounded-full bg-white/40" />
-                  <div className="h-3 w-32 rounded-full bg.white/30" />
+                  <div className="h-3 w-32 rounded-full bg-white/30" />
                   <div className="h-3 w-20 rounded-full bg-white/20" />
                 </div>
                 <div className="space-y-2">
                   <div className="h-3 w-16 rounded-full bg-white/30" />
-                  <div className="h-3 w-28 rounded.full bg-white/20" />
+                  <div className="h-3 w-28 rounded-full bg-white/20" />
                   <div className="h-3 w-24 rounded-full bg-white/10" />
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* PRICING TEASER */}
+        <section className="rounded-2xl bg-gradient-to-r from-sky-500/10 via-teal-500/10 to-sky-500/10 border border-sky-500/20 px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="space-y-2">
+            <p className="text-sm uppercase tracking-wide text-sky-500 font-semibold">
+              Simple, fair pricing
+            </p>
+            <h2 className="text-2xl md:text-3xl font-semibold">
+              Pay only for lessons. No subscriptions. No lock-in.
+            </h2>
+            <p className="text-sm md:text-base opacity-80 max-w-2xl">
+              Students get three free trial lessons to find the right tutor.
+              Tutors keep 85% of what they earn. Lernitt takes a simple 15%
+              platform fee — nothing hidden.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-3 md:ml-auto">
+            <Link
+              to="/pricing"
+              className="inline-flex items-center rounded-full px-5 py-2.5 text-sm font-semibold bg-sky-600 text-white hover:bg-sky-700 transition"
+            >
+              View pricing for students
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/pricing#tutors";
+              }}
+              className="text-sm font-medium text-sky-700 hover:underline"
+            >
+              See how tutor payouts work →
+            </button>
           </div>
         </section>
 
@@ -552,6 +596,38 @@ function MarketingHomepage({ theme }) {
           </div>
         </section>
 
+        {/* FOUNDER CREDIBILITY STRIP */}
+        <section className="mt-10 rounded-xl border border-slate-200 bg-white/70 px-4 py-4 md:px-6 md:py-5">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                Built from real online teaching experience
+              </p>
+              <p className="text-sm font-medium mb-2">
+                Built by a real online tutor, not a faceless tech company.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-sm opacity-90">
+                <li>
+                  Over 10 years learning and tutoring online across Europe, Asia
+                  and Australia.
+                </li>
+                <li>
+                  Understands what stressed students and busy tutors actually
+                  need from a lesson.
+                </li>
+                <li>
+                  Lernitt is designed from that experience: fair earnings for
+                  tutors, simple choices for students.
+                </li>
+              </ul>
+            </div>
+            <div className="text-xs md:text-sm text-muted-foreground md:text-right mt-3 md:mt-0">
+              <div className="font-semibold">James, Founder of Lernitt</div>
+              <div>Based in Victoria, Australia</div>
+            </div>
+          </div>
+        </section>
+
         {/* FINAL CTA */}
         <section className="space-y-4 text-center">
           <h2 className="text-3xl font-bold">Ready to start learning?</h2>
@@ -634,7 +710,9 @@ function LoggedInHomepage({ theme }) {
         if (isAuthed) {
           const lessons = await apiFetch("/api/lessons/mine", { auth: true });
           if (alive) {
-            const rows = (Array.isArray(lessons) ? lessons : []).filter(Boolean);
+            const rows = (Array.isArray(lessons) ? lessons : []).filter(
+              Boolean
+            );
             rows.sort(
               (a, b) =>
                 new Date(a.start || a.startTime || 0) -
@@ -717,7 +795,7 @@ function LoggedInHomepage({ theme }) {
   const subtleBg =
     theme === "dark"
       ? "from-slate-900 to-slate-800 border-slate-700"
-      : "from.white to-blue-50 border-gray-200";
+      : "from-white to-blue-50 border-gray-200";
   const avatarBg =
     theme === "dark"
       ? "bg-gradient-to-br from-indigo-500 to-sky-500"
@@ -739,7 +817,7 @@ function LoggedInHomepage({ theme }) {
         <section className="relative flex overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
           <div className="absolute inset-0 bg-black/30" />
 
-          <div className="relative flex w-full flex-col.items-start gap-4 px-6 py-10 text-white sm:max-w-xl">
+          <div className="relative flex w-full flex-col items-start gap-4 px-6 py-10 text-white sm:max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
               <span>✨</span>
               <span>Try a free trial lesson</span>
@@ -764,7 +842,7 @@ function LoggedInHomepage({ theme }) {
 
               <Link
                 to="/signup?type=tutor"
-                className="inline-flex.items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
+                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
               >
                 I’m a tutor — Apply to teach
               </Link>
@@ -790,13 +868,13 @@ function LoggedInHomepage({ theme }) {
                 e.preventDefault();
                 nav(`/tutors?q=${encodeURIComponent(q)}`);
               }}
-              className="flex flex-col.items-center gap-2 sm:flex-row"
+              className="flex flex-col items-center gap-2 sm:flex-row"
             >
               <input
                 placeholder="Search tutors (e.g., English)"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                className="w-full rounded-xl border px-3 py-2.text-sm sm:w-72"
+                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
               />
               <button
                 type="submit"
@@ -814,7 +892,7 @@ function LoggedInHomepage({ theme }) {
                   onClick={() =>
                     nav(`/tutors?q=${encodeURIComponent(label)}`)
                   }
-                  className="rounded-xl.border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs.shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
+                  className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
                 >
                   {label}
                 </button>
@@ -829,10 +907,8 @@ function LoggedInHomepage({ theme }) {
         <section>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
             <div
-              className={`rounded-xl border p-4.shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                theme === "dark"
-                  ? "bg-slate-900 border-slate-700"
-                  : "bg-white border-gray-200"
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                cardBg
               }`}
             >
               <div className="mb-1 font-semibold">Get started</div>
@@ -840,18 +916,30 @@ function LoggedInHomepage({ theme }) {
                 Browse tutors, book lessons, manage availability.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link className="rounded-xl border px-3 py-1 text-sm" to="/tutors">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/tutors"
+                >
                   Find tutors
                 </Link>
-                <Link className="rounded-xl border px-3.py-1 text-sm" to="/favourites">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/favourites"
+                >
                   Favourites {favCount ? `(${favCount})` : ""}
                 </Link>
                 {isAuthed ? (
-                  <Link className="rounded-xl border px-3 py-1 text-sm" to="/my-lessons">
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to="/my-lessons"
+                  >
                     My Lessons
                   </Link>
                 ) : (
-                  <Link className="rounded-xl border px-3 py-1 text-sm" to="/login">
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to="/login"
+                  >
                     Log in
                   </Link>
                 )}
@@ -860,14 +948,12 @@ function LoggedInHomepage({ theme }) {
 
             {/* Notifications */}
             <div
-              className={`rounded-xl border p-4.shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                theme === "dark"
-                  ? "bg-slate-900 border-slate-700"
-                  : "bg-white border-gray-200"
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                cardBg
               }`}
             >
               <div className="mb-1 font-semibold">Notifications</div>
-              <p className="text-sm.opacity-80">Your inbox.</p>
+              <p className="text-sm opacity-80">Your inbox.</p>
               <div className="mt-3 flex items-center gap-2">
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
@@ -883,20 +969,20 @@ function LoggedInHomepage({ theme }) {
 
             {/* Upcoming lesson */}
             <div
-              className={`rounded-xl.border p-4 shadow-sm transition hover:-translate-y-0.5.hover:shadow-md ${
-                theme === "dark"
-                  ? "bg-slate-900 border-slate-700"
-                  : "bg-white border-gray-200"
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                cardBg
               }`}
             >
-              <div className="mb-1.font-semibold">Upcoming lesson</div>
+              <div className="mb-1 font-semibold">Upcoming lesson</div>
 
               {!isAuthed && (
-                <p className="text-sm opacity-80">Log in to see your schedule.</p>
+                <p className="text-sm opacity-80">
+                  Log in to see your schedule.
+                </p>
               )}
 
               {isAuthed && !nextLesson && (
-                <p className="text-sm.opacity-80">No upcoming lessons.</p>
+                <p className="text-sm opacity-80">No upcoming lessons.</p>
               )}
 
               {isAuthed && nextLesson && (
@@ -905,16 +991,17 @@ function LoggedInHomepage({ theme }) {
                     <b>{nextLesson.tutorName}</b>{" "}
                     <span className="opacity-70">({nextLesson.when})</span>
                     <div className="opacity-80">
-                      {nextLesson.isTrial ? "Trial" : "Paid"} · {nextLesson.duration} min
+                      {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
+                      {nextLesson.duration} min
                       {!nextLesson.isTrial && nextLesson.price ? (
                         <> · € {euros(nextLesson.price)}</>
                       ) : null}
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap.gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Link
-                      className="rounded-xl border px-3 py-1.text-sm"
+                      className="rounded-xl border px-3 py-1 text-sm"
                       to={`/student-lesson/${nextLesson.id}`}
                     >
                       View details
@@ -952,23 +1039,15 @@ function LoggedInHomepage({ theme }) {
                 return (
                   <li
                     key={id}
-                    className={`flex flex-col gap-3 rounded-xl border p-4.shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                      theme === "dark"
-                        ? "bg-slate-900 border-slate-700"
-                        : "bg-white border-gray-200"
-                    }`}
+                    className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
                   >
                     <Link
                       to={`/tutors/${encodeURIComponent(id)}`}
-                      className="flex.flex-col gap-2"
+                      className="flex flex-col gap-2"
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${
-                            theme === "dark"
-                              ? "bg-gradient-to-br from-indigo-500 to-sky-500"
-                              : "bg-gradient-to-br.from-indigo-100 to-sky-200"
-                          }`}
+                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
                         >
                           {t.name?.[0] || "?"}
                         </div>
@@ -987,7 +1066,7 @@ function LoggedInHomepage({ theme }) {
                           {subjects.slice(0, 3).map((s) => (
                             <span
                               key={s}
-                              className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1.text-[11px]"
+                              className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
                             >
                               {s}
                             </span>
@@ -1027,11 +1106,7 @@ function LoggedInHomepage({ theme }) {
                 onClick={() =>
                   nav(`/tutors?q=${encodeURIComponent(name)}`)
                 }
-                className={`flex.items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5.hover:shadow-md bg-gradient-to-br ${
-                  theme === "dark"
-                    ? "from-slate-900 to-slate-800 border-slate-700"
-                    : "from-white to-blue-50 border-gray-200"
-                }`}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
               >
                 <span className="text-lg">{icon}</span>
                 {name}
@@ -1044,13 +1119,9 @@ function LoggedInHomepage({ theme }) {
         <section className="space-y-4">
           <div className="text-lg font-semibold">How Lernitt works</div>
 
-          <div className="grid.grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${
-                theme === "dark"
-                  ? "from-slate-900 to-slate-800 border-slate-700"
-                  : "from-white to-blue-50.border-gray-200"
-              }`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
             >
               <div className="text-3xl">🔎</div>
               <div className="font-semibold">1. Find your tutor</div>
@@ -1060,25 +1131,17 @@ function LoggedInHomepage({ theme }) {
             </div>
 
             <div
-              className={`flex flex-col gap-3.rounded-xl border p-5 bg-gradient-to-br ${
-                theme === "dark"
-                  ? "from-slate-900 to-slate-800 border-slate-700"
-                  : "from-white to-blue-50.border-gray-200"
-              }`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
             >
               <div className="text-3xl">📅</div>
               <div className="font-semibold">2. Book your lesson</div>
-              <p className="text-sm.opacity-80">
+              <p className="text-sm opacity-80">
                 Choose a time that suits you.
               </p>
             </div>
 
             <div
-              className={`flex flex-col gap-3.rounded-xl border p-5 bg-gradient-to-br ${
-                theme === "dark"
-                  ? "from-slate-900 to-slate-800 border-slate-700"
-                  : "from-white to-blue-50 border-gray-200"
-              }`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
             >
               <div className="text-3xl">🎥</div>
               <div className="font-semibold">3. Learn live</div>
@@ -1091,44 +1154,45 @@ function LoggedInHomepage({ theme }) {
 
         {/* BOTTOM CARDS */}
         <section>
-          <div className="grid.grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
             <div
-              className={`rounded-xl.border p-4 shadow-sm transition hover:-translate-y-0.5.hover:shadow-md ${
-                theme === "dark"
-                  ? "bg-slate-900 border-slate-700"
-                  : "bg-white border-gray-200"
-              }`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
             >
-              <div className="mb-1.font-semibold">Tutor tools</div>
-              <div className="flex.flex-wrap gap-2">
-                <Link className="rounded-xl border px-3 py-1 text-sm" to="/availability">
+              <div className="mb-1 font-semibold">Tutor tools</div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/availability"
+                >
                   Availability
                 </Link>
-                <Link className="rounded-xl.border px-3 py-1.text-sm" to="/tutor-lessons">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/tutor-lessons"
+                >
                   Tutor lessons
                 </Link>
-                <Link className="rounded-xl.border px-3 py-1 text-sm" to="/payouts">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/payouts"
+                >
                   Payouts
                 </Link>
               </div>
               {MOCK && (
-                <div className="mt-2 text-xs.opacity-60">
+                <div className="mt-2 text-xs opacity-60">
                   Mock mode: simulated data.
                 </div>
               )}
             </div>
 
             <div
-              className={`rounded-xl.border p-4.shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                theme === "dark"
-                  ? "bg-slate-900 border-slate-700"
-                  : "bg-white border-gray-200"
-              }`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
             >
-              <div className="mb-1.font-semibold">Students</div>
-              <p className="text-sm.opacity-80">Student list & bookings.</p>
+              <div className="mb-1 font-semibold">Students</div>
+              <p className="text-sm opacity-80">Student list & bookings.</p>
               <Link
-                className="mt-2 inline-block rounded-xl.border px-3 py-1 text-sm"
+                className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
                 to="/students"
               >
                 Open Students
@@ -1136,28 +1200,24 @@ function LoggedInHomepage({ theme }) {
             </div>
 
             <div
-              className={`rounded-xl.border p-4.shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                theme === "dark"
-                  ? "bg-slate-900 border-slate-700"
-                  : "bg-white.border-gray-200"
-              }`}
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
             >
-              <div className="mb-1.font-semibold">Account</div>
+              <div className="mb-1 font-semibold">Account</div>
               <div className="flex flex-wrap gap-2">
                 <Link
-                  className="rounded-xl.border px-3 py-1 text-sm"
+                  className="rounded-xl border px-3 py-1 text-sm"
                   to="/profile"
                 >
                   Profile
                 </Link>
                 <Link
-                  className="rounded-xl.border px-3 py-1.text-sm"
+                  className="rounded-xl border px-3 py-1 text-sm"
                   to="/notifications"
                 >
                   Notifications {notifUnread ? `(${notifUnread})` : ""}
                 </Link>
                 <Link
-                  className="rounded-xl border px-3.py-1 text-sm"
+                  className="rounded-xl border px-3 py-1 text-sm"
                   to="/settings"
                 >
                   Settings
