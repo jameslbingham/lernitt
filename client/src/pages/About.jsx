@@ -41,6 +41,23 @@ export default function About() {
           className="rounded-2xl p-8 shadow-sm bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white space-y-4"
         >
           <h2 className="text-2xl font-bold">Built by a Tutor Who Understands Both Sides</h2>
+
+          {/* FOUNDER CREDIBILITY STAT BLOCK (NEW) */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-white/10 border border-white/20 p-4 text-center">
+              <div className="text-2xl font-extrabold">10+ years</div>
+              <div className="text-xs opacity-90">Online tutoring experience</div>
+            </div>
+            <div className="rounded-xl bg-white/10 border border-white/20 p-4 text-center">
+              <div className="text-2xl font-extrabold">Thousands</div>
+              <div className="text-xs opacity-90">Lessons taught</div>
+            </div>
+            <div className="rounded-xl bg-white/10 border border-white/20 p-4 text-center">
+              <div className="text-2xl font-extrabold">Real outcomes</div>
+              <div className="text-xs opacity-90">Exams, jobs, confidence</div>
+            </div>
+          </div>
+
           <p className="text-sm leading-relaxed opacity-90">
             Lernitt is not a Silicon Valley tech product — it is a platform shaped by real
             teaching experience. With over <strong className="font-semibold">10 years of
