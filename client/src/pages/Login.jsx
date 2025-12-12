@@ -1,6 +1,6 @@
 // client/src/pages/Login.jsx
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
@@ -22,7 +22,7 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // NEW: login/signup mode
+  // login / signup mode (unchanged)
   const [mode, setMode] = useState("login"); // "login" | "signup"
 
   useEffect(() => {
@@ -46,9 +46,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // ------------------
       // MOCK MODE
-      // ------------------
       if (MOCK) {
         const role = email.startsWith("admin")
           ? "admin"
@@ -60,16 +58,13 @@ export default function Login() {
         return nav(next, { replace: true });
       }
 
-      // ------------------
       // SIGNUP MODE
-      // ------------------
       if (mode === "signup") {
         const data = await apiFetch(`${API}/api/auth/signup`, {
           method: "POST",
           body: {
             email,
             password,
-            // simple fallback name + default student role
             name: email.split("@")[0] || "User",
             role: "student",
           },
@@ -83,9 +78,7 @@ export default function Login() {
         return nav("/", { replace: true });
       }
 
-      // ------------------
       // LOGIN MODE
-      // ------------------
       const data = await apiFetch(`${API}/api/auth/login`, {
         method: "POST",
         body: { email, password },
@@ -105,152 +98,122 @@ export default function Login() {
   }
 
   return (
-    <div style={{ maxWidth: 460, margin: "0 auto", padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
-        {mode === "login" ? "Login" : "Create account"}
-      </h1>
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
+      <main className="mx-auto max-w-md px-4 pt-20 pb-20 space-y-8">
+        {/* HERO */}
+        <section className="text-center space-y-3">
+          <h1 className="text-3xl font-extrabold">
+            {mode === "login" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="text-sm opacity-80">
+            Secure access to your Lernitt account.
+          </p>
+        </section>
 
-      <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 8 }}>
-        You’ll return to: <code>{next}</code>
-      </div>
-
-      {err && (
-        <div
-          role="alert"
-          style={{
-            color: "#b91c1c",
-            marginBottom: 8,
-            border: "1px solid #fecaca",
-            background: "#fef2f2",
-            padding: "8px 10px",
-            borderRadius: 8,
-          }}
-        >
-          {err}
-        </div>
-      )}
-
-      <form onSubmit={onSubmit}>
-        <label style={{ display: "block", marginBottom: 8 }}>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="username"
-            inputMode="email"
-            style={{
-              display: "block",
-              width: "100%",
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              marginTop: 4,
-            }}
-          />
-        </label>
-
-        <label style={{ display: "block", marginBottom: 12 }}>
-          Password
-          <div style={{ position: "relative" }}>
-            <input
-              type={showPw ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required={!MOCK}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "8px 36px 8px 8px",
-                borderRadius: 8,
-                border: "1px solid #e5e7eb",
-                marginTop: 4,
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              style={{
-                position: "absolute",
-                right: 6,
-                top: "50%",
-                transform: "translateY(-50%)",
-                padding: "4px 8px",
-                border: "1px solid #e5e7eb",
-                borderRadius: 6,
-                background: "#fff",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              {showPw ? "Hide" : "Show"}
-            </button>
+        {/* LOGIN CARD */}
+        <section className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+          <div className="text-xs opacity-70">
+            You’ll return to: <code>{next}</code>
           </div>
-        </label>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />
-            Remember email
-          </label>
+          {err && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {err}
+            </div>
+          )}
 
-          {/* Toggle mode */}
-          <button
-            type="button"
-            onClick={() => {
-              setMode(mode === "login" ? "signup" : "login");
-              setErr("");
-            }}
-            style={{
-              marginLeft: "auto",
-              background: "none",
-              border: "none",
-              color: "#2563eb",
-              textDecoration: "underline",
-              cursor: "pointer",
-              padding: 0,
-              fontSize: 14,
-            }}
-          >
-            {mode === "login" ? "Create account" : "Back to login"}
-          </button>
-        </div>
+          <form onSubmit={onSubmit} className="space-y-4">
+            {/* EMAIL */}
+            <label className="block text-sm font-medium">
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="username"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </label>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: "10px 14px",
-            border: "1px solid #e5e7eb",
-            borderRadius: 10,
-            minWidth: 120,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading
-            ? mode === "login"
-              ? "Signing in…"
-              : "Creating…"
-            : mode === "login"
-            ? "Sign in"
-            : "Create account"}
-        </button>
-      </form>
+            {/* PASSWORD */}
+            <label className="block text-sm font-medium">
+              Password
+              <div className="relative mt-1">
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required={!MOCK}
+                  autoComplete={
+                    mode === "login"
+                      ? "current-password"
+                      : "new-password"
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border px-2 py-1 text-xs"
+                >
+                  {showPw ? "Hide" : "Show"}
+                </button>
+              </div>
+            </label>
+
+            {/* REMEMBER + MODE TOGGLE */}
+            <div className="flex items-center gap-3 text-sm flex-wrap">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                Remember email
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "login" ? "signup" : "login");
+                  setErr("");
+                }}
+                className="ml-auto text-indigo-600 underline"
+              >
+                {mode === "login" ? "Create account" : "Back to login"}
+              </button>
+            </div>
+
+            {/* SUBMIT */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {loading
+                ? mode === "login"
+                  ? "Signing in…"
+                  : "Creating…"
+                : mode === "login"
+                ? "Sign in"
+                : "Create account"}
+            </button>
+
+            {/* TRUST MICROCOPY */}
+            <p className="text-xs text-center opacity-70">
+              Secure login. No spam. Your details are protected under our{" "}
+              <Link to="/privacy" className="underline">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          </form>
+        </section>
+      </main>
     </div>
   );
 }
