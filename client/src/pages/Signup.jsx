@@ -16,12 +16,19 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("student");
   const [showPw, setShowPw] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
     if (loading) return;
+
+    if (!agreeTerms) {
+      setErr("You must agree to the Terms to create an account.");
+      return;
+    }
+
     setErr("");
     setLoading(true);
 
@@ -57,15 +64,14 @@ export default function Signup() {
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <main className="mx-auto max-w-4xl px-4 pt-20 pb-20 space-y-12">
-
         {/* HERO */}
         <section className="text-center space-y-4">
           <h1 className="text-4xl font-extrabold sm:text-5xl">
             Create Your Lernitt Account
           </h1>
           <p className="mx-auto max-w-2xl text-sm sm:text-base opacity-80">
-            Join a learning platform built by someone who understands both students and tutors —
-            because he’s been both.
+            Join a learning platform built by someone who understands both
+            students and tutors — because he’s been both.
           </p>
         </section>
 
@@ -75,21 +81,24 @@ export default function Signup() {
             Why Lernitt?
           </h2>
           <p className="text-sm leading-relaxed opacity-90">
-            Lernitt was founded by a tutor with over <strong>10 years of online teaching experience</strong>,
-            thousands of lessons taught, and real success helping students pass exams and land jobs.
+            Lernitt was founded by a tutor with over{" "}
+            <strong>10 years of online teaching experience</strong>, thousands of
+            lessons taught, and real success helping students pass exams and
+            land jobs.
           </p>
           <p className="text-sm leading-relaxed opacity-90">
-            Having also studied languages online and lived as an expat across Asia and Europe,
-            Lernitt is designed with empathy for both sides of the learning experience.
+            Having also studied languages online and lived as an expat across
+            Asia and Europe, Lernitt is designed with empathy for both sides of
+            the learning experience.
           </p>
           <p className="text-sm leading-relaxed opacity-90">
-            That means clearer expectations, fairer systems, and a platform that respects your time.
+            That means clearer expectations, fairer systems, and a platform that
+            respects your time.
           </p>
         </section>
 
         {/* SIGNUP CARD */}
         <section className="mx-auto max-w-md rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
-
           <h2 className="text-2xl font-bold text-center">Get Started</h2>
 
           {err && (
@@ -102,7 +111,6 @@ export default function Signup() {
           )}
 
           <form onSubmit={onSubmit} className="space-y-4">
-
             {/* NAME */}
             <label className="block text-sm font-medium">
               Full Name
@@ -164,10 +172,28 @@ export default function Signup() {
               </select>
             </label>
 
+            {/* TERMS (REQUIRED) */}
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="mt-1 h-4 w-4"
+                required
+              />
+              <span className="leading-snug opacity-90">
+                I agree to the{" "}
+                <Link to="/legal/terms" className="font-semibold underline">
+                  Terms
+                </Link>
+                .
+              </span>
+            </label>
+
             {/* SUBMIT */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !agreeTerms}
               className="w-full rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
             >
               {loading ? "Creating account…" : "Create Account"}
@@ -182,7 +208,6 @@ export default function Signup() {
             </Link>
           </p>
         </section>
-
       </main>
     </div>
   );
