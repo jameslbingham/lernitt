@@ -1,7 +1,7 @@
 // client/src/App.jsx
 console.log("App.jsx loaded");
 
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -55,7 +55,7 @@ import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
 import TutorDashboard from "./pages/TutorDashboard.jsx";
 
-// PUBLIC INFO PAGES ✅
+// PUBLIC INFO PAGES
 const About = lazy(() => import("./pages/About.jsx"));
 const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Contact = lazy(() => import("./pages/Contact.jsx"));
@@ -69,10 +69,22 @@ const AgeRequirements = lazy(() =>
   import("./pages/legal/AgeRequirements.jsx")
 );
 
-// 404 PAGE ✅
+// 404 PAGE
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 // -------------------------------------------------------------------------
+// Scroll to top on route change (UX polish, no side effects)
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, [pathname]);
+
+  return null;
+}
+// -------------------------------------------------------------------------
+
 // Admin guard
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
@@ -94,24 +106,28 @@ function AdminGuard({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
+
       <Header />
 
       <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
         <Suspense fallback={<div style={{ padding: 12 }}>Loading…</div>}>
           <Routes>
-
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
 
-            {/* Public info pages ✅ */}
+            {/* Public info pages */}
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/contact" element={<Contact />} />
 
             <Route path="/welcome-setup" element={<WelcomeSetup />} />
-            <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
+            <Route
+              path="/tutor-profile-setup"
+              element={<TutorProfileSetup />}
+            />
 
             {/* Marketplace */}
             <Route path="/tutors" element={<Tutors />} />
@@ -129,7 +145,10 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/cookies" element={<Cookies />} />
             <Route path="/complaints" element={<Complaints />} />
-            <Route path="/age-requirements" element={<AgeRequirements />} />
+            <Route
+              path="/age-requirements"
+              element={<AgeRequirements />}
+            />
 
             {/* Admin */}
             <Route
@@ -181,7 +200,7 @@ export default function App() {
               />
             </Route>
 
-            {/* 404 fallback ✅ */}
+            {/* 404 fallback */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
