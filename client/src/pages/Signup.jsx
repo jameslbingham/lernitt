@@ -109,6 +109,18 @@ export default function Signup() {
         <section className="mx-auto max-w-md rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
           <h2 className="text-2xl font-bold text-center">Get Started</h2>
 
+          {/* STUDENT / TUTOR BENEFITS */}
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm space-y-1">
+            <p className="font-semibold">For students:</p>
+            <p className="opacity-80">
+              Find trusted tutors, book easily, and start with free trials.
+            </p>
+            <p className="font-semibold pt-2">For tutors:</p>
+            <p className="opacity-80">
+              Keep more of what you earn with lower commission and fair rules.
+            </p>
+          </div>
+
           {err && (
             <div
               role="alert"
@@ -180,7 +192,7 @@ export default function Signup() {
               </select>
             </label>
 
-            {/* TERMS (REQUIRED) */}
+            {/* TERMS / PRIVACY / AGE */}
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
@@ -189,16 +201,14 @@ export default function Signup() {
                 className="mt-1 h-4 w-4"
                 required
               />
-              <span className="leading-snug opacity-90">
+              <span>
                 I agree to the{" "}
-                <Link to="/legal/terms" className="font-semibold underline">
+                <Link to="/legal/terms" className="underline font-semibold">
                   Terms
                 </Link>
-                .
               </span>
             </label>
 
-            {/* PRIVACY (REQUIRED) */}
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
@@ -207,16 +217,14 @@ export default function Signup() {
                 className="mt-1 h-4 w-4"
                 required
               />
-              <span className="leading-snug opacity-90">
+              <span>
                 I have read the{" "}
-                <Link to="/legal/privacy" className="font-semibold underline">
+                <Link to="/legal/privacy" className="underline font-semibold">
                   Privacy Policy
                 </Link>
-                .
               </span>
             </label>
 
-            {/* AGE (REQUIRED) */}
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
@@ -225,15 +233,14 @@ export default function Signup() {
                 className="mt-1 h-4 w-4"
                 required
               />
-              <span className="leading-snug opacity-90">
+              <span>
                 I confirm I meet the{" "}
                 <Link
                   to="/legal/age-requirements"
-                  className="font-semibold underline"
+                  className="underline font-semibold"
                 >
                   Age Requirements
                 </Link>
-                .
               </span>
             </label>
 
@@ -245,6 +252,20 @@ export default function Signup() {
             >
               {loading ? "Creating account…" : "Create Account"}
             </button>
+
+            {/* PRIVACY REASSURANCE */}
+            <p className="text-xs text-center opacity-70">
+              We respect your privacy. Your details are never sold or shared.
+              Read our{" "}
+              <Link to="/legal/privacy" className="underline">
+                Privacy Policy
+              </Link>{" "}
+              and{" "}
+              <Link to="/legal/terms" className="underline">
+                Terms
+              </Link>
+              .
+            </p>
           </form>
 
           {/* LOGIN */}
