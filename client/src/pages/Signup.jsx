@@ -16,16 +16,24 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("student");
   const [showPw, setShowPw] = useState(false);
+
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [ackPrivacy, setAckPrivacy] = useState(false);
+  const [ackAge, setAckAge] = useState(false);
+
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const canSubmit = agreeTerms && ackPrivacy && ackAge;
 
   async function onSubmit(e) {
     e.preventDefault();
     if (loading) return;
 
-    if (!agreeTerms) {
-      setErr("You must agree to the Terms to create an account.");
+    if (!canSubmit) {
+      setErr(
+        "Please confirm the Terms, Privacy Policy, and Age Requirements to create an account."
+      );
       return;
     }
 
@@ -190,10 +198,49 @@ export default function Signup() {
               </span>
             </label>
 
+            {/* PRIVACY (REQUIRED) */}
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={ackPrivacy}
+                onChange={(e) => setAckPrivacy(e.target.checked)}
+                className="mt-1 h-4 w-4"
+                required
+              />
+              <span className="leading-snug opacity-90">
+                I have read the{" "}
+                <Link to="/legal/privacy" className="font-semibold underline">
+                  Privacy Policy
+                </Link>
+                .
+              </span>
+            </label>
+
+            {/* AGE (REQUIRED) */}
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={ackAge}
+                onChange={(e) => setAckAge(e.target.checked)}
+                className="mt-1 h-4 w-4"
+                required
+              />
+              <span className="leading-snug opacity-90">
+                I confirm I meet the{" "}
+                <Link
+                  to="/legal/age-requirements"
+                  className="font-semibold underline"
+                >
+                  Age Requirements
+                </Link>
+                .
+              </span>
+            </label>
+
             {/* SUBMIT */}
             <button
               type="submit"
-              disabled={loading || !agreeTerms}
+              disabled={loading || !canSubmit}
               className="w-full rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
             >
               {loading ? "Creating account…" : "Create Account"}
