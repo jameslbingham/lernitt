@@ -1,126 +1,99 @@
-// /server/routes/auth.js
-const express = require("express");
-const router = express.Router();
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const auth = require("../middleware/auth");
+// /client/src/hooks/useAuth.jsx
+import { createContext, useContext, useEffect, useState } from "react";
 
-// helper to build token + public user
-function buildAuthResponse(user) {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error("Missing JWT_SECRET in environment");
+const AuthContext = createContext(null);
+const TOKEN_KEY = "token";
+const USER_KEY = "user";
+
+export function readToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
   }
-
-  const payload = {
-    id: user._id.toString(),
-    role: user.role || "student",
-  };
-
-  const token = jwt.sign(payload, secret, { expiresIn: "7d" });
-
-  return {
-    token,
-    user: {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role || "student",
-      isTutor: !!user.isTutor,
-      isAdmin: !!user.isAdmin,
-    },
-  };
 }
 
-// -----------------------------
-// Signup
-// -----------------------------
-router.post("/signup", async (req, res) => {
+export function readUser() {
   try {
-    let { name, email, password, type } = req.body || {};
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Email and password are required" });
-    }
-
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res.status(400).json({ error: "Email already used" });
-    }
-
-    // fallback name
-    if (!name) {
-      name = email.split("@")[0] || "User";
-    }
-
-    // 🔒 AUTHORITATIVE ROLE DECISION
-    const signupType = String(type || "student").toLowerCase();
-    const role = signupType === "tutor" ? "tutor" : "student";
-
-    const user = new User({
-      name,
-      email,
-      password, // hashed by schema
-      role,
-      isTutor: role === "tutor",
-      isAdmin: false,
-    });
-
-    await user.save();
-
-    const authPayload = buildAuthResponse(user);
-    return res.status(201).json(authPayload);
-  } catch (err) {
-    console.error("Signup error:", err);
-    return res
-      .status(500)
-      .json({ error: "Signup failed: " + (err.message || "Unknown error") });
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
-});
+}
 
-// -----------------------------
-// Login
-// -----------------------------
-router.post("/login", async (req, res) => {
+function writeToken(t) {
   try {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Email and password required" });
+    t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
+function writeUser(u) {
+  try {
+    u ? localStorage.setItem(USER_KEY, JSON.stringify(u)) : localStorage.removeItem(USER_KEY);
+  } catch {}
+}
+
+function emitAuthChange() {
+  try {
+    document.dispatchEvent(new Event("auth-change"));
+  } catch {}
+}
+
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(readToken());
+  const [user, setUser] = useState(readUser());
+
+  useEffect(() => {
+    function sync() {
+      setToken(readToken());
+      setUser(readUser());
     }
+    window.addEventListener("storage", sync);
+    document.addEventListener("auth-change", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      document.removeEventListener("auth-change", sync);
+    };
+  }, []);
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: "❌ User not found" });
-    }
-
-    const ok = await user.comparePassword(password);
-    if (!ok) {
-      return res.status(400).json({ error: "❌ Wrong password" });
-    }
-
-    const authPayload = buildAuthResponse(user);
-
-    user.lastLogin = new Date();
-    await user.save({ validateBeforeSave: false }).catch(() => {});
-
-    return res.json(authPayload);
-  } catch (err) {
-    console.error("Login error:", err);
-    return res
-      .status(500)
-      .json({ error: "Login failed: " + (err.message || "Unknown error") });
+  function login(newToken, newUser) {
+    writeToken(newToken);
+    writeUser(newUser);
+    setToken(newToken);
+    setUser(newUser);
+    emitAuthChange();
   }
-});
 
-// -----------------------------
-// Protected test route
-// -----------------------------
-router.get("/check", auth, (req, res) => {
-  res.json({ message: "🔒 Protected route", userId: req.user.id });
-});
+  function logout() {
+    writeToken("");
+    writeUser(null);
+    setToken("");
+    setUser(null);
+    emitAuthChange();
 
-module.exports = router;
+    // ✅ FIX: force redirect to homepage after logout
+    window.location.href = "/";
+  }
+
+  function getToken() {
+    return readToken();
+  }
+
+  const role = user?.role || null;
+  const isAuthed = !!token;
+
+  return (
+    <AuthContext.Provider
+      value={{ token, user, role, isAuthed, login, logout, getToken }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
+  return ctx;
+}
