@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const auth = require("../middleware/auth"); // ✅ middleware
+const auth = require("../middleware/auth");
 
 // helper to build token + public user
 function buildAuthResponse(user) {
@@ -33,11 +33,11 @@ function buildAuthResponse(user) {
 }
 
 // -----------------------------
-// Signup (single hash + token)
+// Signup
 // -----------------------------
 router.post("/signup", async (req, res) => {
   try {
-    let { name, email, password, role } = req.body || {};
+    let { name, email, password, type } = req.body || {};
 
     if (!email || !password) {
       return res
@@ -50,21 +50,22 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ error: "Email already used" });
     }
 
-    // fallback name if not provided (e.g. Login page signup)
+    // fallback name
     if (!name) {
       name = email.split("@")[0] || "User";
     }
 
-    // normalise role
-    const normalizedRole =
-      role === "tutor" || role === "admin" ? role : "student";
+    // 🔒 AUTHORITATIVE ROLE DECISION
+    const signupType = String(type || "student").toLowerCase();
+    const role = signupType === "tutor" ? "tutor" : "student";
 
     const user = new User({
       name,
       email,
-      password, // plain text; UserSchema pre('save') will hash ONCE
-      role: normalizedRole,
-      isTutor: normalizedRole === "tutor",
+      password, // hashed by schema
+      role,
+      isTutor: role === "tutor",
+      isAdmin: false,
     });
 
     await user.save();
@@ -80,7 +81,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // -----------------------------
-// Login (compare hash + give token)
+// Login
 // -----------------------------
 router.post("/login", async (req, res) => {
   try {
@@ -96,10 +97,6 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "❌ User not found" });
     }
 
-    if (!user.password) {
-      return res.status(400).json({ error: "❌ Wrong password" });
-    }
-
     const ok = await user.comparePassword(password);
     if (!ok) {
       return res.status(400).json({ error: "❌ Wrong password" });
@@ -107,7 +104,6 @@ router.post("/login", async (req, res) => {
 
     const authPayload = buildAuthResponse(user);
 
-    // optional: track last login
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false }).catch(() => {});
 
