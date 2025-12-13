@@ -24,6 +24,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import Footer from "../components/Footer.jsx";
+import heroImg from "../assets/hero-online-tutoring.png";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -400,20 +401,13 @@ function MarketingHomepage({ theme }) {
               </p>
             </div>
 
-            {/* Simple placeholder “hero graphic” */}
+            {/* HERO IMAGE (REAL ILLUSTRATION) */}
             <div className="mt-4 w-full max-w-sm sm:mt-0">
-              <div className="flex h-52 flex-col justify-between rounded-2xl bg-white/10 p-4 shadow-lg backdrop-blur-sm">
-                <div className="space-y-2">
-                  <div className="h-3 w-24 rounded-full bg-white/40" />
-                  <div className="h-3 w-32 rounded-full bg-white/30" />
-                  <div className="h-3 w-20 rounded-full bg-white/20" />
-                </div>
-                <div className="space-y-2">
-                  <div className="h-3 w-16 rounded-full bg-white/30" />
-                  <div className="h-3 w-28 rounded-full bg-white/20" />
-                  <div className="h-3 w-24 rounded-full bg-white/10" />
-                </div>
-              </div>
+              <img
+                src={heroImg}
+                alt="Student taking an online tutoring lesson on Lernitt"
+                className="w-full rounded-2xl shadow-lg border border-white/20"
+              />
             </div>
           </div>
         </section>
