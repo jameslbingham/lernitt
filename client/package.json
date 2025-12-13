@@ -5,6 +5,7 @@
   "description": "Lernitt Frontend - Force Deploy 28Nov",
   "type": "module",
   "scripts": {
+    "dev": "VITE_MOCK=1 vite --port 5173",
     "dev:mock": "VITE_MOCK=1 vite --port 5173",
     "dev:live": "VITE_MOCK=0 vite --port 5173",
     "build": "vite build",
