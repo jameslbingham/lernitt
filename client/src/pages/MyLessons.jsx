@@ -165,7 +165,7 @@ export default function MyLessons() {
   const [hidePast, setHidePast] = useState(false);
   const [onlyTrials, setOnlyTrials] = useState(false);
   const [q, setQ] = useState("");
-  the [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showTop, setShowTop] = useState(false);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
