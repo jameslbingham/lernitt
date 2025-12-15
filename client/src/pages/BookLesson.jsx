@@ -327,13 +327,15 @@ export default function BookLesson() {
   };
 
   // ---------------------------------------------------
-  // CHANGED REDIRECT HERE
+  // LIVE BOOKING: save real lesson to backend/Mongo
   // ---------------------------------------------------
   async function handleBook(iso) {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        const params = new URLSearchParams({ next: `/book/${encodeURIComponent(tutorId)}` });
+        const params = new URLSearchParams({
+          next: `/book/${encodeURIComponent(tutorId)}`,
+        });
         window.location.href = `/login?${params.toString()}`;
         return;
       }
@@ -343,14 +345,21 @@ export default function BookLesson() {
         return;
       }
 
+      const dur = trial ? 30 : duration;
+      const startDate = new Date(iso);
+      const endDate = new Date(startDate.getTime() + dur * 60000);
+
       const body = {
-        tutorId,
-        start: iso,
-        duration: trial ? 30 : duration,
-        isTrial: !!trial,
+        tutor: tutorId,
+        subject: "",
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString(),
+        price: !trial && priceForDuration != null ? priceForDuration : 0,
+        currency: "EUR",
         notes: notes.trim(),
-        ...(hourlyPrice != null && !trial ? { price: priceForDuration } : {}),
+        isTrial: !!trial,
       };
+
       const r = await fetch(`${API}/api/lessons`, {
         method: "POST",
         headers: {
@@ -359,20 +368,21 @@ export default function BookLesson() {
         },
         body: JSON.stringify(body),
       });
+
       if (!r.ok) {
         const t = await r.text();
         throw new Error(t || "Booking failed");
       }
-      const lesson = await r.json();
 
-      if (lesson.isTrial) {
+      const data = await r.json();
+      const lessonId = data._id;
+
+      if (trial) {
         window.location.href = `/tutors/${encodeURIComponent(tutorId)}?trial=1`;
         return;
       }
 
-      // NEW: redirect to payment page instead of confirmation
-      window.location.href = `/pay/${encodeURIComponent(lesson._id)}`;
-
+      window.location.href = `/pay/${encodeURIComponent(lessonId)}`;
     } catch (e) {
       alert(e.message || "Booking failed");
     }
