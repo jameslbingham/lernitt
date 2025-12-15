@@ -287,7 +287,7 @@ export default function MyLessons() {
         style={{
           padding: "6px 8px",
           fontSize: 12,
-          border: "1px solid #e5e7eb",
+          border: "1px solid "#e5e7eb",
           borderRadius: 8,
           background: "#eff6ff",
         }}
