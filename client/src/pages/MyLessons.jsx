@@ -205,7 +205,6 @@ export default function MyLessons() {
   const ordered = useMemo(() => {
     let arr = [...rows];
 
-    // sort to show upcoming first
     arr.sort((a, b) => {
       const rank = (x) => (["expired", "completed", "cancelled"].includes(deriveStatus(x)) ? 1 : 0);
       return rank(a) - rank(b);
@@ -274,7 +273,6 @@ export default function MyLessons() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My Lessons</h1>
         <Link to="/tutors" className="text-sm underline">
@@ -282,12 +280,11 @@ export default function MyLessons() {
         </Link>
       </div>
 
-      {/* TZ */}
       <div
         style={{
           padding: "6px 8px",
           fontSize: 12,
-          border: "1px solid "#e5e7eb",
+          border: "1px solid #e5e7eb",
           borderRadius: 8,
           background: "#eff6ff",
         }}
@@ -295,7 +292,6 @@ export default function MyLessons() {
         Times shown in your timezone: {tz}
       </div>
 
-      {/* Mock banner */}
       {MOCK && (
         <div
           style={{
@@ -310,7 +306,6 @@ export default function MyLessons() {
         </div>
       )}
 
-      {/* Errors */}
       {err && (
         <div className="text-red-600">
           {err}{" "}
@@ -320,10 +315,8 @@ export default function MyLessons() {
         </div>
       )}
 
-      {/* Search + Filters */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur">
         <div className="flex flex-col gap-2">
-          {/* Search */}
           <div className="relative w-full">
             <input
               type="text"
@@ -343,7 +336,6 @@ export default function MyLessons() {
             )}
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap items-center gap-4">
             <label className="text-sm flex items-center gap-1">
               <input
@@ -385,7 +377,6 @@ export default function MyLessons() {
             </span>
           </div>
 
-          {/* Badge Legend */}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs opacity-80">
             <span className="opacity-60">Legend:</span>
             <StatusBadge status="pending_payment" />
@@ -399,10 +390,8 @@ export default function MyLessons() {
         </div>
       </div>
 
-      {/* Empty state */}
       {!err && ordered.length === 0 && <div className="opacity-70">No lessons yet.</div>}
 
-      {/* List */}
       {!err && ordered.length > 0 && (
         <ul className="space-y-2">
           {ordered.map((l) => {
@@ -421,7 +410,6 @@ export default function MyLessons() {
 
             return (
               <li key={l._id} className="border rounded-2xl p-3">
-                {/* header row */}
                 <Link
                   to={`/student-lesson/${l._id}`}
                   state={{ lesson: l }}
@@ -440,12 +428,10 @@ export default function MyLessons() {
                   </div>
                 </Link>
 
-                {/* price + subject */}
                 <div className="text-xs opacity-70 mt-1">
                   {l.subject || "—"} · Price: € {euros(l.price)}
                 </div>
 
-                {/* actions */}
                 <div className="mt-3 flex gap-2 flex-wrap">
                   {canPay && (
                     <Link
@@ -472,7 +458,6 @@ export default function MyLessons() {
                     Tutor
                   </Link>
 
-                  {/* NEW — VIEW RECORDINGS BUTTON (completed lessons only) */}
                   {isCompleted && (
                     <Link
                       to={`/lesson-recordings?lessonId=${encodeURIComponent(l._id)}`}
@@ -488,7 +473,6 @@ export default function MyLessons() {
         </ul>
       )}
 
-      {/* Top button */}
       {showTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
