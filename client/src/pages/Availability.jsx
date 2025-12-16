@@ -1,5 +1,6 @@
 // client/src/pages/Availability.jsx
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../lib/apiFetch.js";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 const MOCK = import.meta.env.VITE_MOCK === "1";
@@ -84,9 +85,7 @@ function validatePerDayRules(rulesByDay) {
       const cur = sorted[i];
       // overlap if cur.start < prev.end
       if (cmpTime(cur.start, prev.end) < 0) {
-        errs.push(
-          `${DAYS[di]} overlap: ${prev.start}–${prev.end} and ${cur.start}–${cur.end}`
-        );
+        errs.push(`${DAYS[di]} overlap: ${prev.start}–${prev.end} and ${cur.start}–${cur.end}`);
       }
     }
   });
@@ -160,18 +159,15 @@ export default function Availability() {
         if (um) setUntilMode(um);
         if (ud) setUntilDate(ud);
       } else {
-        const r = await fetch(`${API}/api/availability/me`);
-        if (r.ok) {
-          const data = await r.json();
-          setTimezone(data.timezone || timezone);
-          if (Array.isArray(data.rules) && data.rules.length === 7) setRules(data.rules);
-          if (data.startDate) setStartDate(data.startDate);
-          if (data.repeat) setRepeat(data.repeat);
-          if (data.untilMode) setUntilMode(data.untilMode);
-          if (data.untilDate) setUntilDate(data.untilDate);
-        } else {
-          setError("Failed to load availability");
-        }
+        // ✅ LIVE: use apiFetch so JWT is sent
+        const data = await apiFetch("/api/availability/me", { auth: true });
+
+        setTimezone(data.timezone || timezone);
+        if (Array.isArray(data.rules) && data.rules.length === 7) setRules(data.rules);
+        if (data.startDate) setStartDate(data.startDate);
+        if (data.repeat) setRepeat(data.repeat);
+        if (data.untilMode) setUntilMode(data.untilMode);
+        if (data.untilDate) setUntilDate(data.untilDate);
       }
       setDirty(false);
       setMsg("");
@@ -267,12 +263,12 @@ export default function Availability() {
         localStorage.setItem("availabilityUntilMode", untilMode);
         localStorage.setItem("availabilityUntilDate", untilDate);
       } else {
-        const r = await fetch(`${API}/api/availability`, {
+        // ✅ LIVE: use apiFetch so JWT is sent
+        await apiFetch("/api/availability", {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          auth: true,
+          body: payload,
         });
-        if (!r.ok) throw new Error("Save failed");
       }
       setMsg("Saved!");
       setDirty(false);
