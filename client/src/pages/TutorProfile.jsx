@@ -31,24 +31,40 @@ function TrialsBadge({ tutorId }) {
 
   useEffect(() => {
     let live = true;
+
     (async () => {
       try {
-        const res = await apiFetch(
-          `/api/lessons/trials/summary?tutorId=${encodeURIComponent(tutorId)}`,
+        const raw = await apiFetch(
+          `/api/lessons/trial-summary/${encodeURIComponent(tutorId)}`,
           { auth: true }
         );
-        if (live) setData(res);
-      } catch {}
+        if (!live || !raw) return;
+
+        const totalUsed = Number(raw.totalTrials ?? raw.totalUsed ?? 0);
+        const usedWithTutor = raw.usedWithTutor ? 1 : 0;
+
+        setData({
+          totalUsed,
+          usedWithTutor,
+          limitTotal: 3,
+          limitPerTutor: 1,
+        });
+      } catch {
+        if (live) setData(null);
+      }
     })();
 
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, [tutorId]);
 
   if (!data) return null;
 
   return (
     <span className="text-xs border rounded-full px-2 py-1">
-      Trials {data.totalUsed}/{data.limitTotal} • This tutor {data.usedWithTutor}/{data.limitPerTutor}
+      Trials {data.totalUsed}/{data.limitTotal} • This tutor{" "}
+      {data.usedWithTutor}/{data.limitPerTutor}
     </span>
   );
 }
@@ -72,12 +88,14 @@ function ReviewsPanel({ tutorId, tutorName }) {
       try {
         const [list, sum] = await Promise.all([
           apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}`),
-          apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`)
+          apiFetch(
+            `/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`
+          ),
         ]);
         setItems(Array.isArray(list) ? list : []);
         setSummary({
           avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0)
+          reviewsCount: Number(sum?.reviewsCount || 0),
         });
       } catch (e) {
         setErr(e.message || "Failed to load reviews.");
@@ -107,12 +125,16 @@ function ReviewsPanel({ tutorId, tutorName }) {
   function onSaved() {
     (async () => {
       try {
-        const list = await apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}`);
-        const sum = await apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`);
+        const list = await apiFetch(
+          `/api/reviews/tutor/${encodeURIComponent(tutorId)}`
+        );
+        const sum = await apiFetch(
+          `/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`
+        );
         setItems(Array.isArray(list) ? list : []);
         setSummary({
           avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0)
+          reviewsCount: Number(sum?.reviewsCount || 0),
         });
         setShowForm(false);
       } catch {}
@@ -124,8 +146,11 @@ function ReviewsPanel({ tutorId, tutorName }) {
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-semibold">Reviews</h2>
         <span className="text-sm opacity-70">
-          {summary.reviewsCount} review{summary.reviewsCount === 1 ? "" : "s"}
-          {summary.reviewsCount > 0 ? ` • ${summary.avgRating.toFixed(1)}/5` : ""}
+          {summary.reviewsCount} review
+          {summary.reviewsCount === 1 ? "" : "s"}
+          {summary.reviewsCount > 0
+            ? ` • ${summary.avgRating.toFixed(1)}/5`
+            : ""}
         </span>
 
         {canReview && (
@@ -140,7 +165,12 @@ function ReviewsPanel({ tutorId, tutorName }) {
 
       {showForm && (
         <div className="border rounded-2xl p-3">
-          <ReviewForm tutorId={tutorId} tutorName={tutorName} onSaved={onSaved} onClose={() => setShowForm(false)} />
+          <ReviewForm
+            tutorId={tutorId}
+            tutorName={tutorName}
+            onSaved={onSaved}
+            onClose={() => setShowForm(false)}
+          />
         </div>
       )}
 
@@ -158,7 +188,9 @@ function ReviewsPanel({ tutorId, tutorName }) {
               <div className="flex items-center gap-2">
                 <div className="font-medium">{r.student || "Student"}</div>
                 <div className="text-xs opacity-70">
-                  {r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}
+                  {r.createdAt
+                    ? new Date(r.createdAt).toLocaleString()
+                    : ""}
                 </div>
                 <div className="ml-auto text-sm">
                   ★ {Number(r.rating || 0).toFixed(1)}/5
@@ -235,8 +267,13 @@ export default function TutorProfile() {
   // Document title
   useEffect(() => {
     if (!tutor) return;
-    const avg = typeof tutor.avgRating === "number" ? tutor.avgRating.toFixed(1) : null;
-    document.title = avg ? `${tutor.name} — ${avg}⭐ | Lernitt` : `${tutor.name} — Tutor | Lernitt`;
+    const avg =
+      typeof tutor.avgRating === "number"
+        ? tutor.avgRating.toFixed(1)
+        : null;
+    document.title = avg
+      ? `${tutor.name} — ${avg}⭐ | Lernitt`
+      : `${tutor.name} — Tutor | Lernitt`;
   }, [tutor]);
 
   if (loading) return <div className="p-4">Loading…</div>;
@@ -255,11 +292,12 @@ export default function TutorProfile() {
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-6">
-
       {/* Trial banner */}
       {showTrialBanner && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
-          <div>🎉 <b>Trial booked!</b> Your 30-minute lesson is confirmed.</div>
+          <div>
+            🎉 <b>Trial booked!</b> Your 30-minute lesson is confirmed.
+          </div>
           <button
             onClick={() => setShowTrialBanner(false)}
             className="ml-auto text-xs border px-2 py-1 rounded-2xl"
@@ -291,7 +329,9 @@ export default function TutorProfile() {
         </div>
 
         {tutor.avgRating != null && (
-          <div className="text-sm">⭐ {tutor.avgRating.toFixed(1)} / 5</div>
+          <div className="text-sm">
+            ⭐ {tutor.avgRating.toFixed(1)} / 5
+          </div>
         )}
 
         <div className="text-lg font-semibold">
