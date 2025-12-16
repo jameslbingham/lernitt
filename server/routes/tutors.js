@@ -13,7 +13,7 @@ router.get("/", async (req, res) => {
   try {
     const tutors = await User.aggregate([
       // ✅ ONLY tutors
-      { $match: { role: "tutor" } },
+      { $match: { isTutor: true } },
 
       {
         $lookup: {
@@ -50,7 +50,7 @@ router.get("/:id", async (req, res) => {
 
     const result = await User.aggregate([
       // ✅ MUST be tutor
-      { $match: { _id: id, role: "tutor" } },
+      { $match: { _id: id, isTutor: true } },
 
       {
         $lookup: {
