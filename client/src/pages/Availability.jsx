@@ -107,6 +107,43 @@ function dayIndexMon0(date) {
   return (js + 6) % 7; // 0..6 with Mon=0
 }
 
+/* ---------- NEW: rules ⇄ weekly helpers ---------- */
+
+function weeklyFromRules(rules) {
+  const out = [];
+  (rules || []).forEach((rangesForDay, di) => {
+    if (!rangesForDay || rangesForDay.length === 0) return;
+    // Mon=0..Sat=5, Sun=6  →  dow: Mon=1..Sat=6, Sun=0
+    const dow = di === 6 ? 0 : di + 1;
+    out.push({
+      dow,
+      ranges: rangesForDay.map((r) => ({
+        start: r.start,
+        end: r.end,
+      })),
+    });
+  });
+  return out;
+}
+
+function rulesFromWeekly(weekly) {
+  const rules = DAYS.map(() => []);
+  (weekly || []).forEach((w) => {
+    let di;
+    if (w.dow === 0) di = 6; // Sunday
+    else di = w.dow - 1;     // 1..6 → Mon..Sat
+    if (di < 0 || di > 6) return;
+
+    const dayRanges = (w.ranges || []).map((r) => ({
+      start: (r.start || "00:00").slice(0, 5),
+      end: (r.end || "23:45").slice(0, 5),
+    }));
+
+    rules[di] = dayRanges;
+  });
+  return rules;
+}
+
 /* -------------------- page -------------------- */
 
 export default function Availability() {
@@ -163,7 +200,15 @@ export default function Availability() {
         const data = await apiFetch("/api/availability/me", { auth: true });
 
         setTimezone(data.timezone || timezone);
-        if (Array.isArray(data.rules) && data.rules.length === 7) setRules(data.rules);
+
+        if (Array.isArray(data.weekly) && data.weekly.length > 0) {
+          // NEW: source of truth in Mongo → convert to UI rules
+          setRules(rulesFromWeekly(data.weekly));
+        } else if (Array.isArray(data.rules) && data.rules.length === 7) {
+          // backward-compat if we ever stored rules directly
+          setRules(data.rules);
+        }
+
         if (data.startDate) setStartDate(data.startDate);
         if (data.repeat) setRepeat(data.repeat);
         if (data.untilMode) setUntilMode(data.untilMode);
@@ -246,14 +291,18 @@ export default function Availability() {
     setSaving(true);
     setMsg("");
     setError("");
+
     const payload = {
       timezone,
+      weekly: weeklyFromRules(rules),      // NEW: what the backend actually uses
+      // keep UI fields (ignored by backend, but harmless)
       rules,
       startDate,
       repeat,
       untilMode,
       untilDate: untilMode === "until" ? untilDate : "",
     };
+
     try {
       if (MOCK) {
         localStorage.setItem("availabilityTz", timezone);
