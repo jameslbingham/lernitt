@@ -163,6 +163,12 @@ export default function Pay() {
 
   const amount = eurosFromPrice(amountRaw).toFixed(2);
 
+  const tutorId =
+    typeof lesson.tutor === "string"
+      ? lesson.tutor
+      : lesson.tutor?._id || "";
+  const tutorName = lesson.tutorName || lesson.tutor?.name || "Tutor";
+
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
       {/* Progress header */}
@@ -176,7 +182,13 @@ export default function Pay() {
       <div style={{ marginBottom: 12 }}>
         <div>
           <b>Tutor:</b>{" "}
-          <Link to={`/tutors/${lesson.tutor}`}>{lesson.tutorName || "Tutor"}</Link>
+          {tutorId ? (
+            <Link to={`/tutors/${encodeURIComponent(tutorId)}`}>
+              {tutorName}
+            </Link>
+          ) : (
+            tutorName
+          )}
         </div>
 
         <div><b>When:</b> {when}</div>
