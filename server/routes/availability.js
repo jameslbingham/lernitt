@@ -47,6 +47,29 @@ function sliceDaySlots(day, ranges, durMins, policy, interval) {
   return out;
 }
 
+/* Convert UI "rules" (Mon..Sun arrays) → DB weekly format */
+function rulesToWeekly(rules) {
+  if (!Array.isArray(rules) || rules.length !== 7) return null;
+
+  // Mon..Sun indexes → DB dow (0 = Sun, 1 = Mon, … 6 = Sat)
+  const dowMap = [1, 2, 3, 4, 5, 6, 0];
+  const weekly = [];
+
+  rules.forEach((dayRanges, idx) => {
+    if (!Array.isArray(dayRanges) || dayRanges.length === 0) return;
+
+    const safeRanges = dayRanges
+      .filter((r) => r && typeof r.start === "string" && typeof r.end === "string")
+      .map((r) => ({ start: r.start, end: r.end }));
+
+    if (safeRanges.length) {
+      weekly.push({ dow: dowMap[idx], ranges: safeRanges });
+    }
+  });
+
+  return weekly;
+}
+
 /* ---------- routes: tutor self + admin ---------- */
 
 // GET /api/availability/me
@@ -180,12 +203,9 @@ router.get("/:tutorId/slots", async (req, res) => {
       if (ex) {
         ranges = ex.open ? (ex.ranges || []) : [];
       } else {
-        // ✅ FIXED: correct weekly DOW mapping (Luxon Sunday=7 → DB Sunday=0)
-        const dowIndex = (day.weekday === 7 ? 0 : day.weekday);
-
-        const dayWeekly = (avail.weekly || []).filter(
-          (w) => w.dow === dowIndex
-        );
+        // ✅ Correct weekly DOW mapping (Luxon Sunday=7 → DB Sunday=0)
+        const dowIndex = day.weekday === 7 ? 0 : day.weekday;
+        const dayWeekly = (avail.weekly || []).filter((w) => w.dow === dowIndex);
         ranges = dayWeekly.flatMap((w) => w.ranges || []);
       }
 
@@ -273,6 +293,12 @@ router.put("/", async (req, res) => {
       exceptions = [],
       slotInterval = 30,
       slotStartPolicy = "hourHalf",
+      // new fields from Availability.jsx UI:
+      rules,
+      startDate,
+      repeat,
+      untilMode,
+      untilDate,
     } = req.body || {};
 
     let doc = await Availability.findOne({ tutor });
@@ -290,10 +316,19 @@ router.put("/", async (req, res) => {
       doc.timezone = timezone;
     }
 
-    doc.weekly = Array.isArray(weekly) ? weekly : [];
+    // Prefer UI "rules" if present, otherwise accept raw weekly from body
+    const weeklyFromRules = rulesToWeekly(rules);
+    doc.weekly = weeklyFromRules || (Array.isArray(weekly) ? weekly : []);
+
     doc.exceptions = Array.isArray(exceptions) ? exceptions : [];
     doc.slotInterval = Number(slotInterval) || 30;
     doc.slotStartPolicy = slotStartPolicy || "hourHalf";
+
+    // Optional window fields (used by UI; safe even if schema ignores them)
+    if (startDate) doc.startDate = startDate;
+    if (repeat) doc.repeat = repeat;
+    if (untilMode) doc.untilMode = untilMode;
+    if (typeof untilDate === "string") doc.untilDate = untilDate;
 
     await doc.save();
     res.json(doc);
