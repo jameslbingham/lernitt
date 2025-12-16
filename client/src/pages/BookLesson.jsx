@@ -182,6 +182,7 @@ export default function BookLesson() {
     }
   }, [tutorId]);
 
+  // ---------- REPLACED BLOCK: load trial summary ----------
   useEffect(() => {
     const load = async () => {
       try {
@@ -189,31 +190,48 @@ export default function BookLesson() {
           const totalUsed = Number(localStorage.getItem("mockTrialsTotal") || 0);
           const byTutorKey = `mockTrialsByTutor:${tutorId}`;
           const usedWithTutor = Number(localStorage.getItem(byTutorKey) || 0);
-          setTrialInfo({ totalUsed, usedWithTutor, limitTotal: 3, limitPerTutor: 1 });
+          setTrialInfo({
+            totalUsed,
+            usedWithTutor,
+            limitTotal: 3,
+            limitPerTutor: 1,
+          });
         } else {
           const token = localStorage.getItem("token");
           const r = await fetch(
-            `${API}/api/lessons/trials/summary?tutorId=${encodeURIComponent(tutorId)}`,
+            `${API}/api/lessons/trial-summary/${encodeURIComponent(tutorId)}`,
             { headers: token ? { Authorization: `Bearer ${token}` } : {} }
           );
+          if (!r.ok) throw new Error(`Trial summary failed (${r.status})`);
           const d = await r.json();
+
+          const totalUsed = Number(d?.totalTrials ?? d?.totalUsed ?? 0);
+          const usedWithTutor = d?.usedWithTutor ? 1 : 0;
+
           setTrialInfo({
-            totalUsed: d?.totalUsed ?? 0,
-            usedWithTutor: d?.usedWithTutor ?? 0,
-            limitTotal: d?.limitTotal ?? 3,
-            limitPerTutor: d?.limitPerTutor ?? 1,
+            totalUsed,
+            usedWithTutor,
+            limitTotal: 3,
+            limitPerTutor: 1,
           });
         }
-      } catch {}
+      } catch {
+        // keep defaults (3 total, 1 per tutor, 0 used)
+      }
     };
+
     if (tutorId) load();
   }, [tutorId]);
+  // ---------- END REPLACED BLOCK ----------
 
   const [weekSlots, setWeekSlots] = useState({});
   const [loadingWeek, setLoadingWeek] = useState(false);
   const [error, setError] = useState("");
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
 
   const daySlots = useMemo(() => {
     const key = startOfDay(selectedDay).toISOString().slice(0, 10);
@@ -271,7 +289,9 @@ export default function BookLesson() {
           tz,
         });
 
-        const cacheKey = ["weekSlots", tutorId, from.toISOString().slice(0, 10), dur, tz].join("|");
+        const cacheKey = ["weekSlots", tutorId, from.toISOString().slice(0, 10), dur, tz].join(
+          "|"
+        );
         try {
           const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
           if (cached && typeof cached === "object") {
@@ -288,8 +308,7 @@ export default function BookLesson() {
         const data = await r.json();
 
         const list =
-          Array.isArray(data?.slots) ? data.slots :
-          Array.isArray(data) ? data.map((x) => x.start) : [];
+          Array.isArray(data?.slots) ? data.slots : Array.isArray(data) ? data.map((x) => x.start) : [];
 
         const grouped = {};
         for (const iso of list) {
@@ -401,7 +420,9 @@ export default function BookLesson() {
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
       {/* Back to tutors */}
       <div style={{ marginBottom: 8 }}>
-        <Link to={backTo} className="text-sm underline">← Back to tutors</Link>
+        <Link to={backTo} className="text-sm underline">
+          ← Back to tutors
+        </Link>
       </div>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
