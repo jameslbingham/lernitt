@@ -23,7 +23,8 @@ function downloadIcs(filename, content) {
 
 /* ---------------- Lifecycle Translation ---------------- */
 function translateStatus(raw) {
-  switch ((raw || "").toLowerCase()) {
+  const s = (raw || "").toLowerCase();
+  switch (s) {
     case "booked":
     case "pending":
       return "pending_payment";
@@ -43,6 +44,7 @@ function translateStatus(raw) {
     case "expired":
       return "expired";
 
+    case "reschedule_requested":
     case "reschedule_pending":
       return "reschedule_requested";
 
@@ -117,7 +119,7 @@ export default function BookingConfirmation() {
         setError(e.message || "Failed to load lesson");
       }
     })();
-  }, [lessonId, loc.search]);
+  }, [lessonId, loc.search, justPaid, provider]);
 
   /* ---------------- Load tutor timezone ---------------- */
   useEffect(() => {
