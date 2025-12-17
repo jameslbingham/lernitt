@@ -38,13 +38,19 @@ export default function Pay() {
 
       const normalized = {
         ...data,
-        start: data.start || data.startTime,
+        // prefer startTime from backend, fallback to any older "start" field
+        start: data.startTime || data.start,
+        // prefer durationMins, then duration, then compute from times, else 60
         duration:
-          data.duration ||
-          (data.endTime && data.startTime
+          (typeof data.durationMins === "number" && data.durationMins > 0
+            ? data.durationMins
+            : typeof data.duration === "number" && data.duration > 0
+            ? data.duration
+            : data.endTime && data.startTime
             ? (new Date(data.endTime) - new Date(data.startTime)) / 60000
             : 60),
-        isTrial: data.isTrial || data.kind === "trial",
+        // strict trial flag
+        isTrial: data.isTrial === true || data.kind === "trial",
       };
 
       // Trials do not pay — redirect straight to confirmation page
