@@ -307,8 +307,13 @@ export default function BookLesson() {
         if (!r.ok) throw new Error(`Failed to load slots (${r.status})`);
         const data = await r.json();
 
+        // FIXED: backend returns an array of ISO strings, not {start} objects
         const list =
-          Array.isArray(data?.slots) ? data.slots : Array.isArray(data) ? data.map((x) => x.start) : [];
+          Array.isArray(data?.slots)
+            ? data.slots
+            : Array.isArray(data)
+            ? data
+            : [];
 
         const grouped = {};
         for (const iso of list) {
