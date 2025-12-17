@@ -12,8 +12,150 @@ const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_SEC
 // CONSTANT CURRENCY FOR ENTIRE PLATFORM
 const PLATFORM_CURRENCY = "USD";
 
+/* -------------------------------------------
+   Helper: compute amount (cents) from lesson
+------------------------------------------- */
+function amountCentsFromLesson(lessonDoc) {
+  if (!lessonDoc) return 0;
+
+  // Prefer explicit cents fields if they ever exist
+  if (typeof lessonDoc.amountCents === 'number') {
+    return Math.max(0, Math.round(lessonDoc.amountCents));
+  }
+  if (typeof lessonDoc.priceCents === 'number') {
+    return Math.max(0, Math.round(lessonDoc.priceCents));
+  }
+
+  // Fallback: price is in full units (e.g. 18.5 → 1850)
+  if (typeof lessonDoc.price === 'number') {
+    return Math.max(0, Math.round(lessonDoc.price * 100));
+  }
+
+  return 0;
+}
+
 /* ============================================
-   Create Stripe PaymentIntent (USD-only)
+   NEW: Create Stripe PaymentIntent from lessonId
+   POST /api/payments/stripe/create
+   Body: { lessonId }
+   ============================================ */
+router.post('/stripe/create', auth, async (req, res) => {
+  try {
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const { lessonId } = req.body || {};
+
+    if (!lessonId) {
+      return res.status(400).json({ message: 'Missing lessonId' });
+    }
+
+    const lessonDoc = await Lesson.findById(lessonId);
+    if (!lessonDoc) return res.status(404).json({ message: 'Lesson not found' });
+
+    // Only the student can pay for their lesson
+    if (lessonDoc.student.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not allowed' });
+    }
+
+    // Do not create payments for trials / zero-price lessons
+    const amount = amountCentsFromLesson(lessonDoc);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Lesson has no payable amount' });
+    }
+
+    const currency = PLATFORM_CURRENCY;
+
+    const pi = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      metadata: { lesson: lessonId }
+    });
+
+    const payment = await Payment.create({
+      user: req.user.id,
+      lesson: lessonId,
+      provider: 'stripe',
+      amount,
+      currency,
+      status: 'pending',
+      providerIds: {
+        paymentIntentId: pi.id,
+        clientSecret: pi.client_secret
+      },
+      meta: { simulated: false }
+    });
+
+    return res.json({
+      simulated: false,
+      clientSecret: pi.client_secret,
+      paymentId: payment._id,
+      status: payment.status,
+      intentId: pi.id
+    });
+  } catch (err) {
+    console.error('[PAY][stripe/create] error:', err);
+    return res.status(500).json({ message: 'Server error', error: String(err.message || err) });
+  }
+});
+
+/* ============================================
+   NEW: Create PayPal order from lessonId
+   POST /api/payments/paypal/create
+   Body: { lessonId }
+   ============================================ */
+router.post('/paypal/create', auth, async (req, res) => {
+  try {
+    const { lessonId } = req.body || {};
+
+    if (!lessonId) {
+      return res.status(400).json({ message: 'Missing lessonId' });
+    }
+
+    const lessonDoc = await Lesson.findById(lessonId);
+    if (!lessonDoc) return res.status(404).json({ message: 'Lesson not found' });
+
+    // Only the student can pay for their lesson
+    if (lessonDoc.student.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not allowed' });
+    }
+
+    const amount = amountCentsFromLesson(lessonDoc);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Lesson has no payable amount' });
+    }
+
+    const currency = PLATFORM_CURRENCY;
+
+    // In real PayPal integration we'd call PayPal API here.
+    // For now, we simulate an order id.
+    let orderId = `order_test_${Math.random().toString(36).slice(2, 16)}`;
+
+    const payment = await Payment.create({
+      user: req.user.id,
+      lesson: lessonId,
+      provider: 'paypal',
+      amount: Number(amount),
+      currency,
+      status: 'pending',
+      providerIds: { orderId },
+      meta: { simulated: !hasPayPalKeys }
+    });
+
+    return res.json({
+      simulated: !hasPayPalKeys,
+      id: orderId,
+      paymentId: payment._id,
+      status: payment.status
+    });
+  } catch (err) {
+    console.error('[PAY][paypal/create] error:', err);
+    return res.status(500).json({ message: 'Server error', error: String(err.message || err) });
+  }
+});
+
+/* ============================================
+   Create Stripe PaymentIntent (manual amount)
+   POST /api/payments/stripe
+   Body: { amount, lesson }
    ============================================ */
 router.post('/stripe', auth, async (req, res) => {
   try {
@@ -64,7 +206,9 @@ router.post('/stripe', auth, async (req, res) => {
 });
 
 /* ============================================
-   Create PayPal order (USD-only)
+   Create PayPal order (manual amount)
+   POST /api/payments/paypal
+   Body: { amount, lesson }
    ============================================ */
 router.post('/paypal', auth, async (req, res) => {
   try {
