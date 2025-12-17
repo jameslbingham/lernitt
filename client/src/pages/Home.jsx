@@ -24,7 +24,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import Footer from "../components/Footer.jsx";
-import heroImg from "../assets/hero-online-tutoring.png";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
