@@ -41,22 +41,22 @@ const FAQ_DATA = {
   "Lessons & Booking": [
     { q: "How do lessons work?", a: "You choose a tutor, pick a time,..." },
     { q: "Can I reschedule a lesson?", a: "Yes. You can request..." },
-    { q: "Do you offer trial lessons?", a: "Many tutors offer..." }
+    { q: "Do you offer trial lessons?", a: "Many tutors offer..." },
   ],
   "Payments & Refunds": [
     { q: "How do payments work?", a: "You pay securely..." },
     { q: "Can I get a refund?", a: "If a lesson is cancelled..." },
-    { q: "Which currencies do you support?", a: "Right now, USD..." }
+    { q: "Which currencies do you support?", a: "Right now, USD..." },
   ],
   "Tutors & Requirements": [
     { q: "Who can teach on Lernitt?", a: "Tutors must complete..." },
-    { q: "How are tutors rated?", a: "After each lesson..." }
+    { q: "How are tutors rated?", a: "After each lesson..." },
   ],
   "Account & Technical": [
     { q: "What do I need for a lesson?", a: "Stable internet..." },
     { q: "Do I need extra software?", a: "No. Lessons run..." },
-    { q: "I can’t join my lesson.", a: "Refresh, check internet..." }
-  ]
+    { q: "I can’t join my lesson.", a: "Refresh, check internet..." },
+  ],
 };
 
 // -----------------------------------------------------------------------------
@@ -366,7 +366,7 @@ function MarketingHomepage({ theme }) {
         {/* HERO SECTION */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
           <div className="absolute inset-0 bg-black/30" />
-          <div className="relative flex flex-col items-center justify-center gap-8 px-6 py-12 text-center text-white sm:flex-row sm:items-center sm:justify-between sm:text-left">
+          <div className="relative flex flex-col items-center justify-center gap-8 px-6 py-12 text-center text-white sm:items-center sm:text-left">
             <div className="max-w-xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
                 <span>✨</span>
@@ -398,15 +398,6 @@ function MarketingHomepage({ theme }) {
               <p className="text-xs opacity-80">
                 Only takes a minute. No long forms.
               </p>
-            </div>
-
-            {/* HERO IMAGE (REAL ILLUSTRATION) */}
-            <div className="mt-4 w-full max-w-sm sm:mt-0">
-              <img
-                src={heroImg}
-                alt="Student taking an online tutoring lesson on Lernitt"
-                className="w-full rounded-2xl shadow-lg border border-white/20"
-              />
             </div>
           </div>
         </section>
