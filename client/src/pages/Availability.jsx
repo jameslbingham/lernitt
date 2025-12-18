@@ -319,7 +319,7 @@ export default function Availability() {
           body: payload,
         });
       }
-      setMsg("Saved!");
+      setMsg("Availability is live. Students can now book.");
       setDirty(false);
       // clear draft on successful save
       try {
@@ -429,7 +429,15 @@ export default function Availability() {
       {/* Sticky header + actions */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Availability</h1>
+          <div>
+            <h1 className="text-2xl font-bold">Availability</h1>
+
+            {/* ✅ NEW: helper text under title */}
+            <p className="text-sm opacity-70 mt-1">
+              Set when students can book you. Changes apply immediately.
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <button
               type="button"
