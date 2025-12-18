@@ -680,7 +680,7 @@ export default function Tutors() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-2 ml-3">
+                    <div className="flex flex-col items-end gap-2 ml-3 max-w-[90px]">
                       <div className="text-sm font-semibold whitespace-nowrap">
                         €{" "}
                         {(() => {
@@ -693,7 +693,7 @@ export default function Tutors() {
                       </div>
 
                       {/* NEW: Trial badge */}
-                      <div className="text-[11px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+                      <div className="text-[11px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full text-center whitespace-normal">
                         Trial available
                       </div>
 
@@ -702,7 +702,7 @@ export default function Tutors() {
                         to={`/book/${tid}`}
                         state={{ tutor: t, trial: true }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white"
+                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white text-center whitespace-normal"
                       >
                         Trial →
                       </Link>
@@ -717,7 +717,7 @@ export default function Tutors() {
                           },
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white"
+                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white text-center whitespace-normal"
                       >
                         Book
                       </Link>
@@ -728,7 +728,7 @@ export default function Tutors() {
                         onClick={(e) => e.stopPropagation()}
                         onMouseEnter={() => prefetchTutor(tid)}
                         onFocus={() => prefetchTutor(tid)}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white"
+                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white text-center whitespace-normal"
                       >
                         View profile
                       </Link>
