@@ -682,7 +682,7 @@ export default function Tutors() {
 
                     {/* RIGHT COLUMN (PRICE + BUTTONS) */}
                     <div className="flex flex-col gap-2 ml-3 w-24">
-                      <div className="text-sm font-semibold whitespace-nowrap self-end">
+                      <div className="mt-6 text-sm font-semibold whitespace-nowrap self-end">
                         €{" "}
                         {(() => {
                           const p = eurosFromPrice(t.price);
