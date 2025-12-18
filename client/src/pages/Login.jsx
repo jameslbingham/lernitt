@@ -15,6 +15,13 @@ export default function Login() {
   const params = new URLSearchParams(search);
   const next = params.get("next") || "/";
 
+  // ✅ NEW: role-based post-login routing
+  function afterLoginPath(u) {
+    if (u?.role === "admin") return "/admin";
+    if (u?.role === "tutor") return "/tutor";
+    return next || "/my-lessons";
+  }
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -22,7 +29,6 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // login / signup mode (unchanged)
   const [mode, setMode] = useState("login"); // "login" | "signup"
 
   useEffect(() => {
@@ -55,10 +61,10 @@ export default function Login() {
           : "student";
 
         login("mock-token", { email, role });
-        return nav(next, { replace: true });
+        return nav(afterLoginPath({ role }), { replace: true });
       }
 
-      // SIGNUP MODE
+      // SIGNUP MODE (student only)
       if (mode === "signup") {
         const data = await apiFetch(`${API}/api/auth/signup`, {
           method: "POST",
@@ -75,7 +81,7 @@ export default function Login() {
         }
 
         login(data.token, data.user);
-        return nav("/", { replace: true });
+        return nav(afterLoginPath(data.user), { replace: true });
       }
 
       // LOGIN MODE
@@ -89,7 +95,7 @@ export default function Login() {
       }
 
       login(data.token, data.user);
-      nav(next, { replace: true });
+      nav(afterLoginPath(data.user), { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Error");
     } finally {
@@ -100,7 +106,6 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <main className="mx-auto max-w-md px-4 pt-20 pb-20 space-y-8">
-        {/* HERO */}
         <section className="text-center space-y-3">
           <h1 className="text-3xl font-extrabold">
             {mode === "login" ? "Welcome back" : "Create your account"}
@@ -110,7 +115,6 @@ export default function Login() {
           </p>
         </section>
 
-        {/* LOGIN CARD */}
         <section className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
           <div className="text-xs opacity-70">
             You’ll return to: <code>{next}</code>
@@ -126,7 +130,6 @@ export default function Login() {
           )}
 
           <form onSubmit={onSubmit} className="space-y-4">
-            {/* EMAIL */}
             <label className="block text-sm font-medium">
               Email
               <input
@@ -139,7 +142,6 @@ export default function Login() {
               />
             </label>
 
-            {/* PASSWORD */}
             <label className="block text-sm font-medium">
               Password
               <div className="relative mt-1">
@@ -165,7 +167,6 @@ export default function Login() {
               </div>
             </label>
 
-            {/* REMEMBER + MODE TOGGLE */}
             <div className="flex items-center gap-3 text-sm flex-wrap">
               <label className="inline-flex items-center gap-2">
                 <input
@@ -188,7 +189,6 @@ export default function Login() {
               </button>
             </div>
 
-            {/* SUBMIT */}
             <button
               type="submit"
               disabled={loading}
@@ -203,7 +203,6 @@ export default function Login() {
                 : "Create account"}
             </button>
 
-            {/* TRUST MICROCOPY */}
             <p className="text-xs text-center opacity-70">
               Secure login. No spam. Your details are protected under our{" "}
               <Link to="/privacy" className="underline">
