@@ -628,7 +628,7 @@ export default function Tutors() {
 
                   <div className="flex justify-between items-start relative z-10">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <div className="w-12 h-12 rounded-full border flex items-center justify-center text-base font-semibold bg-white shadow-sm">
                           {t.name?.[0] || "?"}
                         </div>
