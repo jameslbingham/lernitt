@@ -680,8 +680,9 @@ export default function Tutors() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-2 ml-3 max-w-[90px]">
-                      <div className="text-sm font-semibold whitespace-nowrap">
+                    {/* RIGHT COLUMN (PRICE + BUTTONS) */}
+                    <div className="flex flex-col gap-2 ml-3 w-24">
+                      <div className="text-sm font-semibold whitespace-nowrap self-end">
                         €{" "}
                         {(() => {
                           const p = eurosFromPrice(t.price);
@@ -693,7 +694,7 @@ export default function Tutors() {
                       </div>
 
                       {/* NEW: Trial badge */}
-                      <div className="text-[11px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full text-center whitespace-normal">
+                      <div className="text-[11px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full w-full text-center">
                         Trial available
                       </div>
 
@@ -702,7 +703,7 @@ export default function Tutors() {
                         to={`/book/${tid}`}
                         state={{ tutor: t, trial: true }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white text-center whitespace-normal"
+                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
                       >
                         Trial →
                       </Link>
@@ -717,7 +718,7 @@ export default function Tutors() {
                           },
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white text-center whitespace-normal"
+                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
                       >
                         Book
                       </Link>
@@ -728,7 +729,7 @@ export default function Tutors() {
                         onClick={(e) => e.stopPropagation()}
                         onMouseEnter={() => prefetchTutor(tid)}
                         onFocus={() => prefetchTutor(tid)}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white text-center whitespace-normal"
+                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
                       >
                         View profile
                       </Link>
