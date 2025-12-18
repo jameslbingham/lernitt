@@ -1,5 +1,6 @@
 // /client/src/pages/TutorDashboard.jsx
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
@@ -326,8 +327,12 @@ function WeeklyStats() {
       }}
     >
       <h3 style={{ color: "#065f46" }}>📊 Weekly Stats</h3>
-      <p>Lessons this week: <b>{stats.lessons}</b></p>
-      <p>Estimated income: <b>${stats.income.toFixed(2)}</b></p>
+      <p>
+        Lessons this week: <b>{stats.lessons}</b>
+      </p>
+      <p>
+        Estimated income: <b>${stats.income.toFixed(2)}</b>
+      </p>
     </div>
   );
 }
@@ -425,9 +430,15 @@ function EarningsSummary() {
       }}
     >
       <h3 style={{ color: "#075985" }}>💰 Earnings Summary</h3>
-      <p>Total earned: <b>${earnings.total.toFixed(2)}</b></p>
-      <p>Pending payout: <b>${earnings.pending.toFixed(2)}</b></p>
-      <p>Refunded: <b>${earnings.refunded.toFixed(2)}</b></p>
+      <p>
+        Total earned: <b>${earnings.total.toFixed(2)}</b>
+      </p>
+      <p>
+        Pending payout: <b>${earnings.pending.toFixed(2)}</b>
+      </p>
+      <p>
+        Refunded: <b>${earnings.refunded.toFixed(2)}</b>
+      </p>
     </div>
   );
 }
@@ -446,9 +457,12 @@ export default function TutorDashboard() {
       if (!token) return;
 
       try {
-        const notes = await apiFetch(`${import.meta.env.VITE_API}/api/notifications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const notes = await apiFetch(
+          `${import.meta.env.VITE_API}/api/notifications`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         const unreadCount = Array.isArray(notes)
           ? notes.filter((n) => !n.read).length
           : 0;
@@ -475,6 +489,16 @@ export default function TutorDashboard() {
   return (
     <div style={{ padding: "24px", maxWidth: 960, margin: "0 auto" }}>
       <h1>Tutor Dashboard</h1>
+
+      <p className="mt-4">
+        <Link
+          to="/availability"
+          className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700"
+        >
+          Manage availability
+        </Link>
+      </p>
+
       <p>Welcome! This page shows your lessons, students, and earnings.</p>
 
       {err && <div style={{ background: "#fee2e2", padding: 8 }}>{err}</div>}
