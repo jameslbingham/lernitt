@@ -29,12 +29,14 @@ async function computeCanReview(userId, lessonId) {
   return { canReview: true, reason: "ok", tutor: lesson.tutor };
 }
 
-// Helper: can a user review a tutor?
+// Helper: can a user review a tutor (any eligible completed lesson not yet reviewed)?
 async function computeCanReviewByTutor(userId, tutorId) {
+  // sanity
   if (!mongoose.isValidObjectId(tutorId)) {
     return { canReview: false, reason: "invalid_tutor" };
   }
 
+  // Check if the student already reviewed this tutor
   const alreadyReviewed = await Review.exists({
     student: userId,
     tutor: tutorId,
@@ -43,6 +45,7 @@ async function computeCanReviewByTutor(userId, tutorId) {
     return { canReview: false, reason: "already_reviewed" };
   }
 
+  // Check for at least one completed lesson with this tutor
   const hasCompletedLesson = await Lesson.exists({
     student: userId,
     tutor: tutorId,
@@ -56,6 +59,10 @@ async function computeCanReviewByTutor(userId, tutorId) {
   return { canReview: true, reason: "ok" };
 }
 
+/**
+ * GET /api/reviews/can/:lessonId
+ * Check if the logged-in student may review this lesson.
+ */
 router.get("/can/:lessonId", auth, async (req, res) => {
   try {
     const { lessonId } = req.params;
@@ -67,6 +74,11 @@ router.get("/can/:lessonId", auth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reviews/can-review?tutorId=...
+ * Check if the logged-in student may review this tutor (has a completed lesson and no prior review).
+ * Returns: { canReview: boolean }
+ */
 router.get("/can-review", auth, async (req, res) => {
   try {
     const userId = req.user && (req.user.id || req.user._id);
@@ -82,6 +94,13 @@ router.get("/can-review", auth, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/reviews
+ * Body:
+ *  - Option A: { lessonId, rating (1-5), text }
+ *  - Option B: { tutorId, rating (1-5), text }  // server will pick an eligible completed lesson
+ * Creates a review for a completed lesson by the student.
+ */
 router.post("/", auth, async (req, res) => {
   try {
     const { lessonId, tutorId, rating, text } = req.body || {};
@@ -91,14 +110,17 @@ router.post("/", auth, async (req, res) => {
     let finalTutorId = tutorId;
 
     if (!finalLessonId && finalTutorId) {
+      // Find the most recent completed lesson with this tutor that is not yet reviewed by this student
       if (!mongoose.isValidObjectId(finalTutorId)) {
         return res.status(400).json({ error: "invalid_tutor" });
       }
 
+      // Ensure user is eligible
       const can = await computeCanReviewByTutor(req.user.id, finalTutorId);
       if (!can.canReview)
         return res.status(400).json({ error: can.reason || "not_allowed" });
 
+      // Pick latest completed lesson without a review by this student
       const latestCompleted = await Lesson.findOne({
         student: req.user.id,
         tutor: finalTutorId,
@@ -112,6 +134,7 @@ router.post("/", auth, async (req, res) => {
         return res.status(400).json({ error: "no_completed_lesson" });
       }
 
+      // Double-check there isn't a review for this lesson from this student (defensive)
       const already = await Review.exists({
         lesson: latestCompleted._id,
         student: req.user.id,
@@ -124,10 +147,10 @@ router.post("/", auth, async (req, res) => {
       finalTutorId = latestCompleted.tutor;
     }
 
+    // Original path: lessonId provided
     if (finalLessonId && !finalTutorId) {
       const check = await computeCanReview(req.user.id, finalLessonId);
-      if (!check.canReview)
-        return res.status(400).json({ error: check.reason });
+      if (!check.canReview) return res.status(400).json({ error: check.reason });
       finalTutorId = check.tutor;
     }
 
@@ -150,6 +173,10 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reviews/mine
+ * List the current student's reviews.
+ */
 router.get("/mine", auth, async (req, res) => {
   try {
     const items = await Review.find({ student: req.user.id })
@@ -171,6 +198,7 @@ router.get("/tutor/:id", async (req, res) => {
   try {
     const tutorId = req.params.id;
 
+    // If tutorId is invalid, return empty list (NOT an error)
     if (!mongoose.isValidObjectId(tutorId)) {
       return res.status(200).json([]);
     }
@@ -179,17 +207,36 @@ router.get("/tutor/:id", async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    // If no reviews, return empty array
     return res.status(200).json(items || []);
   } catch (e) {
     console.error("[REVIEWS][tutor list] error", e);
+    // Never error just because no reviews exist
     return res.status(200).json([]);
   }
 });
 
+/**
+ * GET /api/reviews/tutor/:id/summary
+ * Public summary: average rating + count for a tutor.
+ * Always returns 200 with safe defaults.
+ */
 router.get("/tutor/:id/summary", async (req, res) => {
   try {
+    const tutorId = req.params.id;
+
+    // If tutorId is invalid, just return "no reviews"
+    if (!mongoose.isValidObjectId(tutorId)) {
+      return res.status(200).json({
+        avgRating: null,
+        reviewsCount: 0,
+        average: null,
+        reviews: 0,
+      });
+    }
+
     const agg = await Review.aggregate([
-      { $match: { tutor: mongoose.Types.ObjectId(req.params.id) } },
+      { $match: { tutor: new mongoose.Types.ObjectId(tutorId) } },
       {
         $group: {
           _id: "$tutor",
@@ -199,17 +246,32 @@ router.get("/tutor/:id/summary", async (req, res) => {
       },
     ]);
 
-    if (!agg.length) return res.json({ average: null, reviews: 0 });
+    // No reviews yet → still 200 OK
+    if (!agg.length) {
+      return res.status(200).json({
+        avgRating: null,
+        reviewsCount: 0,
+        average: null,
+        reviews: 0,
+      });
+    }
 
-    res.json({
+    // Has reviews
+    return res.status(200).json({
       avgRating: agg[0].average,
-      count: agg[0].reviews,
+      reviewsCount: agg[0].reviews,
       average: agg[0].average,
       reviews: agg[0].reviews,
     });
   } catch (e) {
     console.error("[REVIEWS][summary] error", e);
-    res.status(500).json({ error: "server_error" });
+    // Never send server_error to the frontend
+    return res.status(200).json({
+      avgRating: null,
+      reviewsCount: 0,
+      average: null,
+      reviews: 0,
+    });
   }
 });
 
