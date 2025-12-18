@@ -178,7 +178,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
       {err && <div className="text-red-600">{err}</div>}
 
       {!loading && !err && items.length === 0 && (
-        <div className="opacity-70">No reviews yet.</div>
+        <div className="opacity-70">Tutor has no reviews yet.</div>
       )}
 
       {!loading && !err && items.length > 0 && (
