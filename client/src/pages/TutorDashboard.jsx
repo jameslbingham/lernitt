@@ -490,6 +490,33 @@ export default function TutorDashboard() {
     <div style={{ padding: "24px", maxWidth: 960, margin: "0 auto" }}>
       <h1>Tutor Dashboard</h1>
 
+      {/* ✅ NEW: Big primary CTA for best UX */}
+      <div
+        style={{
+          marginTop: 16,
+          borderRadius: 16,
+          padding: 18,
+          background: "#4f46e5",
+          color: "white",
+        }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 800 }}>
+          Set your availability
+        </div>
+        <div style={{ marginTop: 6, opacity: 0.95 }}>
+          Students can’t book lessons until you set your times.
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <Link
+            to="/availability"
+            className="inline-block rounded-lg bg-white px-4 py-2 font-semibold text-indigo-700 hover:opacity-90"
+          >
+            Open availability
+          </Link>
+        </div>
+      </div>
+
       <p className="mt-4">
         <Link
           to="/availability"
