@@ -604,7 +604,7 @@ export default function Tutors() {
                 <li
                   key={tid}
                   title={`Open ${t.name}`}
-                  className="group relative border rounded-2xl bg-white overflow-hidden p-4 pt-5 shadow-sm hover:shadow-md transition hover:ring-1 hover:ring-gray-200 focus-within:ring-2"
+                  className="group relative border rounded-2xl bg-white p-4 pt-5 shadow-sm hover:shadow-md transition hover:ring-1 hover:ring-gray-200 focus-within:ring-2"
                 >
                   {/* Subtle top banner */}
                   <div className="absolute inset-x-0 top-0 h-12 bg-slate-50 pointer-events-none" />
@@ -625,16 +625,6 @@ export default function Tutors() {
                   >
                     {isFav ? "♥" : "♡"}
                   </button>
-
-                  {/* Prefetch profile on hover/focus */}
-                  <Link
-                    to={`/tutors/${tid}`}
-                    state={{ from: `${loc.pathname}${loc.search}` }}
-                    className="absolute inset-0"
-                    aria-label={`Open ${t.name}`}
-                    onMouseEnter={() => prefetchTutor(tid)}
-                    onFocus={() => prefetchTutor(tid)}
-                  />
 
                   <div className="flex justify-between items-start relative z-10">
                     <div className="space-y-2">
@@ -730,6 +720,17 @@ export default function Tutors() {
                         className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white"
                       >
                         Book
+                      </Link>
+                      {/* NEW: View profile button */}
+                      <Link
+                        to={`/tutors/${tid}`}
+                        state={{ from: `${loc.pathname}${loc.search}` }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseEnter={() => prefetchTutor(tid)}
+                        onFocus={() => prefetchTutor(tid)}
+                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white"
+                      >
+                        View profile
                       </Link>
                     </div>
                   </div>
