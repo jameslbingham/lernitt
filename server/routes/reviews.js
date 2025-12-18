@@ -29,14 +29,12 @@ async function computeCanReview(userId, lessonId) {
   return { canReview: true, reason: "ok", tutor: lesson.tutor };
 }
 
-// Helper: can a user review a tutor (any eligible completed lesson not yet reviewed)?
+// Helper: can a user review a tutor?
 async function computeCanReviewByTutor(userId, tutorId) {
-  // sanity
   if (!mongoose.isValidObjectId(tutorId)) {
     return { canReview: false, reason: "invalid_tutor" };
   }
 
-  // Check if the student already reviewed this tutor
   const alreadyReviewed = await Review.exists({
     student: userId,
     tutor: tutorId,
@@ -45,7 +43,6 @@ async function computeCanReviewByTutor(userId, tutorId) {
     return { canReview: false, reason: "already_reviewed" };
   }
 
-  // Check for at least one completed lesson with this tutor
   const hasCompletedLesson = await Lesson.exists({
     student: userId,
     tutor: tutorId,
@@ -59,10 +56,6 @@ async function computeCanReviewByTutor(userId, tutorId) {
   return { canReview: true, reason: "ok" };
 }
 
-/**
- * GET /api/reviews/can/:lessonId
- * Check if the logged-in student may review this lesson.
- */
 router.get("/can/:lessonId", auth, async (req, res) => {
   try {
     const { lessonId } = req.params;
@@ -74,11 +67,6 @@ router.get("/can/:lessonId", auth, async (req, res) => {
   }
 });
 
-/**
- * GET /api/reviews/can-review?tutorId=...
- * Check if the logged-in student may review this tutor (has a completed lesson and no prior review).
- * Returns: { canReview: boolean }
- */
 router.get("/can-review", auth, async (req, res) => {
   try {
     const userId = req.user && (req.user.id || req.user._id);
@@ -94,13 +82,6 @@ router.get("/can-review", auth, async (req, res) => {
   }
 });
 
-/**
- * POST /api/reviews
- * Body:
- *  - Option A: { lessonId, rating (1-5), text }
- *  - Option B: { tutorId, rating (1-5), text }  // server will pick an eligible completed lesson
- * Creates a review for a completed lesson by the student.
- */
 router.post("/", auth, async (req, res) => {
   try {
     const { lessonId, tutorId, rating, text } = req.body || {};
@@ -110,16 +91,14 @@ router.post("/", auth, async (req, res) => {
     let finalTutorId = tutorId;
 
     if (!finalLessonId && finalTutorId) {
-      // Find the most recent completed lesson with this tutor that is not yet reviewed by this student
       if (!mongoose.isValidObjectId(finalTutorId)) {
         return res.status(400).json({ error: "invalid_tutor" });
       }
 
-      // Ensure user is eligible
       const can = await computeCanReviewByTutor(req.user.id, finalTutorId);
-      if (!can.canReview) return res.status(400).json({ error: can.reason || "not_allowed" });
+      if (!can.canReview)
+        return res.status(400).json({ error: can.reason || "not_allowed" });
 
-      // Pick latest completed lesson without a review by this student
       const latestCompleted = await Lesson.findOne({
         student: req.user.id,
         tutor: finalTutorId,
@@ -133,7 +112,6 @@ router.post("/", auth, async (req, res) => {
         return res.status(400).json({ error: "no_completed_lesson" });
       }
 
-      // Double-check there isn't a review for this lesson from this student (defensive)
       const already = await Review.exists({
         lesson: latestCompleted._id,
         student: req.user.id,
@@ -146,10 +124,10 @@ router.post("/", auth, async (req, res) => {
       finalTutorId = latestCompleted.tutor;
     }
 
-    // Original path: lessonId provided
     if (finalLessonId && !finalTutorId) {
       const check = await computeCanReview(req.user.id, finalLessonId);
-      if (!check.canReview) return res.status(400).json({ error: check.reason });
+      if (!check.canReview)
+        return res.status(400).json({ error: check.reason });
       finalTutorId = check.tutor;
     }
 
@@ -172,10 +150,6 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-/**
- * GET /api/reviews/mine
- * List the current student's reviews.
- */
 router.get("/mine", auth, async (req, res) => {
   try {
     const items = await Review.find({ student: req.user.id })
@@ -191,23 +165,27 @@ router.get("/mine", auth, async (req, res) => {
 /**
  * GET /api/reviews/tutor/:id
  * Public list of reviews for a tutor.
+ * ALWAYS returns 200 with an array.
  */
 router.get("/tutor/:id", async (req, res) => {
   try {
-    const items = await Review.find({ tutor: req.params.id })
+    const tutorId = req.params.id;
+
+    if (!mongoose.isValidObjectId(tutorId)) {
+      return res.status(200).json([]);
+    }
+
+    const items = await Review.find({ tutor: tutorId })
       .sort({ createdAt: -1 })
       .lean();
-    res.json(items);
+
+    return res.status(200).json(items || []);
   } catch (e) {
     console.error("[REVIEWS][tutor list] error", e);
-    res.status(500).json({ error: "server_error" });
+    return res.status(200).json([]);
   }
 });
 
-/**
- * GET /api/reviews/tutor/:id/summary
- * Public summary: average rating + count for a tutor.
- */
 router.get("/tutor/:id/summary", async (req, res) => {
   try {
     const agg = await Review.aggregate([
@@ -226,7 +204,7 @@ router.get("/tutor/:id/summary", async (req, res) => {
     res.json({
       avgRating: agg[0].average,
       count: agg[0].reviews,
-      average: agg[0].average, // keep both keys for compatibility
+      average: agg[0].average,
       reviews: agg[0].reviews,
     });
   } catch (e) {
