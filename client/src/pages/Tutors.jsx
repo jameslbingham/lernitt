@@ -519,7 +519,7 @@ export default function Tutors() {
 
       {/* Loading skeletons */}
       {loading && (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <li
               key={i}
@@ -596,7 +596,7 @@ export default function Tutors() {
             </div>
           )}
 
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {displayedTutors.map((t) => {
               const tid = t._id || t.id;
               const isFav = favorites.has(tid);
@@ -681,7 +681,7 @@ export default function Tutors() {
                     </div>
 
                     {/* RIGHT COLUMN (PRICE + BUTTONS) */}
-                    <div className="flex flex-col gap-2 ml-3 w-24">
+                    <div className="flex flex-col gap-1.5 ml-2 w-24 text-xs">
                       <div className="mt-6 text-sm font-semibold whitespace-nowrap self-end">
                         €{" "}
                         {(() => {
@@ -703,7 +703,7 @@ export default function Tutors() {
                         to={`/book/${tid}`}
                         state={{ tutor: t, trial: true }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
+                        className="relative z-20 border px-2 py-1 rounded-xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
                       >
                         Trial →
                       </Link>
@@ -718,7 +718,7 @@ export default function Tutors() {
                           },
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
+                        className="relative z-20 border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
                       >
                         Book
                       </Link>
@@ -729,7 +729,7 @@ export default function Tutors() {
                         onClick={(e) => e.stopPropagation()}
                         onMouseEnter={() => prefetchTutor(tid)}
                         onFocus={() => prefetchTutor(tid)}
-                        className="relative z-20 text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
+                        className="relative z-20 border px-2 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white w-full text-center"
                       >
                         View profile
                       </Link>
