@@ -1,8 +1,11 @@
 // client/src/components/Footer.jsx
 import { Link } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth.jsx";
 
 export default function Footer({ theme = "light" }) {
   const year = new Date().getFullYear();
+  const { isAuthed, user } = useAuth();
+  const isTutor = isAuthed && user?.role === "tutor";
 
   const baseBg =
     theme === "dark"
@@ -64,9 +67,11 @@ export default function Footer({ theme = "light" }) {
               <Link to="/tutor" className="hover:underline">
                 Tutor dashboard
               </Link>
-              <Link to="/availability" className="hover:underline">
-                Manage availability
-              </Link>
+              {isTutor && (
+                <Link to="/availability" className="hover:underline">
+                  Manage availability
+                </Link>
+              )}
               <Link to="/payouts" className="hover:underline">
                 Payouts
               </Link>
