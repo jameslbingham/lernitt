@@ -141,12 +141,12 @@ export default function App() {
             <Route path="/students" element={<Students />} />
 
             {/* Legal */}
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/cookies" element={<Cookies />} />
-            <Route path="/complaints" element={<Complaints />} />
+            <Route path="/legal/terms" element={<Terms />} />
+            <Route path="/legal/privacy" element={<Privacy />} />
+            <Route path="/legal/cookies" element={<Cookies />} />
+            <Route path="/legal/complaints" element={<Complaints />} />
             <Route
-              path="/age-requirements"
+              path="/legal/age-requirements"
               element={<AgeRequirements />}
             />
 
