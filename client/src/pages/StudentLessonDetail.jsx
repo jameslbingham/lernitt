@@ -233,6 +233,7 @@ export default function StudentLessonDetail() {
 
   const isTrial = !!lesson?.isTrial;
   const isTerminal = ["completed", "cancelled", "expired"].includes(status);
+  const canWriteReview = status === "completed";
 
   const canPay = !MOCK && !isTrial && status === "pending_payment";
   const canCancel =
@@ -297,23 +298,18 @@ export default function StudentLessonDetail() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Sticky header with back link */}
+      {/* Sticky header */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur">
-        <div className="flex items-center justify-between gap-2">
-          <Link to="/my-lessons" className="text-xs underline whitespace-nowrap mr-2">
-            ← My lessons
-          </Link>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <h1 className="text-lg font-semibold truncate">
-              Lesson with {lesson.tutorName || "Tutor"}
-            </h1>
-            <StatusPill status={status} />
-            {showCountdown && (
-              <span className="text-xs opacity-80 ml-auto">
-                <TinyCountdown to={lesson.start} />
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold">
+            Lesson with {lesson.tutorName || "Tutor"}
+          </h1>
+          <StatusPill status={status} />
+          {showCountdown && (
+            <span className="text-xs opacity-80 ml-auto">
+              <TinyCountdown to={lesson.start} />
+            </span>
+          )}
         </div>
       </div>
 
@@ -330,7 +326,7 @@ export default function StudentLessonDetail() {
         Times are shown in your timezone: {yourTZ}.
       </div>
 
-      {/* Back link (kept for familiarity) */}
+      {/* Back link */}
       <div className="flex items-center justify-between">
         <span />
         <Link to="/my-lessons" className="text-sm underline">
@@ -453,7 +449,7 @@ export default function StudentLessonDetail() {
           {canPay && (
             <Link
               to={`/pay/${encodeURIComponent(lesson._id)}`}
-              className="bg-indigo-600 text-white px-3 py-1 rounded-2xl text-sm font-semibold shadow-sm hover:bg-indigo-700"
+              className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
             >
               Pay
             </Link>
@@ -475,7 +471,7 @@ export default function StudentLessonDetail() {
             Tutor
           </Link>
 
-          {isTerminal && (
+          {canWriteReview && (
             <button
               onClick={onWriteReview}
               className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
