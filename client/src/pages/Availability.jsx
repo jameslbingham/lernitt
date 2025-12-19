@@ -47,9 +47,17 @@ function RangeRow({ range, onChange, onRemove }) {
       className="items-center"
       style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}
     >
-      <TimeSelect value={range.start} onChange={(v) => onChange({ ...range, start: v })} aria="Start time" />
+      <TimeSelect
+        value={range.start}
+        onChange={(v) => onChange({ ...range, start: v })}
+        aria="Start time"
+      />
       <span>→</span>
-      <TimeSelect value={range.end} onChange={(v) => onChange({ ...range, end: v })} aria="End time" />
+      <TimeSelect
+        value={range.end}
+        onChange={(v) => onChange({ ...range, end: v })}
+        aria="End time"
+      />
       <button
         type="button"
         onClick={onRemove}
@@ -75,7 +83,8 @@ function validatePerDayRules(rulesByDay) {
   rulesByDay.forEach((ranges, di) => {
     // empty day is fine
     ranges.forEach((r, i) => {
-      if (!r.start || !r.end) errs.push(`${DAYS[di]} range #${i + 1}: set both start and end time`);
+      if (!r.start || !r.end)
+        errs.push(`${DAYS[di]} range #${i + 1}: set both start and end time`);
       if (r.start && r.end && cmpTime(r.start, r.end) >= 0)
         errs.push(`${DAYS[di]} range #${i + 1}: start must be before end`);
     });
@@ -85,7 +94,9 @@ function validatePerDayRules(rulesByDay) {
       const cur = sorted[i];
       // overlap if cur.start < prev.end
       if (cmpTime(cur.start, prev.end) < 0) {
-        errs.push(`${DAYS[di]} overlap: ${prev.start}–${prev.end} and ${cur.start}–${cur.end}`);
+        errs.push(
+          `${DAYS[di]} overlap: ${prev.start}–${prev.end} and ${cur.start}–${cur.end}`
+        );
       }
     }
   });
@@ -131,7 +142,7 @@ function rulesFromWeekly(weekly) {
   (weekly || []).forEach((w) => {
     let di;
     if (w.dow === 0) di = 6; // Sunday
-    else di = w.dow - 1;     // 1..6 → Mon..Sat
+    else di = w.dow - 1; // 1..6 → Mon..Sat
     if (di < 0 || di > 6) return;
 
     const dayRanges = (w.ranges || []).map((r) => ({
@@ -150,7 +161,9 @@ export default function Availability() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
   const [timezone, setTimezone] = useState(tz);
-  const [rules, setRules] = useState(DAYS.map(() => [{ start: "09:00", end: "12:00" }]));
+  const [rules, setRules] = useState(
+    DAYS.map(() => [{ start: "09:00", end: "12:00" }])
+  );
 
   // Repeat controls (existing)
   const today = new Date().toISOString().slice(0, 10);
@@ -294,7 +307,7 @@ export default function Availability() {
 
     const payload = {
       timezone,
-      weekly: weeklyFromRules(rules),      // NEW: what the backend actually uses
+      weekly: weeklyFromRules(rules), // NEW: what the backend actually uses
       // keep UI fields (ignored by backend, but harmless)
       rules,
       startDate,
@@ -363,7 +376,10 @@ export default function Availability() {
 
   const todayStart = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(todayStart);
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
 
   // Compute which days are within window: starts at startDate, and (if untilMode=until) untilDate
   function isDateWithinWindow(d) {
@@ -420,7 +436,9 @@ export default function Availability() {
     );
   }
 
-  const startDayLabel = new Date(startDate + "T00:00:00").toLocaleDateString(undefined, {
+  const startDayLabel = new Date(
+    startDate + "T00:00:00"
+  ).toLocaleDateString(undefined, {
     weekday: "long",
   });
 
@@ -430,11 +448,12 @@ export default function Availability() {
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Availability</h1>
+            <h1 className="text-2xl font-bold">Tutor availability</h1>
 
-            {/* ✅ NEW: helper text under title */}
+            {/* Helper text under title */}
             <p className="text-sm opacity-70 mt-1">
-              Set when students can book you. Changes apply immediately.
+              Set when students can book you. Students see these times on your
+              tutor profile and booking page.
             </p>
           </div>
 
@@ -468,7 +487,7 @@ export default function Availability() {
             background: "#eff6ff",
           }}
         >
-          Times are shown in your timezone: {tz}.
+          Times are shown in your tutor timezone setting: {timezone}.
         </div>
       </div>
 
@@ -477,9 +496,24 @@ export default function Availability() {
       {msg && !error && <div className="text-green-700 mt-3">{msg}</div>}
 
       {/* Schedule window (existing, lightly styled) */}
-      <div style={{ border: "1px solid #ddd", padding: 12, borderRadius: 6, marginTop: 12, marginBottom: 12 }}>
+      <div
+        style={{
+          border: "1px solid #ddd",
+          padding: 12,
+          borderRadius: 6,
+          marginTop: 12,
+          marginBottom: 12,
+        }}
+      >
         <h3 style={{ marginTop: 0 }}>Schedule window</h3>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
           <label>
             Start date{" "}
             <input
@@ -503,7 +537,9 @@ export default function Availability() {
               <option value="none">Doesn't repeat (one day only)</option>
             </select>
           </label>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <label
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
             <input
               type="radio"
               name="until"
@@ -512,7 +548,9 @@ export default function Availability() {
             />{" "}
             Always
           </label>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <label
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
             <input
               type="radio"
               name="until"
@@ -531,7 +569,9 @@ export default function Availability() {
             />
           </label>
         </div>
-        <div style={{ opacity: 0.7, marginTop: 6 }}>Students can book only within this window.</div>
+        <div style={{ opacity: 0.7, marginTop: 6 }}>
+          Students can book only within this window.
+        </div>
       </div>
 
       {/* Timezone (existing) */}
@@ -540,14 +580,20 @@ export default function Availability() {
         <input
           value={timezone}
           onChange={markDirtyAnd((e) => setTimezone(e.target.value))}
-          style={{ display: "block", width: "100%", maxWidth: 360, marginTop: 4 }}
+          style={{
+            display: "block",
+            width: "100%",
+            maxWidth: 360,
+            marginTop: 4,
+          }}
           aria-label="Timezone"
           className="border rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </label>
 
       <p style={{ margin: "8px 0 12px" }}>
-        Pick exact times from <b>00:00 → 23:45</b> (15-minute steps). Shows 24-hour and am/pm.
+        Pick exact times from <b>00:00 → 23:45</b> (15-minute steps). Shows
+        24-hour and am/pm.
       </p>
 
       {/* Validation panel */}
@@ -564,9 +610,14 @@ export default function Availability() {
 
       {/* Per-day editors (existing, with a11y & dirty tracking) */}
       {DAYS.map((d, di) => (
-        <div key={d} style={{ borderTop: "1px solid #ddd", paddingTop: 12, marginTop: 12 }}>
+        <div
+          key={d}
+          style={{ borderTop: "1px solid #ddd", paddingTop: 12, marginTop: 12 }}
+        >
           <h3 style={{ marginBottom: 8 }}>{d}</h3>
-          {rules[di].length === 0 && <div style={{ opacity: 0.7, marginBottom: 6 }}>No hours</div>}
+          {rules[di].length === 0 && (
+            <div style={{ opacity: 0.7, marginBottom: 6 }}>No hours</div>
+          )}
           {rules[di].map((range, idx) => (
             <RangeRow
               key={idx}
@@ -575,7 +626,14 @@ export default function Availability() {
               onRemove={() => removeRange(di, idx)}
             />
           ))}
-          <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginBottom: 8,
+              flexWrap: "wrap",
+            }}
+          >
             <button
               type="button"
               onClick={() => addRange(di)}
@@ -616,7 +674,15 @@ export default function Availability() {
       ))}
 
       {/* Save row */}
-      <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <div
+        style={{
+          marginTop: 16,
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <button
           type="button"
           onClick={save}
@@ -652,7 +718,11 @@ export default function Availability() {
         <button
           type="button"
           onClick={async () => {
-            const summary = JSON.stringify({ timezone, rules, startDate, repeat, untilMode, untilDate, tz }, null, 2);
+            const summary = JSON.stringify(
+              { timezone, rules, startDate, repeat, untilMode, untilDate, tz },
+              null,
+              2
+            );
             try {
               await navigator.clipboard.writeText(summary);
               alert("Availability JSON copied!");
@@ -668,7 +738,13 @@ export default function Availability() {
           type="button"
           onClick={() => {
             const blob = new Blob(
-              [JSON.stringify({ timezone, rules, startDate, repeat, untilMode, untilDate, tz }, null, 2)],
+              [
+                JSON.stringify(
+                  { timezone, rules, startDate, repeat, untilMode, untilDate, tz },
+                  null,
+                  2
+                ),
+              ],
               { type: "application/json" }
             );
             const url = URL.createObjectURL(blob);
@@ -684,6 +760,11 @@ export default function Availability() {
         </button>
       </div>
 
+      <p className="mt-2 text-xs opacity-70">
+        Drafts are auto-saved locally as you edit. Click “Save” to publish your
+        availability for students.
+      </p>
+
       {/* Week preview (ranges summary) */}
       <div className="mt-6">
         <div className="flex items-center gap-2 mb-2">
@@ -695,8 +776,15 @@ export default function Availability() {
             ← Prev week
           </button>
           <div className="text-sm font-medium">
-            {weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} –{" "}
-            {addDays(weekStart, 6).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            {weekStart.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}{" "}
+            –{" "}
+            {addDays(weekStart, 6).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}
           </div>
           <button
             className="border px-3 py-1 rounded-2xl"
@@ -707,20 +795,36 @@ export default function Availability() {
           </button>
         </div>
 
-        <div className="grid" style={{ gridTemplateColumns: "repeat(7,minmax(110px,1fr))", gap: 8 }}>
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: "repeat(7,minmax(110px,1fr))",
+            gap: 8,
+          }}
+        >
           {days.map((d) => {
             const key = ymd(d);
             const ranges = weekPreview[key] || [];
             return (
               <div key={key} className="border rounded-2xl p-2">
-                <div className="text-xs opacity-80">{d.toLocaleDateString(undefined, { weekday: "short" })}</div>
-                <div className="font-semibold">
-                  {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                <div className="text-xs opacity-80">
+                  {d.toLocaleDateString(undefined, { weekday: "short" })}
                 </div>
-                <div className="text-xs opacity-80">{ranges.length} {ranges.length === 1 ? "range" : "ranges"}</div>
+                <div className="font-semibold">
+                  {d.toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </div>
+                <div className="text-xs opacity-80">
+                  {ranges.length} {ranges.length === 1 ? "range" : "ranges"}
+                </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {ranges.map((r, i) => (
-                    <span key={i} className="border rounded-xl px-2 py-0.5 text-xs">
+                    <span
+                      key={i}
+                      className="border rounded-xl px-2 py-0.5 text-xs"
+                    >
                       {r.start}–{r.end}
                     </span>
                   ))}
