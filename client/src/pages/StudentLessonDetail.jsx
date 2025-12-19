@@ -31,20 +31,40 @@ function durationEnd(iso, minutes) {
   return new Date(d.getTime() + Number(minutes) * 60000);
 }
 
-/* -------------------- lifecycle rules -------------------- */
+/* -------------------- lifecycle rules (new mapping) -------------------- */
+
+function translateStatus(raw) {
+  const s = (raw || "").toLowerCase();
+  switch (s) {
+    case "booked":
+      return "pending_payment";
+    case "paid":
+      return "paid_waiting_tutor";
+    case "confirmed":
+      return "confirmed";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "expired":
+      return "expired";
+    default:
+      return s || "pending_payment";
+  }
+}
 
 function deriveStatus(l) {
-  const raw = (l.status || "booked").toLowerCase();
   const started = new Date(l.start).getTime() <= Date.now();
+  const translated = translateStatus(l.status);
   const terminal = ["completed", "cancelled", "expired"];
 
-  if (started && !terminal.includes(raw)) return "expired";
-  return raw;
+  if (started && !terminal.includes(translated)) return "expired";
+  return translated;
 }
 
 const STATUS_LABELS = {
-  booked: "Pending — payment needed",
-  paid: "Paid — awaiting tutor confirmation",
+  pending_payment: "Payment required",
+  paid_waiting_tutor: "Paid — awaiting tutor confirmation",
   confirmed: "Tutor confirmed — lesson is booked",
   completed: "Completed",
   cancelled: "Cancelled",
@@ -108,16 +128,16 @@ function TinyCountdown({ to }) {
 }
 
 function StatusPill({ status }) {
-  const friendly = STATUS_LABELS[status] || STATUS_LABELS.booked;
+  const friendly = STATUS_LABELS[status] || STATUS_LABELS.pending_payment;
   const map = {
-    booked: { bg: "#fff7e6", color: "#ad6800" },
-    paid: { bg: "#e6f7ff", color: "#0050b3" },
+    pending_payment: { bg: "#fff7e6", color: "#ad6800" },
+    paid_waiting_tutor: { bg: "#e6f7ff", color: "#0050b3" },
     confirmed: { bg: "#e6fffb", color: "#006d75" },
     completed: { bg: "#f6ffed", color: "#237804" },
     cancelled: { bg: "#fff1f0", color: "#a8071a" },
     expired: { bg: "#fafafa", color: "#595959" },
   };
-  const style = map[status] || map.booked;
+  const style = map[status] || map.pending_payment;
 
   return (
     <span
@@ -147,9 +167,7 @@ export default function StudentLessonDetail() {
 
   const passed = loc.state?.lesson || null;
 
-  const [lesson, setLesson] = useState(
-    passed ? normalize(passed) : null
-  );
+  const [lesson, setLesson] = useState(passed ? normalize(passed) : null);
   const [loading, setLoading] = useState(!passed);
   const [err, setErr] = useState("");
 
@@ -187,7 +205,7 @@ export default function StudentLessonDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
-  /* -------------------- AUTO-REFRESH (NEW) -------------------- */
+  /* -------------------- AUTO-REFRESH -------------------- */
   useEffect(() => {
     if (!lessonId) return;
 
@@ -196,6 +214,7 @@ export default function StudentLessonDetail() {
     }, 5000);
 
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
   /* -------------------- MEMOS -------------------- */
@@ -206,7 +225,7 @@ export default function StudentLessonDetail() {
   );
 
   const status = useMemo(
-    () => (lesson ? deriveStatus(lesson) : "booked"),
+    () => (lesson ? deriveStatus(lesson) : "pending_payment"),
     [lesson]
   );
 
@@ -215,15 +234,19 @@ export default function StudentLessonDetail() {
   const isTrial = !!lesson?.isTrial;
   const isTerminal = ["completed", "cancelled", "expired"].includes(status);
 
-  const canPay = !MOCK && !isTrial && status === "booked";
-  const canCancel = !MOCK && ["booked", "paid", "confirmed"].includes(status);
+  const canPay = !MOCK && !isTrial && status === "pending_payment";
+  const canCancel =
+    !MOCK &&
+    ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
 
-  const showCountdown = ["booked", "paid", "confirmed"].includes(status);
+  const showCountdown = ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(
+    status
+  );
 
   const yourTZ =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  const friendlyStatus = STATUS_LABELS[status] || STATUS_LABELS.booked;
+  const friendlyStatus = STATUS_LABELS[status] || STATUS_LABELS.pending_payment;
 
   /* -------------------- actions -------------------- */
 
@@ -357,7 +380,7 @@ export default function StudentLessonDetail() {
           </div>
         )}
 
-        {!isTrial && status === "booked" && (
+        {!isTrial && status === "pending_payment" && (
           <div
             style={{
               padding: "8px 12px",
@@ -371,7 +394,7 @@ export default function StudentLessonDetail() {
           </div>
         )}
 
-        {!isTrial && status === "paid" && (
+        {!isTrial && status === "paid_waiting_tutor" && (
           <div
             style={{
               padding: "8px 12px",
@@ -389,9 +412,7 @@ export default function StudentLessonDetail() {
         <div className="mt-3 text-sm">
           <div>
             <b>Starts:</b> {fmtDateTime(lesson.start)}
-            {showCountdown && (
-              <TinyCountdown to={lesson.start} />
-            )}
+            {showCountdown && <TinyCountdown to={lesson.start} />}
           </div>
           <div>
             <b>Ends:</b>{" "}
