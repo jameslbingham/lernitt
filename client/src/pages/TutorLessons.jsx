@@ -12,11 +12,11 @@ import {
 } from "../api/tutorLessons.js";
 
 /* -------------------------------------------------------
-   STATUS → FRIENDLY LABELS (Tutor view, A1 cycle)
+   STATUS → FRIENDLY LABELS (Tutor view, new lifecycle)
 ------------------------------------------------------- */
 const STATUS_LABEL = {
-  booked: "Awaiting student payment",
-  paid: "Awaiting tutor approval",
+  pending_payment: "Payment required",
+  paid_waiting_tutor: "Paid — awaiting tutor",
   confirmed: "Confirmed",
   completed: "Completed",
   cancelled: "Cancelled",
@@ -29,8 +29,8 @@ const STATUS_LABEL = {
 ------------------------------------------------------- */
 function StatusBadge({ s }) {
   const map = {
-    booked: "bg-yellow-100 text-yellow-800",
-    paid: "bg-blue-100 text-blue-800",
+    pending_payment: "bg-yellow-100 text-yellow-800",
+    paid_waiting_tutor: "bg-blue-100 text-blue-800",
     confirmed: "bg-green-100 text-green-800",
     completed: "bg-green-200 text-green-900",
     cancelled: "bg-red-100 text-red-800",
@@ -41,7 +41,7 @@ function StatusBadge({ s }) {
 
   return (
     <span className={`text-xs px-2 py-1 rounded-2xl ${cls}`}>
-      {STATUS_LABEL[s] || s}
+      {STATUS_LABEL[s] || STATUS_LABEL.pending_payment}
     </span>
   );
 }
@@ -60,6 +60,44 @@ function getStart(lesson) {
   if (!iso) return null;
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/* Map raw backend status → lifecycle status */
+function translateStatus(raw) {
+  const s = (raw || "booked").toLowerCase();
+  switch (s) {
+    case "booked":
+      return "pending_payment";
+    case "paid":
+      return "paid_waiting_tutor";
+    case "confirmed":
+      return "confirmed";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "expired":
+      return "expired";
+    case "reschedule_requested":
+      return "reschedule_requested";
+    default:
+      return "pending_payment";
+  }
+}
+
+/* Apply expiry rule on top of translation */
+function deriveStatus(lesson) {
+  const start = getStart(lesson);
+  const translated = translateStatus(lesson.status);
+  const started = start ? start.getTime() <= Date.now() : false;
+
+  if (
+    started &&
+    !["completed", "cancelled", "expired"].includes(translated)
+  ) {
+    return "expired";
+  }
+  return translated;
 }
 
 /* Tiny countdown (per row) */
@@ -115,7 +153,7 @@ export default function TutorLessons() {
     }
   }
 
-  /* ---------- Initial load + REMOVE clone-only timer ---------- */
+  /* ---------- Initial load ---------- */
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -124,7 +162,7 @@ export default function TutorLessons() {
     })();
   }, []);
 
-  /* ---------- NEW: Auto-refresh every 5 seconds ---------- */
+  /* ---------- Auto-refresh every 5 seconds ---------- */
   useEffect(() => {
     const id = setInterval(() => {
       fetchLessons();
@@ -265,6 +303,7 @@ export default function TutorLessons() {
       <div className="grid gap-2">
         {filtered.map((l) => {
           const start = getStart(l);
+          const displayStatus = deriveStatus(l);
           const showCountdown =
             ["booked", "paid", "confirmed", "reschedule_requested"].includes(
               l.status
@@ -291,7 +330,7 @@ export default function TutorLessons() {
                 </div>
 
                 <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <StatusBadge s={l.status} />
+                  <StatusBadge s={displayStatus} />
                   {l.subject && (
                     <span className="text-xs opacity-70">{l.subject}</span>
                   )}
@@ -401,7 +440,9 @@ export default function TutorLessons() {
                       `When (${tz}): ${when}`,
                       l.subject ? `Subject: ${l.subject}` : null,
                       l.price != null ? `Price: € ${euros(l.price)}` : null,
-                      `Status: ${STATUS_LABEL[l.status]}`,
+                      `Status: ${
+                        STATUS_LABEL[displayStatus] || displayStatus
+                      }`,
                     ].filter(Boolean);
 
                     try {
