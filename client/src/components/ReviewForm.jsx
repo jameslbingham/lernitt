@@ -106,8 +106,13 @@ export default function ReviewForm({
     <form onSubmit={handleSubmit} className="grid gap-3">
       {/* Context header */}
       {tutorId && (
-        <div className="text-sm opacity-70">
-          Reviewing: <b>{tutorName}</b>
+        <div className="text-sm">
+          <div className="opacity-70">
+            Reviewing: <b>{tutorName}</b>
+          </div>
+          <div className="text-xs opacity-60">
+            Your review will appear on this tutor’s public profile.
+          </div>
         </div>
       )}
 
@@ -162,7 +167,8 @@ export default function ReviewForm({
       {/* Gate notice */}
       {!canReview && tutorId && (
         <div className="text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2 text-sm">
-          You can’t review this tutor right now.
+          You can’t review this tutor yet. Reviews are available only after a
+          completed lesson.
         </div>
       )}
 
@@ -174,7 +180,7 @@ export default function ReviewForm({
         <button
           type="submit"
           disabled={saving || (tutorId && !canReview) || !text.trim()}
-          className="border px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition disabled:opacity-60"
+          className="border px-4 py-2 rounded-2xl shadow-sm hover:shadow-md transition disabled:opacity-60 bg-indigo-600 text-white hover:bg-indigo-700"
         >
           {saving ? "Saving…" : "Submit review"}
         </button>
