@@ -1,247 +1,220 @@
-// client/src/components/Header.jsx
-// Desktop header + mobile menu, with tutor Availability BUTTON
+// client/src/App.jsx
+console.log("App.jsx loaded");
 
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth.jsx";
-import { apiFetch } from "../lib/apiFetch.js";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
-// Logo file
-import logo from "../assets/lernitt-logo.png";
+import ProtectedRoute from "./routes/ProtectedRoute.jsx";
+import { useAuth } from "./hooks/useAuth.jsx";
 
-export default function Header() {
-  const { isAuthed, user, logout, getToken } = useAuth();
-  const [unread, setUnread] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const navigate = useNavigate();
+// GLOBAL HEADER
+import Header from "./components/Header.jsx";
+// GLOBAL FOOTER
+import Footer from "./components/Footer.jsx";
 
-  // Load unread notifications (unchanged)
+// STATIC IMPORT
+import VideoLesson from "./pages/VideoLesson.jsx";
+
+// LAZY IMPORTS -------------------------------------------------------
+const Payouts = lazy(() => import("./pages/Payouts.jsx"));
+const Login = lazy(() => import("./pages/Login.jsx"));
+const Profile = lazy(() => import("./pages/Profile.jsx"));
+const Notifications = lazy(() => import("./pages/Notifications.jsx"));
+const Tutors = lazy(() => import("./pages/Tutors.jsx"));
+const Home = lazy(() => import("./pages/Home.jsx"));
+const Students = lazy(() => import("./pages/Students.jsx"));
+const TutorProfile = lazy(() => import("./pages/TutorProfile.jsx"));
+const BookLesson = lazy(() => import("./pages/BookLesson.jsx"));
+const Pay = lazy(() => import("./pages/Pay.jsx"));
+const Availability = lazy(() => import("./pages/Availability.jsx"));
+const MyLessons = lazy(() => import("./pages/MyLessons.jsx"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
+const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
+const LessonRecordings = lazy(
+  () => import("./pages/LessonRecordings.jsx")
+);
+
+// Signup + setup pages
+const Signup = lazy(() => import("./pages/Signup.jsx"));
+const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
+const TutorProfileSetup = lazy(
+  () => import("./pages/TutorProfileSetup.jsx")
+);
+
+// Tutor & student lesson pages (static imports)
+import TutorLessons from "./pages/TutorLessons.jsx";
+import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
+import BookingConfirmation from "./pages/BookingConfirmation.jsx";
+import Settings from "./pages/Settings.jsx";
+import TutorDashboard from "./pages/TutorDashboard.jsx";
+
+// PUBLIC INFO PAGES
+const About = lazy(() => import("./pages/About.jsx"));
+const Pricing = lazy(() => import("./pages/Pricing.jsx"));
+const Contact = lazy(() => import("./pages/Contact.jsx"));
+
+// LEGAL PAGES
+const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
+const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
+const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
+const Complaints = lazy(
+  () => import("./pages/legal/Complaints.jsx")
+);
+const AgeRequirements = lazy(
+  () => import("./pages/legal/AgeRequirements.jsx")
+);
+
+// 404 PAGE
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
+
+// -------------------------------------------------------------------------
+// Scroll to top on route change
+function ScrollToTop() {
+  const { pathname } = useLocation();
   useEffect(() => {
-    async function loadUnread() {
-      const token = getToken();
-      if (!token) return setUnread(0);
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, [pathname]);
+  return null;
+}
 
-      try {
-        const list = await apiFetch("/api/notifications", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const count = Array.isArray(list)
-          ? list.filter((n) => !n.read).length
-          : 0;
-        setUnread(count);
-      } catch {
-        setUnread(0);
-      }
-    }
+// -------------------------------------------------------------------------
+// Admin guard
+function AdminGuard({ children }) {
+  const { token, user } = useAuth();
+  const loc = useLocation();
 
-    loadUnread();
-    const id = setInterval(loadUnread, 5000);
-    return () => clearInterval(id);
-  }, [getToken]);
+  if (!token) {
+    const next = encodeURIComponent(
+      `${loc.pathname}${loc.search || ""}`
+    );
+    return <Navigate to={`/login?next=${next}`} replace />;
+  }
 
-  const dashboardPath =
-    user?.role === "admin"
-      ? "/admin"
-      : user?.role === "tutor"
-      ? "/tutor"
-      : "/my-lessons";
+  if (!user || user.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
 
-  const isTutor = isAuthed && user?.role === "tutor";
+  return children;
+}
 
+// -------------------------------------------------------------------------
+export default function App() {
   return (
-    <header className="w-full bg-white shadow-sm sticky top-0 z-50">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        {/* LEFT: Logo */}
-        <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="Lernitt logo" className="h-9 w-auto" />
-        </Link>
-
-        {/* DESKTOP NAV */}
-        <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
-          <Link to="/tutors" className="hover:opacity-75">
-            Browse Tutors
-          </Link>
-
-          <Link to="/pricing" className="hover:opacity-75">
-            Pricing
-          </Link>
-
-          {/* Become a tutor — visible for guests and non-tutor users */}
-          {!isTutor && (
-            <Link to="/welcome-setup" className="hover:opacity-75">
-              Become a tutor
-            </Link>
-          )}
-
-          {isAuthed && (
-            <>
-              <Link to="/my-lessons" className="hover:opacity-75">
-                My Lessons
-              </Link>
-
-              <Link to="/notifications" className="hover:opacity-75">
-                Notifications {unread > 0 && `(${unread})`}
-              </Link>
-
-              {user?.role === "admin" && (
-                <Link to="/admin" className="hover:opacity-75">
-                  Admin
-                </Link>
-              )}
-            </>
-          )}
-        </nav>
-
-        {/* DESKTOP RIGHT */}
-        <div className="hidden md:flex items-center gap-3 text-sm font-medium">
-          {!isAuthed ? (
-            <>
-              <Link
-                to="/signup"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition"
-              >
-                Sign up
-              </Link>
-
-              <Link
-                to="/login"
-                className="rounded-lg px-3 py-2 hover:bg-gray-100 transition"
-              >
-                Login
-              </Link>
-            </>
-          ) : (
-            <>
-              {isTutor && (
-                <Link
-                  to="/availability"
-                  className="rounded-lg border border-indigo-600 px-4 py-2 text-indigo-600 hover:bg-indigo-50 transition"
-                >
-                  Availability
-                </Link>
-              )}
-
-              <Link
-                to={dashboardPath}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition"
-              >
-                {isTutor ? "Tutor Home" : "Dashboard"}
-              </Link>
-
-              <button
-                onClick={() => logout()}
-                className="rounded-lg px-3 py-2 border hover:bg-gray-50 transition"
-              >
-                Logout
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* MOBILE MENU BUTTON */}
-        <button
-          className="md:hidden flex items-center px-3 py-2 border rounded-lg hover:bg-gray-100"
-          onClick={() => setMenuOpen(!menuOpen)}
+    <BrowserRouter>
+      <ScrollToTop />
+      <Header />
+      <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
+        <Suspense
+          fallback={<div style={{ padding: 12 }}>Loading…</div>}
         >
-          ☰
-        </button>
-      </div>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
 
-      {/* MOBILE MENU */}
-      {menuOpen && (
-        <div className="md:hidden border-t bg-white shadow-inner px-4 py-4 space-y-4 text-sm">
-          <Link to="/tutors" className="block hover:opacity-75">
-            Browse Tutors
-          </Link>
+            {/* Public info pages */}
+            <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/welcome-setup" element={<WelcomeSetup />} />
+            <Route
+              path="/tutor-profile-setup"
+              element={<TutorProfileSetup />}
+            />
 
-          <Link to="/pricing" className="block hover:opacity-75">
-            Pricing
-          </Link>
+            {/* Marketplace */}
+            <Route path="/tutors" element={<Tutors />} />
+            <Route path="/tutors/:id" element={<TutorProfile />} />
+            <Route path="/book/:tutorId" element={<BookLesson />} />
+            <Route path="/pay/:lessonId" element={<Pay />} />
+            <Route
+              path="/confirm/:lessonId"
+              element={<BookingConfirmation />}
+            />
+            <Route path="/students" element={<Students />} />
 
-          {/* Become a tutor — mobile */}
-          {!isTutor && (
-            <Link
-              to="/welcome-setup"
-              className="block hover:opacity-75"
-            >
-              Become a tutor
-            </Link>
-          )}
+            {/* Legal */}
+            <Route path="/legal/terms" element={<Terms />} />
+            <Route path="/legal/privacy" element={<Privacy />} />
+            <Route path="/legal/cookies" element={<Cookies />} />
+            <Route
+              path="/legal/complaints"
+              element={<Complaints />}
+            />
+            <Route
+              path="/legal/age-requirements"
+              element={<AgeRequirements />}
+            />
 
-          {isAuthed && (
-            <>
-              <Link to="/my-lessons" className="block hover:opacity-75">
-                My Lessons
-              </Link>
+            {/* Admin */}
+            <Route
+              path="/admin"
+              element={
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/payouts"
+              element={
+                <AdminGuard>
+                  <AdminDashboard initialTab="payouts" />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/*"
+              element={
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              }
+            />
 
-              <Link
-                to="/notifications"
-                className="block hover:opacity-75"
-              >
-                Notifications {unread > 0 && `(${unread})`}
-              </Link>
+            {/* Auth-protected */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/availability" element={<Availability />} />
+              <Route path="/my-lessons" element={<MyLessons />} />
+              <Route
+                path="/tutor-lessons"
+                element={<TutorLessons />}
+              />
+              <Route
+                path="/student-lesson/:lessonId"
+                element={<StudentLessonDetail />}
+              />
+              <Route path="/payouts" element={<Payouts />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route
+                path="/notifications"
+                element={<Notifications />}
+              />
+              <Route path="/tutor" element={<TutorDashboard />} />
 
-              {isTutor && (
-                <Link
-                  to="/availability"
-                  className="block rounded-lg border border-indigo-600 px-4 py-2 text-indigo-600 text-center hover:bg-indigo-50 transition"
-                >
-                  Availability
-                </Link>
-              )}
-            </>
-          )}
+              {/* Video */}
+              <Route path="/video" element={<VideoLesson />} />
+              <Route path="/lesson-ended" element={<LessonEnded />} />
+              <Route
+                path="/lesson-recordings"
+                element={<LessonRecordings />}
+              />
+            </Route>
 
-          <div className="pt-2 border-t space-y-3">
-            {!isAuthed ? (
-              <>
-                <Link
-                  to="/signup"
-                  className="block rounded-lg bg-indigo-600 px-4 py-2 text-white text-center hover:bg-indigo-700 transition"
-                >
-                  Sign up
-                </Link>
-
-                <Link
-                  to="/login"
-                  className="block rounded-lg px-3 py-2 text-center hover:bg-gray-100 transition"
-                >
-                  Login
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  to={dashboardPath}
-                  className="block rounded-lg bg-indigo-600 px-4 py-2 text-white text-center hover:bg-indigo-700 transition"
-                >
-                  {isTutor ? "Tutor Home" : "Dashboard"}
-                </Link>
-
-                <button
-                  onClick={() => logout()}
-                  className="block w-full rounded-lg border px-3 py-2 text-center hover:bg-gray-50 transition"
-                >
-                  Logout
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* MOBILE LEGAL LINKS (SPACING POLISHED) */}
-          <div className="pt-4 border-t space-y-2 text-xs opacity-80">
-            <Link to="/legal/terms" className="block hover:underline">
-              Terms
-            </Link>
-            <Link to="/legal/privacy" className="block hover:underline">
-              Privacy
-            </Link>
-            <Link to="/legal/cookies" className="block hover:underline">
-              Cookies
-            </Link>
-          </div>
-        </div>
-      )}
-    </header>
+            {/* 404 fallback */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </main>
+      <Footer />
+    </BrowserRouter>
   );
 }
