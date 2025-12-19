@@ -143,6 +143,7 @@ export default function Tutors() {
     }
   }
 
+  // Initial load + reload when limit changes
   useEffect(() => {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,7 +188,20 @@ export default function Tutors() {
     } catch {}
   }, [favorites]);
 
-  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / limit)),
+    [total, limit]
+  );
+
+  // 🔧 Bug fix: if current page is out of range after filters change,
+  // reset to page 1 and reload so we never show an empty page by mistake.
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(1);
+      load(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages]);
 
   const sortedTutors = useMemo(() => {
     const arr = [...tutors];
@@ -447,7 +461,6 @@ export default function Tutors() {
             onChange={(e) => {
               setLimit(Number(e.target.value));
               setPage(1);
-              load(1);
             }}
           >
             <option value="10">10</option>
