@@ -338,6 +338,11 @@ export default function TutorProfile() {
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-6">
+      {/* Top back link */}
+      <Link to={backTo} className="text-sm underline block">
+        ← Back to tutors
+      </Link>
+
       {/* Trial banner */}
       {showTrialBanner && (
         <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
@@ -384,27 +389,29 @@ export default function TutorProfile() {
 
         {/* Buttons */}
         <div className="flex justify-center flex-wrap gap-2 pt-2">
+          {/* 1️⃣ Emphasised primary Book button */}
           <Link
             to={`/book/${tutor._id || tutor.id || id}`}
             state={{
               tutor,
               from: { pathname: loc.pathname, search: loc.search },
             }}
-            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
+            className="bg-indigo-600 text-white px-5 py-2 rounded-2xl text-sm font-semibold hover:bg-indigo-700 transition"
           >
             Book Lesson
           </Link>
 
+          {/* 2️⃣ Secondary buttons demoted */}
           <button
             onClick={toggleFavorite}
-            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
+            className="border px-4 py-2 rounded-2xl text-sm"
           >
             {isFav ? "♥ In favourites" : "♡ Add to favourites"}
           </button>
 
           <button
             onClick={onCopyProfileLink}
-            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
+            className="border px-4 py-2 rounded-2xl text-sm"
           >
             Share profile 🔗
           </button>
@@ -412,6 +419,7 @@ export default function TutorProfile() {
           <TrialsBadge tutorId={tutor._id || tutor.id || id} />
         </div>
 
+        {/* Bottom back link */}
         <Link to={backTo} className="text-sm underline block pt-2">
           ← Back to tutors
         </Link>
@@ -424,8 +432,14 @@ export default function TutorProfile() {
         </div>
       )}
 
+      {/* 3️⃣ Visual divider before reviews */}
+      <hr className="my-6 opacity-40" />
+
       {/* Reviews panel */}
-      <ReviewsPanel tutorId={tutor._id || tutor.id || id} tutorName={tutor.name} />
+      <ReviewsPanel
+        tutorId={tutor._id || tutor.id || id}
+        tutorName={tutor.name}
+      />
     </div>
   );
 }
