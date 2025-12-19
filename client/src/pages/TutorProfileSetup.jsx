@@ -23,6 +23,14 @@ export default function TutorProfileSetup() {
 
   const name = user?.name || "Tutor";
 
+  // Guard: only tutors should access this page
+  useEffect(() => {
+    if (!user) return;
+    if (user.role !== "tutor") {
+      nav("/", { replace: true });
+    }
+  }, [user, nav]);
+
   // Try to load existing profile (safe if backend not ready)
   useEffect(() => {
     if (MOCK) return;
@@ -45,7 +53,10 @@ export default function TutorProfileSetup() {
         if (data.languages) setLanguages(data.languages);
         if (data.hourlyRate != null) setHourlyRate(String(data.hourlyRate));
       } catch (e) {
-        console.warn("Tutor profile load failed (ok if not implemented yet):", e);
+        console.warn(
+          "Tutor profile load failed (ok if not implemented yet):",
+          e
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -86,7 +97,7 @@ export default function TutorProfileSetup() {
 
       setInfo("Your tutor profile has been saved.");
       // Optional: go to tutor dashboard after save
-      // nav("/tutor-dashboard", { replace: true });
+      // nav("/tutor", { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Could not save your profile.");
     } finally {
@@ -100,7 +111,7 @@ export default function TutorProfileSetup() {
         Set up your tutor profile
       </h1>
       <p style={{ marginBottom: 16, opacity: 0.8 }}>
-        Welcome, {name}. Tell students about yourself and your lessons.
+        Welcome, {name}. This is what students will see on your tutor page.
       </p>
 
       {loading && (
@@ -254,7 +265,7 @@ export default function TutorProfileSetup() {
 
         <button
           type="button"
-          onClick={() => nav("/tutor-dashboard")}
+          onClick={() => nav("/tutor")}
           style={{
             marginLeft: 10,
             padding: "10px 16px",
