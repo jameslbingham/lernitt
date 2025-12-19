@@ -47,6 +47,7 @@ export default function Header() {
       : "/my-lessons";
 
   const isTutor = isAuthed && user?.role === "tutor";
+  const canBecomeTutor = isAuthed && !isTutor && user?.role !== "admin";
 
   return (
     <header className="w-full bg-white shadow-sm sticky top-0 z-50">
@@ -114,6 +115,15 @@ export default function Header() {
                 </Link>
               )}
 
+              {canBecomeTutor && (
+                <Link
+                  to="/tutor-profile-setup"
+                  className="rounded-lg border px-3 py-2 hover:bg-gray-100 transition"
+                >
+                  Become a tutor
+                </Link>
+              )}
+
               <Link
                 to={dashboardPath}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 transition"
@@ -157,7 +167,10 @@ export default function Header() {
                 My Lessons
               </Link>
 
-              <Link to="/notifications" className="block hover:opacity-75">
+              <Link
+                to="/notifications"
+                className="block hover:opacity-75"
+              >
                 Notifications {unread > 0 && `(${unread})`}
               </Link>
 
@@ -167,6 +180,15 @@ export default function Header() {
                   className="block rounded-lg border border-indigo-600 px-4 py-2 text-indigo-600 text-center hover:bg-indigo-50 transition"
                 >
                   Availability
+                </Link>
+              )}
+
+              {canBecomeTutor && (
+                <Link
+                  to="/tutor-profile-setup"
+                  className="block rounded-lg border px-4 py-2 text-center hover:bg-gray-50 transition"
+                >
+                  Become a tutor
                 </Link>
               )}
             </>
@@ -210,13 +232,13 @@ export default function Header() {
 
           {/* MOBILE LEGAL LINKS (SPACING POLISHED) */}
           <div className="pt-4 border-t space-y-2 text-xs opacity-80">
-            <Link to="/terms" className="block hover:underline">
+            <Link to="/legal/terms" className="block hover:underline">
               Terms
             </Link>
-            <Link to="/privacy" className="block hover:underline">
+            <Link to="/legal/privacy" className="block hover:underline">
               Privacy
             </Link>
-            <Link to="/cookies" className="block hover:underline">
+            <Link to="/legal/cookies" className="block hover:underline">
               Cookies
             </Link>
           </div>
