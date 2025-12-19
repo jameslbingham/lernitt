@@ -129,7 +129,7 @@ export default function VideoLesson() {
       }
     }
 
-    if (isTutor && !hasStarted) return;
+    // Allow tutor and student to join directly
     loadRoom();
   }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
 
@@ -454,11 +454,15 @@ export default function VideoLesson() {
   ----------------------------------------------------------------*/
   async function loadRecordings() {
     try {
-      const res = await fetch(`${API}/api/lessons/${lessonId}/recordings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${API}/api/video/lesson-recordings?lessonId=${lessonId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       const data = await res.json();
-      return data.recordings || [];
+      const arr = Array.isArray(data) ? data : [];
+      return arr;
     } catch (err) {
       console.error("loadRecordings error:", err);
       return [];
@@ -886,8 +890,13 @@ export default function VideoLesson() {
                   alert("No recordings yet.");
                   return;
                 }
-                const url = recs[0].url;
-                if (url) window.open(url, "_blank");
+                const first = recs[0];
+                const url = first.downloadUrl || first.url;
+                if (!url) {
+                  alert("Recording URL not available yet.");
+                  return;
+                }
+                window.open(url, "_blank");
               }}
               style={{
                 position: "absolute",
