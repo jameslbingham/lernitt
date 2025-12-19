@@ -19,9 +19,15 @@ function readFavs() {
   }
 }
 
-// Format price
+// Format price (supports cents or plain number/string)
 function eurosFromPrice(p) {
-  const n = typeof p === "number" ? p : Number(p) || 0;
+  const n =
+    typeof p === "number"
+      ? p
+      : typeof p === "string"
+      ? Number(p)
+      : Number(p) || 0;
+  // If backend gives cents (e.g., 2500), convert to euros
   return n >= 1000 ? n / 100 : n;
 }
 
@@ -92,13 +98,20 @@ function ReviewsPanel({ tutorId, tutorName }) {
             `/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`
           ),
         ]);
+        const avg = Number(sum?.avgRating || 0);
+        const count = Number(sum?.reviewsCount || 0);
+
         setItems(Array.isArray(list) ? list : []);
         setSummary({
-          avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0),
+          avgRating: Number.isFinite(avg) ? avg : 0,
+          reviewsCount: Number.isFinite(count) ? count : 0,
         });
       } catch (e) {
-        setErr(e.message || "Failed to load reviews.");
+        // NEW: fail safely, no scary "server_error" text
+        console.error("Failed to load reviews", e);
+        setItems([]);
+        setSummary({ avgRating: 0, reviewsCount: 0 });
+        setErr(""); // keep empty so we show the "no reviews" message instead
       } finally {
         setLoading(false);
       }
@@ -122,6 +135,28 @@ function ReviewsPanel({ tutorId, tutorName }) {
     }
   }, [tutorId]);
 
+  function updateSearchWithoutReview() {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("review");
+      return next;
+    });
+  }
+
+  function openForm() {
+    setShowForm(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("review", "1");
+      return next;
+    });
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    updateSearchWithoutReview();
+  }
+
   function onSaved() {
     (async () => {
       try {
@@ -131,15 +166,24 @@ function ReviewsPanel({ tutorId, tutorName }) {
         const sum = await apiFetch(
           `/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`
         );
+        const avg = Number(sum?.avgRating || 0);
+        const count = Number(sum?.reviewsCount || 0);
+
         setItems(Array.isArray(list) ? list : []);
         setSummary({
-          avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0),
+          avgRating: Number.isFinite(avg) ? avg : 0,
+          reviewsCount: Number.isFinite(count) ? count : 0,
         });
-        setShowForm(false);
-      } catch {}
+        closeForm();
+      } catch {
+        // ignore, keep current list
+      }
     })();
   }
+
+  const avgDisplay = Number.isFinite(summary.avgRating)
+    ? summary.avgRating.toFixed(1)
+    : "0.0";
 
   return (
     <section id="reviews-panel" className="mt-6 space-y-3">
@@ -148,14 +192,12 @@ function ReviewsPanel({ tutorId, tutorName }) {
         <span className="text-sm opacity-70">
           {summary.reviewsCount} review
           {summary.reviewsCount === 1 ? "" : "s"}
-          {summary.reviewsCount > 0
-            ? ` • ${summary.avgRating.toFixed(1)}/5`
-            : ""}
+          {summary.reviewsCount > 0 ? ` • ${avgDisplay}/5` : ""}
         </span>
 
         {canReview && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openForm}
             className="ml-auto text-sm border px-3 py-1 rounded-2xl"
           >
             Write a review
@@ -169,7 +211,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
             tutorId={tutorId}
             tutorName={tutorName}
             onSaved={onSaved}
-            onClose={() => setShowForm(false)}
+            onClose={closeForm}
           />
         </div>
       )}
@@ -264,13 +306,11 @@ export default function TutorProfile() {
     load();
   }, [id]);
 
-  // Document title
+  // Document title (safe even if avgRating is a string)
   useEffect(() => {
     if (!tutor) return;
-    const avg =
-      typeof tutor.avgRating === "number"
-        ? tutor.avgRating.toFixed(1)
-        : null;
+    const ratingNum = Number(tutor.avgRating);
+    const avg = Number.isFinite(ratingNum) ? ratingNum.toFixed(1) : null;
     document.title = avg
       ? `${tutor.name} — ${avg}⭐ | Lernitt`
       : `${tutor.name} — Tutor | Lernitt`;
@@ -280,15 +320,21 @@ export default function TutorProfile() {
   if (error) return <div className="p-4 text-red-600">{error}</div>;
   if (!tutor) return <div className="p-4">Tutor not found.</div>;
 
-  const priceText =
-    typeof tutor.price === "number"
-      ? eurosFromPrice(tutor.price).toFixed(2)
-      : String(tutor.price || "");
+  const priceNumber = Number(tutor.price);
+  const priceValue = Number.isFinite(priceNumber)
+    ? eurosFromPrice(priceNumber).toFixed(2)
+    : tutor.price
+    ? String(tutor.price)
+    : "";
 
   async function onCopyProfileLink() {
     const ok = await copyToClipboard(window.location.href);
     toast(ok ? "Link copied!" : "Copy failed");
   }
+
+  const ratingDisplay = Number.isFinite(Number(tutor.avgRating))
+    ? Number(tutor.avgRating).toFixed(1)
+    : null;
 
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-6">
@@ -328,21 +374,22 @@ export default function TutorProfile() {
           {tutor.subjects?.length ? tutor.subjects.join(", ") : "—"}
         </div>
 
-        {tutor.avgRating != null && (
-          <div className="text-sm">
-            ⭐ {tutor.avgRating.toFixed(1)} / 5
-          </div>
+        {ratingDisplay && (
+          <div className="text-sm">⭐ {ratingDisplay} / 5</div>
         )}
 
         <div className="text-lg font-semibold">
-          {priceText ? `${priceText} € / hour` : "—"}
+          {priceValue ? `${priceValue} € / hour` : "—"}
         </div>
 
         {/* Buttons */}
         <div className="flex justify-center flex-wrap gap-2 pt-2">
           <Link
             to={`/book/${tutor._id || tutor.id || id}`}
-            state={{ tutor, from: { pathname: loc.pathname, search: loc.search } }}
+            state={{
+              tutor,
+              from: { pathname: loc.pathname, search: loc.search },
+            }}
             className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
           >
             Book Lesson
