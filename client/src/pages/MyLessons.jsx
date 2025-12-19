@@ -38,7 +38,8 @@ function translateStatus(raw) {
 function normalizeLesson(raw) {
   const id = raw._id || raw.id;
   const startISO = raw.start || raw.startTime || raw.begin;
-  const price = typeof raw.price === "number" ? raw.price : Number(raw.price) || 0;
+  const price =
+    typeof raw.price === "number" ? raw.price : Number(raw.price) || 0;
 
   const duration =
     Number(
@@ -96,13 +97,41 @@ function StatusBadge({ status, isTrial }) {
   }
 
   const map = {
-    pending_payment: { label: "Payment required", bg: "#fff7e6", color: "#ad6800" },
-    paid_waiting_tutor: { label: "Paid — awaiting tutor", bg: "#e6f7ff", color: "#0050b3" },
-    confirmed: { label: "Confirmed", bg: "#e6fffb", color: "#006d75" },
-    reschedule_requested: { label: "Reschedule requested", bg: "#f0f5ff", color: "#1d39c4" },
-    completed: { label: "Completed", bg: "#f6ffed", color: "#237804" },
-    cancelled: { label: "Cancelled", bg: "#fff1f0", color: "#a8071a" },
-    expired: { label: "Expired", bg: "#fafafa", color: "#595959" },
+    pending_payment: {
+      label: "Payment required",
+      bg: "#fff7e6",
+      color: "#ad6800",
+    },
+    paid_waiting_tutor: {
+      label: "Paid — awaiting tutor",
+      bg: "#e6f7ff",
+      color: "#0050b3",
+    },
+    confirmed: {
+      label: "Confirmed",
+      bg: "#e6fffb",
+      color: "#006d75",
+    },
+    reschedule_requested: {
+      label: "Reschedule requested",
+      bg: "#f0f5ff",
+      color: "#1d39c4",
+    },
+    completed: {
+      label: "Completed",
+      bg: "#f6ffed",
+      color: "#237804",
+    },
+    cancelled: {
+      label: "Cancelled",
+      bg: "#fff1f0",
+      color: "#a8071a",
+    },
+    expired: {
+      label: "Expired",
+      bg: "#fafafa",
+      color: "#595959",
+    },
   };
 
   const s = map[status] || map.pending_payment;
@@ -128,12 +157,19 @@ function TinyCountdown({ to }) {
   const [left, setLeft] = useState(() => new Date(to).getTime() - Date.now());
 
   useEffect(() => {
-    const id = setInterval(() => setLeft(new Date(to).getTime() - Date.now()), 1000);
+    const id = setInterval(
+      () => setLeft(new Date(to).getTime() - Date.now()),
+      1000
+    );
     return () => clearInterval(id);
   }, [to]);
 
   if (!to || left <= 0) {
-    return <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.6 }}>• expired</span>;
+    return (
+      <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.6 }}>
+        • expired
+      </span>
+    );
   }
 
   const s = Math.floor(left / 1000);
@@ -154,7 +190,8 @@ export default function MyLessons() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const loggedIn = !!token;
 
   const [rows, setRows] = useState([]);
@@ -206,7 +243,8 @@ export default function MyLessons() {
     let arr = [...rows];
 
     arr.sort((a, b) => {
-      const rank = (x) => (["expired", "completed", "cancelled"].includes(deriveStatus(x)) ? 1 : 0);
+      const rank = (x) =>
+        ["expired", "completed", "cancelled"].includes(deriveStatus(x)) ? 1 : 0;
       return rank(a) - rank(b);
     });
 
@@ -215,7 +253,10 @@ export default function MyLessons() {
     }
 
     if (hidePast) {
-      arr = arr.filter((l) => !["expired", "completed", "cancelled"].includes(deriveStatus(l)));
+      arr = arr.filter(
+        (l) =>
+          !["expired", "completed", "cancelled"].includes(deriveStatus(l))
+      );
     }
 
     if (onlyTrials) {
@@ -309,7 +350,10 @@ export default function MyLessons() {
       {err && (
         <div className="text-red-600">
           {err}{" "}
-          <button onClick={load} className="ml-2 border px-2 py-1 rounded-2xl text-sm">
+          <button
+            onClick={load}
+            className="ml-2 border px-2 py-1 rounded-2xl text-sm"
+          >
             Retry
           </button>
         </div>
@@ -364,7 +408,9 @@ export default function MyLessons() {
               >
                 <option value="all">All</option>
                 <option value="pending_payment">Payment required</option>
-                <option value="paid_waiting_tutor">Paid — awaiting tutor</option>
+                <option value="paid_waiting_tutor">
+                  Paid — awaiting tutor
+                </option>
                 <option value="confirmed">Confirmed</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
@@ -373,7 +419,8 @@ export default function MyLessons() {
             </label>
 
             <span className="text-xs opacity-70 ml-auto">
-              Showing {ordered.length} lesson{ordered.length === 1 ? "" : "s"}
+              Showing {ordered.length} lesson
+              {ordered.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -390,7 +437,9 @@ export default function MyLessons() {
         </div>
       </div>
 
-      {!err && ordered.length === 0 && <div className="opacity-70">No lessons yet.</div>}
+      {!err && ordered.length === 0 && (
+        <div className="opacity-70">No lessons yet.</div>
+      )}
 
       {!err && ordered.length > 0 && (
         <ul className="space-y-2">
@@ -404,7 +453,10 @@ export default function MyLessons() {
             const status = deriveStatus(l);
             const canPay = !MOCK && status === "pending_payment" && !l.isTrial;
             const canCancel =
-              !MOCK && ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
+              !MOCK &&
+              ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(
+                status
+              );
 
             const isCompleted = status === "completed";
 
@@ -422,9 +474,9 @@ export default function MyLessons() {
                   </div>
                   <div className="ml-auto text-xs flex gap-2 items-center">
                     <StatusBadge status={status} isTrial={l.isTrial} />
-                    {["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status) && (
-                      <TinyCountdown to={l.start} />
-                    )}
+                    {["pending_payment", "paid_waiting_tutor", "confirmed"].includes(
+                      status
+                    ) && <TinyCountdown to={l.start} />}
                   </div>
                 </Link>
 
@@ -460,10 +512,23 @@ export default function MyLessons() {
 
                   {isCompleted && (
                     <Link
-                      to={`/lesson-recordings?lessonId=${encodeURIComponent(l._id)}`}
+                      to={`/lesson-recordings?lessonId=${encodeURIComponent(
+                        l._id
+                      )}`}
                       className="text-sm border px-3 py-1 rounded-2xl bg-blue-50 hover:bg-blue-100"
                     >
                       View Recordings
+                    </Link>
+                  )}
+
+                  {isCompleted && (
+                    <Link
+                      to={`/tutors/${encodeURIComponent(
+                        l.tutorId
+                      )}?review=1`}
+                      className="text-sm border px-3 py-1 rounded-2xl"
+                    >
+                      Write review
                     </Link>
                   )}
                 </div>
