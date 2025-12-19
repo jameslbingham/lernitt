@@ -17,7 +17,7 @@ export default function LessonRecordings() {
   const API = import.meta.env.VITE_API;
 
   /* ------------------------------------------------------------
-     Load recordings (supports Supabase + Daily fallback)
+     Load recordings (supports multiple backend shapes)
   ------------------------------------------------------------ */
   async function load() {
     if (!lessonId || !token) {
@@ -31,17 +31,52 @@ export default function LessonRecordings() {
       );
       const data = await res.json();
 
-      // Always normalise to array
-      const arr = Array.isArray(data) ? data : [];
+      // Accept shapes: [ ... ], { recordings: [...] }, { items: [...] }
+      let arr = [];
+      if (Array.isArray(data)) {
+        arr = data;
+      } else if (Array.isArray(data?.recordings)) {
+        arr = data.recordings;
+      } else if (Array.isArray(data?.items)) {
+        arr = data.items;
+      }
+
+      // Normalise to a simple shape the UI already expects
+      const normalised = arr.map((rec, i) => ({
+        id:
+          rec.id ||
+          rec.recordingId ||
+          rec.dailyId ||
+          rec.uuid ||
+          `rec-${i}`,
+        created:
+          rec.created ||
+          rec.created_at ||
+          rec.createdAt ||
+          rec.start_time ||
+          null,
+        duration:
+          rec.duration ||
+          rec.durationSeconds ||
+          rec.lengthSec ||
+          rec.length_seconds ||
+          null,
+        downloadUrl:
+          rec.downloadUrl ||
+          rec.url ||
+          rec.download_url ||
+          rec.publicUrl ||
+          null,
+      }));
 
       // Sort newest → oldest
-      arr.sort((a, b) => {
+      normalised.sort((a, b) => {
         const ad = a.created ? new Date(a.created).getTime() : 0;
         const bd = b.created ? new Date(b.created).getTime() : 0;
         return bd - ad;
       });
 
-      setRecordings(arr);
+      setRecordings(normalised);
     } catch (err) {
       console.error("Recording load error:", err);
       setRecordings([]);
@@ -125,8 +160,7 @@ export default function LessonRecordings() {
                 }}
               >
                 <div style={{ marginBottom: 6 }}>
-                  <strong>Recording ID:</strong>{" "}
-                  {rec.id || "Recording"}
+                  <strong>Recording ID:</strong> {rec.id || "Recording"}
                 </div>
 
                 <div style={{ marginBottom: 6 }}>
@@ -138,9 +172,7 @@ export default function LessonRecordings() {
 
                 <div style={{ marginBottom: 6 }}>
                   <strong>Duration:</strong>{" "}
-                  {rec.duration
-                    ? `${rec.duration}s`
-                    : "Unknown"}
+                  {rec.duration != null ? `${rec.duration}s` : "Unknown"}
                 </div>
 
                 <div style={{ marginBottom: 6 }}>
