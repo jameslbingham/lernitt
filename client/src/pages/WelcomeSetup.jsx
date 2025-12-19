@@ -28,10 +28,11 @@ export default function WelcomeSetup() {
     try {
       // MOCK MODE: no backend call
       if (MOCK) {
-        return nav("/browse", { replace: true });
+        nav("/tutors", { replace: true });
+        return;
       }
 
-      // REAL MODE — update the user's onboarding data
+      // REAL MODE — update the student's learning profile
       await apiFetch(`${API}/api/profile/student-setup`, {
         method: "POST",
         body: { language, level, goal },
@@ -40,8 +41,8 @@ export default function WelcomeSetup() {
       // Refresh user data in global context
       await refreshUser();
 
-      // Go to main student area
-      nav("/browse", { replace: true });
+      // Go to main student area (browse tutors)
+      nav("/tutors", { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Could not save your details");
     } finally {
@@ -51,11 +52,15 @@ export default function WelcomeSetup() {
 
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "20px" }}>
+      {/* Student welcome copy */}
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>
         Welcome, {name}! 🎉
       </h1>
-      <p style={{ marginBottom: 20, opacity: 0.8 }}>
-        Let's set up your learning profile.
+      <p style={{ marginBottom: 4, opacity: 0.85 }}>
+        Let&apos;s set up your <strong>learning profile</strong> so tutors know how to help you.
+      </p>
+      <p style={{ marginBottom: 20, fontSize: 13, opacity: 0.7 }}>
+        This page is for <strong>students</strong> who want to learn.
       </p>
 
       {err && (
@@ -76,7 +81,7 @@ export default function WelcomeSetup() {
 
       <form onSubmit={onSubmit}>
         {/* Language */}
-        <label style={{ display: "block", marginBottom: 16 }}>
+        <label style={{ display: "block", marginBottom: 16, fontSize: 14 }}>
           What do you want to learn?
           <select
             value={language}
@@ -102,7 +107,7 @@ export default function WelcomeSetup() {
         </label>
 
         {/* Level */}
-        <label style={{ display: "block", marginBottom: 16 }}>
+        <label style={{ display: "block", marginBottom: 16, fontSize: 14 }}>
           What is your current level?
           <select
             value={level}
@@ -126,7 +131,7 @@ export default function WelcomeSetup() {
         </label>
 
         {/* Goal */}
-        <label style={{ display: "block", marginBottom: 20 }}>
+        <label style={{ display: "block", marginBottom: 20, fontSize: 14 }}>
           What is your main goal?
           <select
             value={goal}
@@ -141,10 +146,10 @@ export default function WelcomeSetup() {
             }}
           >
             <option value="">Choose your goal…</option>
-            <option value="conversation">Improve speaking & conversation</option>
+            <option value="conversation">Improve speaking &amp; conversation</option>
             <option value="business">Business or professional English</option>
             <option value="exam">Prepare for an exam (IELTS, DELE, etc.)</option>
-            <option value="grammar">Improve grammar & writing</option>
+            <option value="grammar">Improve grammar &amp; writing</option>
             <option value="travel">Learning for travel</option>
             <option value="school-help">School / university help</option>
           </select>
@@ -163,11 +168,47 @@ export default function WelcomeSetup() {
             cursor: loading ? "not-allowed" : "pointer",
             fontSize: 16,
             fontWeight: 600,
+            marginBottom: 20,
           }}
         >
-          {loading ? "Saving…" : "Continue"}
+          {loading ? "Saving…" : "Continue to tutors"}
         </button>
       </form>
+
+      {/* Tutor CTA card */}
+      <div
+        style={{
+          marginTop: 10,
+          padding: 16,
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "#f9fafb",
+          fontSize: 14,
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          Want to teach on Lernitt?
+        </div>
+        <p style={{ marginBottom: 10, opacity: 0.8 }}>
+          If you&apos;re here as a <strong>tutor</strong>, you can set up your teaching profile instead.
+        </p>
+        <button
+          type="button"
+          onClick={() => nav("/tutor-profile-setup")}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid #4f46e5",
+            background: "white",
+            color: "#4f46e5",
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          Become a tutor
+        </button>
+      </div>
     </div>
   );
 }
