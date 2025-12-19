@@ -1,6 +1,6 @@
 // client/src/pages/TutorLessons.jsx
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   listTutorLessons,
   tutorApproveBooking,
@@ -103,6 +103,7 @@ export default function TutorLessons() {
   const [loading, setLoading] = useState(true);
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const navigate = useNavigate();
 
   /* ---------- Proper fetchLessons function ---------- */
   async function fetchLessons() {
@@ -231,7 +232,7 @@ export default function TutorLessons() {
           <button className="px-3 py-1 rounded-2xl border" onClick={onExpire}>
             Expire overdue
           </button>
-          <Link to="/availability" className="text-sm underline">
+          <Link to="/tutor-dashboard" className="text-sm underline">
             ← Back
           </Link>
         </div>
@@ -300,13 +301,6 @@ export default function TutorLessons() {
                     </span>
                   )}
                 </div>
-
-Here is the **rest of the file** (GitHub-sized messages forced me to split it).  
-**This is the complete, correct end of TutorLessons.jsx.**
-
-Paste this immediately after the previous message.
-
-```jsx
               </div>
 
               {/* ACTION BUTTONS */}
@@ -357,15 +351,29 @@ Paste this immediately after the previous message.
 
                 {/* Confirmed */}
                 {l.status === "confirmed" && (
-                  <button
-                    className="px-3 py-1 rounded-2xl border hover:shadow-sm"
-                    onClick={() => onComplete(l._id)}
-                  >
-                    Mark complete
-                  </button>
+                  <>
+                    <button
+                      className="px-3 py-1 rounded-2xl border hover:shadow-sm"
+                      onClick={() =>
+                        navigate(
+                          `/video-lesson?lessonId=${encodeURIComponent(
+                            l._id
+                          )}`
+                        )
+                      }
+                    >
+                      Enter lesson
+                    </button>
+                    <button
+                      className="px-3 py-1 rounded-2xl border hover:shadow-sm"
+                      onClick={() => onComplete(l._id)}
+                    >
+                      Mark complete
+                    </button>
+                  </>
                 )}
 
-                {/* Completed → NEW "View recordings" button */}
+                {/* Completed → "View recordings" button */}
                 {l.status === "completed" && (
                   <Link
                     to={`/lesson-recordings?lessonId=${encodeURIComponent(
