@@ -1,6 +1,7 @@
 // client/src/pages/BookLesson.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
+import { apiFetch } from "../lib/apiFetch.js";
 
 // Backend base URL
 const API = import.meta.env.VITE_API || "http://localhost:5000";
@@ -96,14 +97,27 @@ export default function BookLesson() {
   const passedTutor = loc.state?.tutor || null;
 
   const [tutor, setTutor] = useState(passedTutor);
+
+  // Load tutor if not passed in state
   useEffect(() => {
-    if (tutor) return;
-    if (!tutorId) return;
-    fetch(`${API}/api/tutors/${encodeURIComponent(tutorId)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load tutor"))))
-      .then(setTutor)
-      .catch(() => setTutor(null));
-  }, [tutorId]);
+    if (tutor || !tutorId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await apiFetch(`/api/tutors/${encodeURIComponent(tutorId)}`);
+        if (!cancelled) setTutor(data);
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setTutor(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tutorId, tutor]);
 
   const backTo = loc.state?.from
     ? `${loc.state.from.pathname}${loc.state.from.search || ""}`
@@ -117,6 +131,7 @@ export default function BookLesson() {
   const [trial, setTrial] = useState(false);
   const [notes, setNotes] = useState("");
 
+  // Restore prefs
   useEffect(() => {
     if (!prefsKey) return;
     try {
@@ -126,14 +141,19 @@ export default function BookLesson() {
       if (typeof d === "number" && DURATIONS.includes(d)) setDuration(d);
       if (typeof t === "boolean") setTrial(t);
       if (typeof n === "string") setNotes(n.slice(0, NOTES_MAX));
-    } catch {}
+    } catch {
+      // ignore
+    }
   }, [prefsKey]);
 
+  // Persist prefs
   useEffect(() => {
     if (!prefsKey) return;
     try {
       localStorage.setItem(prefsKey, JSON.stringify({ duration, trial, notes }));
-    } catch {}
+    } catch {
+      // ignore
+    }
   }, [prefsKey, duration, trial, notes]);
 
   const [tutorTz, setTutorTz] = useState(null);
@@ -169,21 +189,36 @@ export default function BookLesson() {
   const trialWithTutorLeft = Math.max(0, trialInfo.limitPerTutor - trialInfo.usedWithTutor);
   const trialAllowed = trialTotalLeft > 0 && trialWithTutorLeft > 0;
 
+  // If limits reached, auto-disable trial toggle
   useEffect(() => {
     if (!trialAllowed && trial) setTrial(false);
-  }, [trialAllowed]);
+  }, [trialAllowed, trial]);
 
+  // Load tutor timezone (live mode only)
   useEffect(() => {
-    if (!MOCK && tutorId) {
-      fetch(`${API}/api/availability/${encodeURIComponent(tutorId)}`)
-        .then((r) => r.json())
-        .then((d) => setTutorTz(d?.timezone || null))
-        .catch(() => setTutorTz(null));
-    }
+    if (MOCK || !tutorId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const d = await apiFetch(`/api/availability/${encodeURIComponent(tutorId)}`);
+        if (!cancelled) setTutorTz(d?.timezone || null);
+      } catch (e) {
+        console.warn("Tutor timezone load failed (ok if not implemented yet):", e);
+        if (!cancelled) setTutorTz(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [tutorId]);
 
-  // ---------- REPLACED BLOCK: load trial summary ----------
+  // ---------- Load trial summary (mock + live) ----------
   useEffect(() => {
+    if (!tutorId) return;
+
     const load = async () => {
       try {
         if (MOCK) {
@@ -197,13 +232,10 @@ export default function BookLesson() {
             limitPerTutor: 1,
           });
         } else {
-          const token = localStorage.getItem("token");
-          const r = await fetch(
-            `${API}/api/lessons/trial-summary/${encodeURIComponent(tutorId)}`,
-            { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+          const d = await apiFetch(
+            `/api/lessons/trial-summary/${encodeURIComponent(tutorId)}`,
+            { auth: true }
           );
-          if (!r.ok) throw new Error(`Trial summary failed (${r.status})`);
-          const d = await r.json();
 
           const totalUsed = Number(d?.totalTrials ?? d?.totalUsed ?? 0);
           const usedWithTutor = d?.usedWithTutor ? 1 : 0;
@@ -215,14 +247,15 @@ export default function BookLesson() {
             limitPerTutor: 1,
           });
         }
-      } catch {
-        // keep defaults (3 total, 1 per tutor, 0 used)
+      } catch (e) {
+        console.warn("Trial summary load failed (using defaults):", e);
+        // Keep defaults (3 total, 1 per tutor, 0 used)
       }
     };
 
-    if (tutorId) load();
+    load();
   }, [tutorId]);
-  // ---------- END REPLACED BLOCK ----------
+  // ---------- END trial summary ----------
 
   const [weekSlots, setWeekSlots] = useState({});
   const [loadingWeek, setLoadingWeek] = useState(false);
@@ -254,7 +287,8 @@ export default function BookLesson() {
     if (!MOCK) return null;
     const rules = JSON.parse(localStorage.getItem("availabilityRules") || "null");
     const startDate =
-      localStorage.getItem("availabilityStartDate") || new Date().toISOString().slice(0, 10);
+      localStorage.getItem("availabilityStartDate") ||
+      new Date().toISOString().slice(0, 10);
     const repeat = localStorage.getItem("availabilityRepeat") || "weekly";
     const untilMode = localStorage.getItem("availabilityUntilMode") || "always";
     const untilDate = localStorage.getItem("availabilityUntilDate") || "";
@@ -273,8 +307,10 @@ export default function BookLesson() {
     return false;
   }, [MOCK, mockCfg, weekStart]);
 
+  // Load availability slots for the visible week
   useEffect(() => {
     if (!tutorId) return;
+
     const fetchWeek = async () => {
       setLoadingWeek(true);
       setError("");
@@ -289,9 +325,14 @@ export default function BookLesson() {
           tz,
         });
 
-        const cacheKey = ["weekSlots", tutorId, from.toISOString().slice(0, 10), dur, tz].join(
-          "|"
-        );
+        const cacheKey = [
+          "weekSlots",
+          tutorId,
+          from.toISOString().slice(0, 10),
+          dur,
+          tz,
+        ].join("|");
+
         try {
           const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
           if (cached && typeof cached === "object") {
@@ -299,21 +340,20 @@ export default function BookLesson() {
             setLoadingWeek(false);
             return;
           }
-        } catch {}
+        } catch {
+          // ignore cache errors
+        }
 
-        const r = await fetch(
-          `${API}/api/availability/${encodeURIComponent(tutorId)}/slots?${qs}`
+        const data = await apiFetch(
+          `/api/availability/${encodeURIComponent(tutorId)}/slots?${qs.toString()}`
         );
-        if (!r.ok) throw new Error(`Failed to load slots (${r.status})`);
-        const data = await r.json();
 
-        // FIXED: backend returns an array of ISO strings, not {start} objects
-        const list =
-          Array.isArray(data?.slots)
-            ? data.slots
-            : Array.isArray(data)
-            ? data
-            : [];
+        // backend returns an array of ISO strings or { slots: [...] }
+        const list = Array.isArray(data?.slots)
+          ? data.slots
+          : Array.isArray(data)
+          ? data
+          : [];
 
         const grouped = {};
         for (const iso of list) {
@@ -322,23 +362,28 @@ export default function BookLesson() {
           grouped[key].push(iso);
         }
 
+        // Ensure all visible days exist as keys
         for (const d of days) {
           const key = d.toISOString().slice(0, 10);
           grouped[key] = grouped[key] || [];
         }
+
         setWeekSlots(grouped);
 
         try {
           sessionStorage.setItem(cacheKey, JSON.stringify(grouped));
-        } catch {}
+        } catch {
+          // ignore cache write errors
+        }
       } catch (e) {
         setError(e.message || "Failed to load availability");
       } finally {
         setLoadingWeek(false);
       }
     };
+
     fetchWeek();
-  }, [tutorId, duration, trial, tz, weekStart, mockCfg]);
+  }, [tutorId, duration, trial, tz, weekStart, mockCfg, days]);
 
   const hasSlotsFor = (date) => {
     const key = date.toISOString().slice(0, 10);
@@ -384,21 +429,12 @@ export default function BookLesson() {
         isTrial: !!trial,
       };
 
-      const r = await fetch(`${API}/api/lessons`, {
+      const data = await apiFetch(`${API}/api/lessons`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+        body,
+        auth: true,
       });
 
-      if (!r.ok) {
-        const t = await r.text();
-        throw new Error(t || "Booking failed");
-      }
-
-      const data = await r.json();
       const lessonId = data._id;
 
       if (trial) {
@@ -413,7 +449,11 @@ export default function BookLesson() {
   }
 
   if (!tutorId) {
-    return <div style={{ padding: 16 }}>Missing tutorId. Open this page from a tutor profile.</div>;
+    return (
+      <div style={{ padding: 16 }}>
+        Missing tutorId. Open this page from a tutor profile.
+      </div>
+    );
   }
 
   const weekLabel =
@@ -494,7 +534,10 @@ export default function BookLesson() {
 
         {hourlyPrice != null && (
           <div style={{ fontSize: 14, fontWeight: 600 }}>
-            Price: {trial ? "€ 0.00 (trial)" : `€ ${priceForDuration?.toFixed(2)} (${duration} min)`}
+            Price:{" "}
+            {trial
+              ? "€ 0.00 (trial)"
+              : `€ ${priceForDuration?.toFixed(2)} (${duration} min)`}
           </div>
         )}
 
@@ -550,7 +593,9 @@ export default function BookLesson() {
           >
             ← Prev week
           </button>
-          <div style={{ fontWeight: 700, flex: 1, textAlign: "center" }}>{weekLabel}</div>
+          <div style={{ fontWeight: 700, flex: 1, textAlign: "center" }}>
+            {weekLabel}
+          </div>
           <button
             onClick={() => !nextDisabled && setWeekStart(addDays(weekStart, 7))}
             disabled={nextDisabled}
@@ -688,11 +733,14 @@ export default function BookLesson() {
               ))}
             </div>
           ) : (
-            <div style={{ marginTop: 8, opacity: 0.8 }}>Trials are fixed at 30 minutes.</div>
+            <div style={{ marginTop: 8, opacity: 0.8 }}>
+              Trials are fixed at 30 minutes.
+            </div>
           )}
           {weekTotal === 0 && (
             <div style={{ marginTop: 8, opacity: 0.8 }}>
-              No slots this week for the selected duration. Try a different duration or week.
+              No slots this week for the selected duration. Try a different duration or
+              week.
             </div>
           )}
         </div>
