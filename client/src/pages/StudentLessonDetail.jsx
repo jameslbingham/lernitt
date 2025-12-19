@@ -297,18 +297,23 @@ export default function StudentLessonDetail() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Sticky header */}
+      {/* Sticky header with back link */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-2 border-b bg-white/90 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold">
-            Lesson with {lesson.tutorName || "Tutor"}
-          </h1>
-          <StatusPill status={status} />
-          {showCountdown && (
-            <span className="text-xs opacity-80 ml-auto">
-              <TinyCountdown to={lesson.start} />
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-2">
+          <Link to="/my-lessons" className="text-xs underline whitespace-nowrap mr-2">
+            ← My lessons
+          </Link>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h1 className="text-lg font-semibold truncate">
+              Lesson with {lesson.tutorName || "Tutor"}
+            </h1>
+            <StatusPill status={status} />
+            {showCountdown && (
+              <span className="text-xs opacity-80 ml-auto">
+                <TinyCountdown to={lesson.start} />
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -325,7 +330,7 @@ export default function StudentLessonDetail() {
         Times are shown in your timezone: {yourTZ}.
       </div>
 
-      {/* Back link */}
+      {/* Back link (kept for familiarity) */}
       <div className="flex items-center justify-between">
         <span />
         <Link to="/my-lessons" className="text-sm underline">
@@ -448,7 +453,7 @@ export default function StudentLessonDetail() {
           {canPay && (
             <Link
               to={`/pay/${encodeURIComponent(lesson._id)}`}
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm"
+              className="bg-indigo-600 text-white px-3 py-1 rounded-2xl text-sm font-semibold shadow-sm hover:bg-indigo-700"
             >
               Pay
             </Link>
