@@ -107,31 +107,15 @@ function StatusBadge({ status, isTrial }) {
       bg: "#e6f7ff",
       color: "#0050b3",
     },
-    confirmed: {
-      label: "Confirmed",
-      bg: "#e6fffb",
-      color: "#006d75",
-    },
+    confirmed: { label: "Confirmed", bg: "#e6fffb", color: "#006d75" },
     reschedule_requested: {
       label: "Reschedule requested",
       bg: "#f0f5ff",
       color: "#1d39c4",
     },
-    completed: {
-      label: "Completed",
-      bg: "#f6ffed",
-      color: "#237804",
-    },
-    cancelled: {
-      label: "Cancelled",
-      bg: "#fff1f0",
-      color: "#a8071a",
-    },
-    expired: {
-      label: "Expired",
-      bg: "#fafafa",
-      color: "#595959",
-    },
+    completed: { label: "Completed", bg: "#f6ffed", color: "#237804" },
+    cancelled: { label: "Cancelled", bg: "#fff1f0", color: "#a8071a" },
+    expired: { label: "Expired", bg: "#fafafa", color: "#595959" },
   };
 
   const s = map[status] || map.pending_payment;
@@ -521,12 +505,13 @@ export default function MyLessons() {
                     </Link>
                   )}
 
+                  {/* NEW: Write review button → opens tutor profile review form */}
                   {isCompleted && (
                     <Link
                       to={`/tutors/${encodeURIComponent(
                         l.tutorId
                       )}?review=1`}
-                      className="text-sm border px-3 py-1 rounded-2xl"
+                      className="text-sm border px-3 py-1 rounded-2xl bg-amber-50 hover:bg-amber-100"
                     >
                       Write review
                     </Link>
