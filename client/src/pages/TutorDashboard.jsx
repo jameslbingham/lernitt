@@ -181,7 +181,8 @@ function AvailabilityPanel() {
         <button
           onClick={async () => {
             const date = document.getElementById("excDate").value;
-            const open = document.getElementById("excOpen").value === "true";
+            const open =
+              document.getElementById("excOpen").value === "true";
             if (!date) return alert("Select a date first!");
             try {
               await apiFetch("/api/availability/exceptions", {
@@ -212,10 +213,13 @@ function AvailabilityPanel() {
               {e.date}: {e.open ? "Open" : "Closed"}{" "}
               <button
                 onClick={async () => {
-                  await apiFetch(`/api/availability/exceptions/${e.date}`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` },
-                  });
+                  await apiFetch(
+                    `/api/availability/exceptions/${e.date}`,
+                    {
+                      method: "DELETE",
+                      headers: { Authorization: `Bearer ${token}` },
+                    }
+                  );
                   alert("🗑️ Exception removed");
                   await load();
                 }}
@@ -443,6 +447,68 @@ function EarningsSummary() {
   );
 }
 
+// ================= Tutor Onboarding Checklist =================
+function TutorOnboardingPanel() {
+  return (
+    <section
+      style={{
+        marginTop: 16,
+        borderRadius: 16,
+        padding: 16,
+        background: "#f9fafb",
+        border: "1px solid #e5e7eb",
+      }}
+    >
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+        Getting set up as a tutor
+      </h2>
+      <p style={{ fontSize: 14, opacity: 0.8, marginBottom: 10 }}>
+        Follow these steps so students can find, book, and pay you.
+      </p>
+
+      <ol style={{ paddingLeft: 18, fontSize: 14, marginBottom: 10 }}>
+        <li style={{ marginBottom: 6 }}>
+          Add your public details, headline, languages, and bio.
+        </li>
+        <li style={{ marginBottom: 6 }}>
+          Set weekly availability so students can book time slots.
+        </li>
+        <li>
+          Check your hourly rate and review payouts and earnings.
+        </li>
+      </ol>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          marginTop: 4,
+        }}
+      >
+        <Link
+          to="/tutor-profile-setup"
+          className="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+        >
+          1) Tutor profile
+        </Link>
+        <Link
+          to="/availability"
+          className="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+        >
+          2) Availability
+        </Link>
+        <Link
+          to="/payouts"
+          className="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
+        >
+          3) Payouts & pricing
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 // ================= Main Tutor Dashboard =================
 export default function TutorDashboard() {
   const { getToken, user } = useAuth();
@@ -472,7 +538,10 @@ export default function TutorDashboard() {
       }
 
       try {
-        const qs = new URLSearchParams({ upcoming: "1", mine: "1" }).toString();
+        const qs = new URLSearchParams({
+          upcoming: "1",
+          mine: "1",
+        }).toString();
         const lessons = await apiFetch(
           `${import.meta.env.VITE_API}/api/tutor-lessons?${qs}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -490,7 +559,10 @@ export default function TutorDashboard() {
     <div style={{ padding: "24px", maxWidth: 960, margin: "0 auto" }}>
       <h1>Tutor Dashboard</h1>
 
-      {/* ✅ NEW: Big primary CTA for best UX */}
+      {/* Onboarding checklist */}
+      <TutorOnboardingPanel />
+
+      {/* Primary availability CTA */}
       <div
         style={{
           marginTop: 16,
@@ -504,7 +576,7 @@ export default function TutorDashboard() {
           Set your availability
         </div>
         <div style={{ marginTop: 6, opacity: 0.95 }}>
-          Students can’t book lessons until you set your times.
+          Students can’t book lessons until you choose your times.
         </div>
 
         <div style={{ marginTop: 12 }}>
@@ -528,7 +600,9 @@ export default function TutorDashboard() {
 
       <p>Welcome! This page shows your lessons, students, and earnings.</p>
 
-      {err && <div style={{ background: "#fee2e2", padding: 8 }}>{err}</div>}
+      {err && (
+        <div style={{ background: "#fee2e2", padding: 8 }}>{err}</div>
+      )}
 
       <section style={{ marginTop: 24 }}>
         <h2>Today</h2>
