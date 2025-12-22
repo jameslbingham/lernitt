@@ -1,5 +1,6 @@
 // client/src/pages/Availability.jsx
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
@@ -279,7 +280,6 @@ export default function Availability() {
       if (Array.isArray(d.rules) && d.rules.length === 7) setRules(d.rules);
       if (d.startDate) setStartDate(d.startDate);
       if (d.repeat) setRepeat(d.repeat);
-      if (d.untilMode) setUntilMode(d.untilMode);
       if (d.untilDate !== undefined) setUntilDate(d.untilDate);
       setDirty(true);
       setMsg("Draft restored (not yet saved).");
@@ -446,48 +446,53 @@ export default function Availability() {
     <div style={{ padding: 16, maxWidth: 980, margin: "0 auto" }}>
       {/* Sticky header + actions */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="text-xs text-slate-500">
+              <Link
+                to="/tutor"
+                className="inline-flex items-center gap-1 hover:underline"
+              >
+                ← Back to tutor dashboard
+              </Link>
+            </div>
             <h1 className="text-2xl font-bold">Tutor availability</h1>
-
-            {/* Helper text under title */}
-            <p className="text-sm opacity-70 mt-1">
-              Set when students can book you. Students see these times on your
-              tutor profile and booking page.
+            <p className="text-sm text-slate-600">
+              Set when students can book you. These times appear on your tutor
+              profile and booking page.
+            </p>
+            <p className="text-xs text-slate-500">
+              Times are shown in your tutor timezone setting: {timezone}.
             </p>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onRefresh}
-              aria-label="Refresh from server"
-              className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+          <div className="flex flex-col items-end gap-2">
+            <Link
+              to="/payouts"
+              className="text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md"
             >
-              Refresh
-            </button>
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving || validation.length > 0 || !dirty}
-              aria-label="Save availability"
-              className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
-            </button>
+              Next: payouts &amp; pricing
+            </Link>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onRefresh}
+                aria-label="Refresh from server"
+                className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving || validation.length > 0 || !dirty}
+                aria-label="Save availability"
+                className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+              </button>
+            </div>
           </div>
-        </div>
-        <div
-          style={{
-            marginTop: 8,
-            padding: "6px 8px",
-            fontSize: 12,
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            background: "#eff6ff",
-          }}
-        >
-          Times are shown in your tutor timezone setting: {timezone}.
         </div>
       </div>
 
@@ -498,7 +503,8 @@ export default function Availability() {
       {/* Schedule window (existing, lightly styled) */}
       <div
         style={{
-          border: "1px solid #ddd",
+          border: "1px solid " +
+            "#ddd",
           padding: 12,
           borderRadius: 6,
           marginTop: 12,
