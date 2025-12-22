@@ -1,6 +1,6 @@
 // /client/src/pages/WelcomeSetup.jsx
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
@@ -53,15 +53,27 @@ export default function WelcomeSetup() {
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "20px" }}>
       {/* Student welcome copy */}
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>
-        Welcome, {name}! 🎉
-      </h1>
-      <p style={{ marginBottom: 4, opacity: 0.85 }}>
-        Let&apos;s set up your <strong>learning profile</strong> so tutors know how to help you.
-      </p>
-      <p style={{ marginBottom: 20, fontSize: 13, opacity: 0.7 }}>
-        This page is for <strong>students</strong> who want to learn.
-      </p>
+      <div className="mb-4 space-y-2">
+        <div className="text-xs text-slate-500">
+          <Link
+            to="/signup"
+            className="inline-flex items-center gap-1 hover:underline"
+          >
+            ← Back to sign up
+          </Link>
+        </div>
+        <h1 className="text-2xl font-bold">
+          Welcome, {name}! 🎉
+        </h1>
+        <p className="text-sm text-slate-700">
+          Let&apos;s set up your <strong>learning profile</strong> so tutors
+          know how to help you from the first lesson.
+        </p>
+        <p className="text-xs text-slate-500">
+          This page is for <strong>students</strong> who want to learn. Tutors
+          can switch to the teaching setup below.
+        </p>
+      </div>
 
       {err && (
         <div
