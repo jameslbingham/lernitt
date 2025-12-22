@@ -11,7 +11,7 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
-import { useAuth } from "./hooks/useAuth.jsx";
+import { useAuth, AuthProvider } from "./hooks/useAuth.jsx";
 
 // GLOBAL HEADER
 import Header from "./components/Header.jsx";
@@ -106,115 +106,117 @@ function AdminGuard({ children }) {
 // -------------------------------------------------------------------------
 export default function App() {
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <Header />
-      <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
-        <Suspense
-          fallback={<div style={{ padding: 12 }}>Loading…</div>}
-        >
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Header />
+        <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
+          <Suspense
+            fallback={<div style={{ padding: 12 }}>Loading…</div>}
+          >
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-            {/* Public info pages */}
-            <Route path="/about" element={<About />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/welcome-setup" element={<WelcomeSetup />} />
-            <Route
-              path="/tutor-profile-setup"
-              element={<TutorProfileSetup />}
-            />
-
-            {/* Marketplace */}
-            <Route path="/tutors" element={<Tutors />} />
-            <Route path="/tutors/:id" element={<TutorProfile />} />
-            <Route path="/book/:tutorId" element={<BookLesson />} />
-            <Route path="/pay/:lessonId" element={<Pay />} />
-            <Route
-              path="/confirm/:lessonId"
-              element={<BookingConfirmation />}
-            />
-            <Route path="/students" element={<Students />} />
-
-            {/* Legal */}
-            <Route path="/legal/terms" element={<Terms />} />
-            <Route path="/legal/privacy" element={<Privacy />} />
-            <Route path="/legal/cookies" element={<Cookies />} />
-            <Route
-              path="/legal/complaints"
-              element={<Complaints />}
-            />
-            <Route
-              path="/legal/age-requirements"
-              element={<AgeRequirements />}
-            />
-
-            {/* Admin */}
-            <Route
-              path="/admin"
-              element={
-                <AdminGuard>
-                  <AdminDashboard />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/payouts"
-              element={
-                <AdminGuard>
-                  <AdminDashboard initialTab="payouts" />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/*"
-              element={
-                <AdminGuard>
-                  <AdminDashboard />
-                </AdminGuard>
-              }
-            />
-
-            {/* Auth-protected */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/availability" element={<Availability />} />
-              <Route path="/my-lessons" element={<MyLessons />} />
+              {/* Public info pages */}
+              <Route path="/about" element={<About />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/welcome-setup" element={<WelcomeSetup />} />
               <Route
-                path="/tutor-lessons"
-                element={<TutorLessons />}
+                path="/tutor-profile-setup"
+                element={<TutorProfileSetup />}
+              />
+
+              {/* Marketplace */}
+              <Route path="/tutors" element={<Tutors />} />
+              <Route path="/tutors/:id" element={<TutorProfile />} />
+              <Route path="/book/:tutorId" element={<BookLesson />} />
+              <Route path="/pay/:lessonId" element={<Pay />} />
+              <Route
+                path="/confirm/:lessonId"
+                element={<BookingConfirmation />}
+              />
+              <Route path="/students" element={<Students />} />
+
+              {/* Legal */}
+              <Route path="/legal/terms" element={<Terms />} />
+              <Route path="/legal/privacy" element={<Privacy />} />
+              <Route path="/legal/cookies" element={<Cookies />} />
+              <Route
+                path="/legal/complaints"
+                element={<Complaints />}
               />
               <Route
-                path="/student-lesson/:lessonId"
-                element={<StudentLessonDetail />}
+                path="/legal/age-requirements"
+                element={<AgeRequirements />}
               />
-              <Route path="/payouts" element={<Payouts />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route
-                path="/notifications"
-                element={<Notifications />}
-              />
-              <Route path="/tutor" element={<TutorDashboard />} />
 
-              {/* Video */}
-              <Route path="/video" element={<VideoLesson />} />
-              <Route path="/lesson-ended" element={<LessonEnded />} />
+              {/* Admin */}
               <Route
-                path="/lesson-recordings"
-                element={<LessonRecordings />}
+                path="/admin"
+                element={
+                  <AdminGuard>
+                    <AdminDashboard />
+                  </AdminGuard>
+                }
               />
-            </Route>
+              <Route
+                path="/admin/payouts"
+                element={
+                  <AdminGuard>
+                    <AdminDashboard initialTab="payouts" />
+                  </AdminGuard>
+                }
+              />
+              <Route
+                path="/admin/*"
+                element={
+                  <AdminGuard>
+                    <AdminDashboard />
+                  </AdminGuard>
+                }
+              />
 
-            {/* 404 fallback */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <Footer />
-    </BrowserRouter>
+              {/* Auth-protected */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/availability" element={<Availability />} />
+                <Route path="/my-lessons" element={<MyLessons />} />
+                <Route
+                  path="/tutor-lessons"
+                  element={<TutorLessons />}
+                />
+                <Route
+                  path="/student-lesson/:lessonId"
+                  element={<StudentLessonDetail />}
+                />
+                <Route path="/payouts" element={<Payouts />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route
+                  path="/notifications"
+                  element={<Notifications />}
+                />
+                <Route path="/tutor" element={<TutorDashboard />} />
+
+                {/* Video */}
+                <Route path="/video" element={<VideoLesson />} />
+                <Route path="/lesson-ended" element={<LessonEnded />} />
+                <Route
+                  path="/lesson-recordings"
+                  element={<LessonRecordings />}
+                />
+              </Route>
+
+              {/* 404 fallback */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <Footer />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
