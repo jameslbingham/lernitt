@@ -14,6 +14,7 @@ export default function Login() {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const next = params.get("next") || "/";
+  const reason = params.get("reason");
 
   // ✅ NEW: role-based post-login routing
   function afterLoginPath(u) {
@@ -103,29 +104,60 @@ export default function Login() {
     }
   }
 
+  const comingFrom =
+    next === "/" ? "the Lernitt home page" : `“${next}”`;
+
+  const sessionMessage =
+    reason === "auth"
+      ? "Your session expired. Please log in again to continue."
+      : "";
+
+  const errorText = err
+    ? `Sign-in problem: ${err}`
+    : "";
+
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <main className="mx-auto max-w-md px-4 pt-20 pb-20 space-y-8">
-        <section className="text-center space-y-3">
+        {/* Top heading + back link */}
+        <section className="space-y-3">
+          <div className="text-xs text-slate-500 mb-1">
+            <Link
+              to="/tutors"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              ← Back to tutors
+            </Link>
+          </div>
+
           <h1 className="text-3xl font-extrabold">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h1>
+
           <p className="text-sm opacity-80">
-            Secure access to your Lernitt account.
+            {mode === "login"
+              ? "Sign in to manage your lessons, bookings, and tutor settings."
+              : "Create a Lernitt account to book tutors and manage your lessons."}
           </p>
+
+          {sessionMessage && (
+            <p className="text-xs rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+              {sessionMessage}
+            </p>
+          )}
         </section>
 
         <section className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
           <div className="text-xs opacity-70">
-            You’ll return to: <code>{next}</code>
+            After signing in you’ll return to: <code>{comingFrom}</code>
           </div>
 
-          {err && (
+          {errorText && (
             <div
               role="alert"
               className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             >
-              {err}
+              {errorText}
             </div>
           )}
 
@@ -174,7 +206,7 @@ export default function Login() {
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
                 />
-                Remember email
+                Remember email on this device
               </label>
 
               <button
