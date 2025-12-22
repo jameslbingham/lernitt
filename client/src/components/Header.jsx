@@ -10,7 +10,8 @@ import { useEffect, useState } from "react";
 import logo from "../assets/lernitt-logo.png";
 
 export default function Header() {
-  const { isAuthed, user, logout, getToken } = useAuth();
+  const { isAuthed, user, logout, getToken, authError, clearAuthError } =
+    useAuth();
   const [unread, setUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -51,6 +52,24 @@ export default function Header() {
 
   return (
     <header className="w-full bg-white shadow-sm sticky top-0 z-50">
+      {/* Global auth / token-expired banner */}
+      {authError && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm px-4 py-2 flex items-center justify-between gap-3">
+          <span>
+            {authError.message ||
+              "Your session has ended. Please log in again."}
+          </span>
+
+          <Link
+            to="/login"
+            onClick={() => clearAuthError()}
+            className="inline-flex items-center gap-1 border px-3 py-1 rounded-2xl text-xs font-medium bg-white hover:bg-amber-50 shadow-sm hover:shadow-md"
+          >
+            Log in again
+          </Link>
+        </div>
+      )}
+
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* LEFT: Logo */}
         <Link to="/" className="flex items-center gap-2">
