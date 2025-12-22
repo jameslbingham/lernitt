@@ -219,7 +219,7 @@ export default function RiskOpsDashboard() {
     const params = new URLSearchParams();
     if (from) params.append("from", from);
     if (to) params.append("to", to);
-    const res = await safeFetchJSON(`${API}/api/admin/metrics/riskops?${params.toString()}`);
+    const res = await safeFetchJSON(`${API}/api/metrics/riskops?${params.toString()}`);
     setData(res);
     setLoading(false);
   }
