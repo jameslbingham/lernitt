@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 
-// helper to build token + public user
+// Helper to build token + public user
 function buildAuthResponse(user) {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -17,6 +17,7 @@ function buildAuthResponse(user) {
     role: user.role || "student",
   };
 
+  // 7-day JWT
   const token = jwt.sign(payload, secret, { expiresIn: "7d" });
 
   return {
@@ -50,12 +51,12 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ error: "Email already used" });
     }
 
-    // fallback name
+    // Fallback name
     if (!name) {
       name = email.split("@")[0] || "User";
     }
 
-    // 🔒 AUTHORITATIVE ROLE DECISION
+    // Authoritative role decision from "type"
     const signupType = String(type || "student").toLowerCase();
     const role = signupType === "tutor" ? "tutor" : "student";
 
