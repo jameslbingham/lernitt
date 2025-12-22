@@ -298,10 +298,28 @@ export default function MyLessons() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Lessons</h1>
-        <Link to="/tutors" className="text-sm underline">
-          ← Find tutors
+      <div className="flex items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="text-xs text-slate-500">
+            <Link
+              to="/tutors"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              ← Back to tutors
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold">My lessons</h1>
+          <p className="text-sm text-slate-600">
+            See your upcoming and past lessons, join classes, and access
+            recordings in one place.
+          </p>
+        </div>
+
+        <Link
+          to="/tutors"
+          className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md"
+        >
+          Book a new lesson
         </Link>
       </div>
 
