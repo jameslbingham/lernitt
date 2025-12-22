@@ -137,7 +137,7 @@ export default function GrowthDashboard() {
     let stop = false;
     async function run() {
       setLoading(true);
-      const url = `/api/admin/metrics/growth${query}`;
+      const url = `/api/metrics/growth${query}`;
       let res = await safeFetchJSON(url);
       if (!res) {
         // Mock fallback (safe defaults)
