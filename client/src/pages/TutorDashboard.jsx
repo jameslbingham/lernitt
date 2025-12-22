@@ -557,7 +557,30 @@ export default function TutorDashboard() {
 
   return (
     <div style={{ padding: "24px", maxWidth: 960, margin: "0 auto" }}>
-      <h1>Tutor Dashboard</h1>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="space-y-1">
+          <div className="text-xs text-slate-500">
+            <Link
+              to="/tutor-lessons"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              ← Back to tutor lessons
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold">Tutor dashboard</h1>
+          <p className="text-sm text-slate-600">
+            Manage your availability, upcoming lessons, and earnings in one
+            place.
+          </p>
+        </div>
+
+        <Link
+          to="/tutor-lessons"
+          className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md"
+        >
+          View all lessons
+        </Link>
+      </div>
 
       {/* Onboarding checklist */}
       <TutorOnboardingPanel />
