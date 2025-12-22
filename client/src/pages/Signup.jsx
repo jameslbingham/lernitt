@@ -51,7 +51,7 @@ export default function Signup() {
 
       const data = await apiFetch(`${API}/api/auth/signup`, {
         method: "POST",
-        body: { email, password, name, role },
+        body: { email, password, name, type: role },
       });
 
       if (!data?.token || !data?.user) {
@@ -107,6 +107,18 @@ export default function Signup() {
 
         {/* SIGNUP CARD */}
         <section className="mx-auto max-w-md rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
+          <div className="flex justify-between items-center text-xs text-slate-500 mb-2">
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              ← Back to login
+            </Link>
+            <Link to="/tutors" className="hover:underline">
+              Browse tutors
+            </Link>
+          </div>
+
           <h2 className="text-2xl font-bold text-center">Get Started</h2>
 
           {/* STUDENT / TUTOR BENEFITS */}
@@ -126,7 +138,10 @@ export default function Signup() {
               role="alert"
               className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             >
-              {err}
+              <p className="font-semibold mb-1">
+                We couldn&apos;t create your account.
+              </p>
+              <p>{err}</p>
             </div>
           )}
 
