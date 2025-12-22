@@ -1,5 +1,5 @@
 // client/src/hooks/useAuth.jsx
-// Simple auth context for token + user state
+// Simple auth context for token + user state + global auth error
 
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -51,11 +51,44 @@ function persistAuth(token, user) {
 export function AuthProvider({ children }) {
   const [{ token, user }, setAuth] = useState(() => loadInitialAuth());
   const [initialised, setInitialised] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
   // One-time init (in case localStorage changed before mount)
   useEffect(() => {
     setAuth(loadInitialAuth());
     setInitialised(true);
+  }, []);
+
+  // Listen for global auth-error and auth-change events
+  useEffect(() => {
+    function handleAuthError(evt) {
+      const detail = evt?.detail || null;
+      setAuthError(
+        detail || {
+          status: 401,
+          code: "UNAUTHORIZED",
+          message: "Your session has ended. Please log in again.",
+        }
+      );
+    }
+
+    function handleAuthChange() {
+      // after handleUnauthorizedRedirect runs, or manual changes
+      setAuth(loadInitialAuth());
+      setAuthError(null);
+    }
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("auth-error", handleAuthError);
+      document.addEventListener("auth-change", handleAuthChange);
+    }
+
+    return () => {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("auth-error", handleAuthError);
+        document.removeEventListener("auth-change", handleAuthChange);
+      }
+    };
   }, []);
 
   function login(authPayload) {
@@ -64,11 +97,13 @@ export function AuthProvider({ children }) {
     const nextUser = authPayload?.user || null;
     setAuth({ token: nextToken, user: nextUser });
     persistAuth(nextToken, nextUser);
+    setAuthError(null);
   }
 
   function logout() {
     setAuth({ token: null, user: null });
     persistAuth(null, null);
+    setAuthError(null);
   }
 
   function getToken() {
@@ -90,6 +125,10 @@ export function AuthProvider({ children }) {
       });
     },
     initialised,
+    authError,
+    clearAuthError() {
+      setAuthError(null);
+    },
   };
 
   return (
