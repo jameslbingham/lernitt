@@ -1,6 +1,6 @@
 // /client/src/pages/TutorProfileSetup.jsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
@@ -107,12 +107,30 @@ export default function TutorProfileSetup() {
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: 20 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>
-        Set up your tutor profile
-      </h1>
-      <p style={{ marginBottom: 16, opacity: 0.8 }}>
-        Welcome, {name}. This is what students will see on your tutor page.
-      </p>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="space-y-1">
+          <div className="text-xs text-slate-500">
+            <Link
+              to="/tutor"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              ← Back to tutor dashboard
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold">Tutor profile setup</h1>
+          <p className="text-sm text-slate-600">
+            Add your public details, headline, languages, and bio so students
+            know who you are before booking.
+          </p>
+        </div>
+
+        <Link
+          to="/availability"
+          className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md"
+        >
+          Next: set availability
+        </Link>
+      </div>
 
       {loading && (
         <div style={{ marginBottom: 10, fontSize: 14, opacity: 0.7 }}>
