@@ -35,7 +35,10 @@ export async function apiFetch(path, options = {}) {
     const mockOptions = {
       method,
       headers: finalHeaders,
-      body: body != null && typeof body !== "string" ? JSON.stringify(body) : body,
+      body:
+        body != null && typeof body !== "string"
+          ? JSON.stringify(body)
+          : body,
       ...rest,
     };
 
@@ -48,7 +51,10 @@ export async function apiFetch(path, options = {}) {
     method,
     ...rest,
     headers: pruneUndefined(finalHeaders),
-    body: body != null && typeof body !== "string" ? JSON.stringify(body) : body,
+    body:
+      body != null && typeof body !== "string"
+        ? JSON.stringify(body)
+        : body,
   });
 
   return handleResponse(res);
@@ -58,10 +64,43 @@ export async function apiFetch(path, options = {}) {
 async function handleResponse(res) {
   if (!res || typeof res.ok !== "boolean") throw new Error("Invalid response");
 
-  // 401 → logout + redirect
+  // 401 → signal auth error + logout + redirect
   if (res.status === 401) {
+    let code = "UNAUTHORIZED";
+    let message = "Unauthorized";
+
+    try {
+      const ct = res.headers?.get?.("content-type") || "";
+      if (ct.includes("application/json") && res.json) {
+        const data = await res.json();
+        if (data && typeof data === "object") {
+          message = data.message || data.error || message;
+          if (typeof data.code === "string") {
+            code = data.code;
+          }
+        }
+      }
+    } catch {
+      // swallow parsing errors; fall back to defaults
+    }
+
+    const error = Object.assign(new Error(message), {
+      status: 401,
+      code,
+      authError: { status: 401, code, message },
+    });
+
+    // Global auth-error signal (for Header / useAuth to listen to)
+    try {
+      document.dispatchEvent(
+        new CustomEvent("auth-error", { detail: error.authError })
+      );
+    } catch {
+      // ignore if document/CustomEvent not available
+    }
+
     handleUnauthorizedRedirect();
-    throw Object.assign(new Error("Unauthorized"), { status: 401 });
+    throw error;
   }
 
   let data = null;
@@ -115,6 +154,8 @@ function handleUnauthorizedRedirect() {
   try {
     document.dispatchEvent(new Event("auth-change"));
   } catch {}
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  const next = encodeURIComponent(
+    window.location.pathname + window.location.search
+  );
   window.location.replace(`/login?next=${next}`);
 }
