@@ -1,96 +1,106 @@
-// /client/src/hooks/useAuth.jsx
+// client/src/hooks/useAuth.jsx
+// Simple auth context for token + user state
+
 import { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);
-const TOKEN_KEY = "token";
-const USER_KEY = "user";
 
-export function readToken() {
+function loadInitialAuth() {
+  if (typeof window === "undefined") return { token: null, user: null };
+
   try {
-    return localStorage.getItem(TOKEN_KEY) || "";
+    // New combined key
+    const raw = localStorage.getItem("auth");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        token: parsed.token || null,
+        user: parsed.user || null,
+      };
+    }
+
+    // Backwards-compat: separate keys
+    const token = localStorage.getItem("token");
+    const userRaw = localStorage.getItem("user");
+    const user = userRaw ? JSON.parse(userRaw) : null;
+
+    return { token: token || null, user: user || null };
   } catch {
-    return "";
+    return { token: null, user: null };
   }
 }
 
-export function readUser() {
+function persistAuth(token, user) {
+  if (typeof window === "undefined") return;
   try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (token && user) {
+      const payload = { token, user };
+      localStorage.setItem("auth", JSON.stringify(payload));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("auth");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
   } catch {
-    return null;
+    // ignore storage errors
   }
-}
-
-function writeToken(t) {
-  try {
-    t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
-  } catch {}
-}
-
-function writeUser(u) {
-  try {
-    u ? localStorage.setItem(USER_KEY, JSON.stringify(u)) : localStorage.removeItem(USER_KEY);
-  } catch {}
-}
-
-function emitAuthChange() {
-  try {
-    document.dispatchEvent(new Event("auth-change"));
-  } catch {}
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(readToken());
-  const [user, setUser] = useState(readUser());
+  const [{ token, user }, setAuth] = useState(() => loadInitialAuth());
+  const [initialised, setInitialised] = useState(false);
 
+  // One-time init (in case localStorage changed before mount)
   useEffect(() => {
-    function sync() {
-      setToken(readToken());
-      setUser(readUser());
-    }
-    window.addEventListener("storage", sync);
-    document.addEventListener("auth-change", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      document.removeEventListener("auth-change", sync);
-    };
+    setAuth(loadInitialAuth());
+    setInitialised(true);
   }, []);
 
-  function login(newToken, newUser) {
-    writeToken(newToken);
-    writeUser(newUser);
-    setToken(newToken);
-    setUser(newUser);
-    emitAuthChange();
+  function login(authPayload) {
+    // expects { token, user } from /api/auth/signup or /api/auth/login
+    const nextToken = authPayload?.token || null;
+    const nextUser = authPayload?.user || null;
+    setAuth({ token: nextToken, user: nextUser });
+    persistAuth(nextToken, nextUser);
   }
 
   function logout() {
-    writeToken("");
-    writeUser(null);
-    setToken("");
-    setUser(null);
-    emitAuthChange();
+    setAuth({ token: null, user: null });
+    persistAuth(null, null);
   }
 
   function getToken() {
-    return readToken();
+    return token;
   }
 
-  const role = user?.role || null;
-  const isAuthed = !!token;
+  const value = {
+    token,
+    user,
+    isAuthed: !!token,
+    login,
+    logout,
+    getToken,
+    setUser(nextUser) {
+      setAuth((prev) => {
+        const updated = { ...prev, user: nextUser };
+        persistAuth(updated.token, updated.user);
+        return updated;
+      });
+    },
+    initialised,
+  };
 
   return (
-    <AuthContext.Provider
-      value={{ token, user, role, isAuthed, login, logout, getToken }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
+  if (!ctx) {
+    throw new Error("useAuth must be used inside <AuthProvider>");
+  }
   return ctx;
 }
