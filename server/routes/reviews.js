@@ -1,388 +1,274 @@
-// client/src/pages/TutorProfile.jsx
-import { useEffect, useState } from "react";
-import { useParams, Link, useLocation, useSearchParams } from "react-router-dom";
-import { apiFetch } from "../lib/apiFetch.js";
-import { copyToClipboard } from "../lib/copy.js";
-import { useToast } from "../hooks/useToast.js";
-import ReviewForm from "../components/ReviewForm.jsx";
+// /server/routes/reviews.js
+const express = require("express");
+const router = express.Router();
 
-const MOCK = import.meta.env.VITE_MOCK === "1";
+const auth = require("../middleware/auth");
+const Review = require("../models/Review");
+const Lesson = require("../models/Lesson");
+const mongoose = require("mongoose");
 
-// --- Favourites helpers ---
-const FAV_KEY = "favTutors";
-function readFavs() {
+// ---------------- Helper: can a user review a specific lesson? ----------------
+async function computeCanReview(userId, lessonId) {
+  if (!mongoose.isValidObjectId(lessonId)) {
+    return { canReview: false, reason: "invalid_lesson" };
+  }
+
+  const lesson = await Lesson.findById(lessonId)
+    .select("_id student tutor status endTime")
+    .lean();
+
+  if (!lesson) return { canReview: false, reason: "lesson_not_found" };
+
+  if (String(lesson.student) !== String(userId)) {
+    return { canReview: false, reason: "not_student" };
+  }
+
+  if (lesson.status !== "completed") {
+    return { canReview: false, reason: "not_completed" };
+  }
+
+  const existing = await Review.findOne({
+    lesson: lessonId,
+    student: userId,
+  }).lean();
+
+  if (existing) return { canReview: false, reason: "already_reviewed" };
+
+  return { canReview: true, reason: "ok", tutor: lesson.tutor };
+}
+
+// -------- Helper: can a user review a tutor (completed lesson exists + not yet reviewed) --------
+async function computeCanReviewByTutor(userId, tutorId) {
+  if (!mongoose.isValidObjectId(tutorId)) {
+    return { canReview: false, reason: "invalid_tutor" };
+  }
+
+  const alreadyReviewed = await Review.exists({
+    student: userId,
+    tutor: tutorId,
+  });
+
+  if (alreadyReviewed) {
+    return { canReview: false, reason: "already_reviewed" };
+  }
+
+  const hasCompletedLesson = await Lesson.exists({
+    student: userId,
+    tutor: tutorId,
+    status: "completed",
+  });
+
+  if (!hasCompletedLesson) {
+    return { canReview: false, reason: "no_completed_lesson" };
+  }
+
+  return { canReview: true, reason: "ok" };
+}
+
+/**
+ * GET /api/reviews/can/:lessonId
+ * Check if the logged-in student may review this lesson.
+ */
+router.get("/can/:lessonId", auth, async (req, res) => {
   try {
-    const raw = JSON.parse(localStorage.getItem(FAV_KEY) || "[]");
-    return new Set(Array.isArray(raw) ? raw : []);
-  } catch {
-    return new Set();
+    const { lessonId } = req.params;
+    const result = await computeCanReview(req.user.id, lessonId);
+    return res.json(result);
+  } catch (e) {
+    console.error("[REVIEWS][can] error", e);
+    return res.status(500).json({ error: "server_error" });
   }
-}
+});
 
-// Format price
-function eurosFromPrice(p) {
-  const n = typeof p === "number" ? p : Number(p) || 0;
-  return n >= 1000 ? n / 100 : n;
-}
+/**
+ * GET /api/reviews/can-review?tutorId=...
+ * Returns: { canReview: boolean }
+ */
+router.get("/can-review", auth, async (req, res) => {
+  try {
+    const userId = req.user && (req.user.id || req.user._id);
+    const { tutorId } = req.query || {};
+    if (!userId) return res.status(401).json({ error: "unauthorized" });
+    if (!tutorId) return res.status(400).json({ error: "missing_tutorId" });
 
-/* ---------------- Trials badge ---------------- */
-function TrialsBadge({ tutorId }) {
-  const [data, setData] = useState(null);
-
-  useEffect(() => {
-    let live = true;
-
-    (async () => {
-      try {
-        const raw = await apiFetch(
-          `/api/lessons/trial-summary/${encodeURIComponent(tutorId)}`,
-          { auth: true }
-        );
-        if (!live || !raw) return;
-
-        const totalUsed = Number(raw.totalTrials ?? raw.totalUsed ?? 0);
-        const usedWithTutor = raw.usedWithTutor ? 1 : 0;
-
-        setData({
-          totalUsed,
-          usedWithTutor,
-          limitTotal: 3,
-          limitPerTutor: 1,
-        });
-      } catch {
-        if (live) setData(null);
-      }
-    })();
-
-    return () => {
-      live = false;
-    };
-  }, [tutorId]);
-
-  if (!data) return null;
-
-  return (
-    <span className="text-xs border rounded-full px-2 py-1">
-      Trials {data.totalUsed}/{data.limitTotal} • This tutor{" "}
-      {data.usedWithTutor}/{data.limitPerTutor}
-    </span>
-  );
-}
-
-/* ---------------- Reviews Panel ---------------- */
-function ReviewsPanel({ tutorId, tutorName }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [items, setItems] = useState([]);
-  const [summary, setSummary] = useState({ avgRating: 0, reviewsCount: 0 });
-  const [canReview, setCanReview] = useState(false);
-
-  const openFromQuery = searchParams.get("review") === "1";
-  const [showForm, setShowForm] = useState(openFromQuery);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setErr("");
-      try {
-        const [list, sum] = await Promise.all([
-          apiFetch(`/api/reviews/tutor/${encodeURIComponent(tutorId)}`),
-          apiFetch(
-            `/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`
-          ),
-        ]);
-        setItems(Array.isArray(list) ? list : []);
-        setSummary({
-          avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0),
-        });
-      } catch (e) {
-        // NEW: fail safely, no scary "server_error" text
-        console.error("Failed to load reviews", e);
-        setItems([]);
-        setSummary({ avgRating: 0, reviewsCount: 0 });
-        setErr(""); // keep empty so we show the "no reviews" message instead
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    async function checkCanReview() {
-      try {
-        const res = await apiFetch(
-          `/api/reviews/can-review?tutorId=${encodeURIComponent(tutorId)}`,
-          { auth: true }
-        );
-        setCanReview(!!res?.canReview);
-      } catch {
-        setCanReview(false);
-      }
-    }
-
-    if (tutorId) {
-      load();
-      checkCanReview();
-    }
-  }, [tutorId]);
-
-  function onSaved() {
-    (async () => {
-      try {
-        const list = await apiFetch(
-          `/api/reviews/tutor/${encodeURIComponent(tutorId)}`
-        );
-        const sum = await apiFetch(
-          `/api/reviews/tutor/${encodeURIComponent(tutorId)}/summary`
-        );
-        setItems(Array.isArray(list) ? list : []);
-        setSummary({
-          avgRating: Number(sum?.avgRating || 0),
-          reviewsCount: Number(sum?.reviewsCount || 0),
-        });
-        setShowForm(false);
-      } catch {}
-    })();
+    const result = await computeCanReviewByTutor(userId, tutorId);
+    return res.json({ canReview: !!result.canReview });
+  } catch (e) {
+    console.error("[REVIEWS][can-review] error", e);
+    return res.status(500).json({ error: "server_error" });
   }
+});
 
-  return (
-    <section id="reviews-panel" className="mt-6 space-y-3">
-      <div className="flex items-center gap-3">
-        <h2 className="text-xl font-semibold">Reviews</h2>
-        <span className="text-sm opacity-70">
-          {summary.reviewsCount} review
-          {summary.reviewsCount === 1 ? "" : "s"}
-          {summary.reviewsCount > 0
-            ? ` • ${summary.avgRating.toFixed(1)}/5`
-            : ""}
-        </span>
+/**
+ * POST /api/reviews
+ * Body:
+ *  - Option A: { lessonId, rating (1-5), text }
+ *  - Option B: { tutorId, rating (1-5), text }  // server picks eligible lesson
+ */
+router.post("/", auth, async (req, res) => {
+  try {
+    const { lessonId, tutorId, rating, text } = req.body || {};
 
-        {canReview && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="ml-auto text-sm border px-3 py-1 rounded-2xl"
-          >
-            Write a review
-          </button>
-        )}
-      </div>
+    const r = Number(rating);
+    if (!r || r < 1 || r > 5) {
+      return res.status(400).json({ error: "invalid_rating" });
+    }
 
-      {showForm && (
-        <div className="border rounded-2xl p-3">
-          <ReviewForm
-            tutorId={tutorId}
-            tutorName={tutorName}
-            onSaved={onSaved}
-            onClose={() => setShowForm(false)}
-          />
-        </div>
-      )}
+    let finalLessonId = lessonId;
+    let finalTutorId = tutorId;
 
-      {loading && <div>Loading reviews…</div>}
-      {err && <div className="text-red-600">{err}</div>}
+    // If tutorId provided (no lessonId), pick the most recent completed lesson
+    if (!finalLessonId && finalTutorId) {
+      const can = await computeCanReviewByTutor(req.user.id, finalTutorId);
+      if (!can.canReview) {
+        return res.status(400).json({ error: can.reason || "not_allowed" });
+      }
 
-      {!loading && !err && items.length === 0 && (
-        <div className="opacity-70">Tutor has no reviews yet.</div>
-      )}
+      const latestCompleted = await Lesson.findOne({
+        student: req.user.id,
+        tutor: finalTutorId,
+        status: "completed",
+      })
+        .sort({ endTime: -1 })
+        .select("_id tutor")
+        .lean();
 
-      {!loading && !err && items.length > 0 && (
-        <ul className="space-y-2">
-          {items.map((r) => (
-            <li key={r._id || r.id} className="border rounded-2xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="font-medium">{r.student || "Student"}</div>
-                <div className="text-xs opacity-70">
-                  {r.createdAt
-                    ? new Date(r.createdAt).toLocaleString()
-                    : ""}
-                </div>
-                <div className="ml-auto text-sm">
-                  ★ {Number(r.rating || 0).toFixed(1)}/5
-                </div>
-              </div>
-              {r.text && <div className="text-sm mt-1">{r.text}</div>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
+      if (!latestCompleted) {
+        return res.status(400).json({ error: "no_completed_lesson" });
+      }
 
-/* ---------------- Main page ---------------- */
+      const already = await Review.exists({
+        lesson: latestCompleted._id,
+        student: req.user.id,
+      });
+      if (already) {
+        return res.status(400).json({ error: "already_reviewed" });
+      }
 
-export default function TutorProfile() {
-  const { id } = useParams();
-  const loc = useLocation();
-  const backTo = (loc.state && loc.state.from) || "/tutors";
-  const toast = useToast();
+      finalLessonId = latestCompleted._id;
+      finalTutorId = latestCompleted.tutor;
+    }
 
-  const [tutor, setTutor] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+    // If lessonId provided (and tutorId missing), validate and infer tutorId
+    if (finalLessonId && !finalTutorId) {
+      const check = await computeCanReview(req.user.id, finalLessonId);
+      if (!check.canReview) {
+        return res.status(400).json({ error: check.reason || "not_allowed" });
+      }
+      finalTutorId = check.tutor;
+    }
 
-  const [favorites, setFavorites] = useState(readFavs());
-  const isFav = favorites.has(id);
+    if (!finalLessonId || !finalTutorId) {
+      return res.status(400).json({ error: "missing_identifiers" });
+    }
 
-  const searchParams = new URLSearchParams(loc.search || "");
-  const trialParam = searchParams.get("trial");
-  const [showTrialBanner, setShowTrialBanner] = useState(trialParam === "1");
+    const review = await Review.create({
+      lesson: finalLessonId,
+      tutor: finalTutorId,
+      student: req.user.id,
+      rating: r,
+      text: text || "",
+    });
 
-  function toggleFavorite() {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      try {
-        localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
-      } catch {}
-      return next;
+    return res.json({ ok: true, review });
+  } catch (e) {
+    console.error("[REVIEWS][post] error", e);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+/**
+ * GET /api/reviews/mine
+ * List the current student's reviews.
+ */
+router.get("/mine", auth, async (req, res) => {
+  try {
+    const items = await Review.find({ student: req.user.id })
+      .sort({ createdAt: -1 })
+      .lean();
+    return res.json(items);
+  } catch (e) {
+    console.error("[REVIEWS][mine] error", e);
+    return res.status(500).json({ error: "server_error" });
+  }
+});
+
+/**
+ * GET /api/reviews/tutor/:id
+ * Public list of reviews for a tutor.
+ * ALWAYS returns 200 with an array (even if none).
+ */
+router.get("/tutor/:id", async (req, res) => {
+  try {
+    const tutorId = req.params.id;
+
+    if (!mongoose.isValidObjectId(tutorId)) {
+      return res.status(200).json([]);
+    }
+
+    const items = await Review.find({ tutor: tutorId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json(Array.isArray(items) ? items : []);
+  } catch (e) {
+    console.error("[REVIEWS][tutor list] error", e);
+    return res.status(200).json([]);
+  }
+});
+
+/**
+ * GET /api/reviews/tutor/:id/summary
+ * Always returns 200 with safe defaults.
+ */
+router.get("/tutor/:id/summary", async (req, res) => {
+  try {
+    const tutorId = req.params.id;
+
+    if (!mongoose.isValidObjectId(tutorId)) {
+      return res.status(200).json({
+        avgRating: null,
+        reviewsCount: 0,
+        average: null,
+        reviews: 0,
+      });
+    }
+
+    const agg = await Review.aggregate([
+      { $match: { tutor: new mongoose.Types.ObjectId(tutorId) } },
+      {
+        $group: {
+          _id: "$tutor",
+          average: { $avg: "$rating" },
+          reviews: { $count: {} },
+        },
+      },
+    ]);
+
+    if (!agg.length) {
+      return res.status(200).json({
+        avgRating: null,
+        reviewsCount: 0,
+        average: null,
+        reviews: 0,
+      });
+    }
+
+    return res.status(200).json({
+      avgRating: agg[0].average,
+      reviewsCount: agg[0].reviews,
+      average: agg[0].average,
+      reviews: agg[0].reviews,
+    });
+  } catch (e) {
+    console.error("[REVIEWS][summary] error", e);
+    return res.status(200).json({
+      avgRating: null,
+      reviewsCount: 0,
+      average: null,
+      reviews: 0,
     });
   }
+});
 
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === FAV_KEY) setFavorites(readFavs());
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  useEffect(() => {
-    setFavorites(readFavs());
-  }, [id]);
-
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      const t = await apiFetch(`/api/tutors/${encodeURIComponent(id)}`);
-      setTutor(t);
-    } catch {
-      setError("Could not load tutor profile.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, [id]);
-
-  // Document title
-  useEffect(() => {
-    if (!tutor) return;
-    const avg =
-      typeof tutor.avgRating === "number"
-        ? tutor.avgRating.toFixed(1)
-        : null;
-    document.title = avg
-      ? `${tutor.name} — ${avg}⭐ | Lernitt`
-      : `${tutor.name} — Tutor | Lernitt`;
-  }, [tutor]);
-
-  if (loading) return <div className="p-4">Loading…</div>;
-  if (error) return <div className="p-4 text-red-600">{error}</div>;
-  if (!tutor) return <div className="p-4">Tutor not found.</div>;
-
-  const priceText =
-    typeof tutor.price === "number"
-      ? eurosFromPrice(tutor.price).toFixed(2)
-      : String(tutor.price || "");
-
-  async function onCopyProfileLink() {
-    const ok = await copyToClipboard(window.location.href);
-    toast(ok ? "Link copied!" : "Copy failed");
-  }
-
-  return (
-    <div className="p-4 max-w-2xl mx-auto space-y-6">
-      {/* Trial banner */}
-      {showTrialBanner && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
-          <div>
-            🎉 <b>Trial booked!</b> Your 30-minute lesson is confirmed.
-          </div>
-          <button
-            onClick={() => setShowTrialBanner(false)}
-            className="ml-auto text-xs border px-2 py-1 rounded-2xl"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Centered header */}
-      <div className="text-center space-y-3">
-        {/* Square / rounded-corner photo */}
-        {tutor.avatar ? (
-          <img
-            src={tutor.avatar}
-            alt="Tutor"
-            className="w-40 h-40 object-cover rounded-2xl mx-auto border shadow-sm"
-          />
-        ) : (
-          <div className="w-40 h-40 rounded-2xl mx-auto border shadow-sm flex items-center justify-center text-4xl font-semibold">
-            {tutor.name?.[0] || "?"}
-          </div>
-        )}
-
-        <h1 className="text-3xl font-bold">{tutor.name}</h1>
-
-        <div className="text-sm opacity-80">
-          {tutor.subjects?.length ? tutor.subjects.join(", ") : "—"}
-        </div>
-
-        {tutor.avgRating != null && (
-          <div className="text-sm">
-            ⭐ {tutor.avgRating.toFixed(1)} / 5
-          </div>
-        )}
-
-        <div className="text-lg font-semibold">
-          {priceText ? `${priceText} € / hour` : "—"}
-        </div>
-
-        {/* Buttons */}
-        <div className="flex justify-center flex-wrap gap-2 pt-2">
-          <Link
-            to={`/book/${tutor._id || tutor.id || id}`}
-            state={{ tutor, from: { pathname: loc.pathname, search: loc.search } }}
-            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
-          >
-            Book Lesson
-          </Link>
-
-          <button
-            onClick={toggleFavorite}
-            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
-          >
-            {isFav ? "♥ In favourites" : "♡ Add to favourites"}
-          </button>
-
-          <button
-            onClick={onCopyProfileLink}
-            className="border px-4 py-2 rounded-2xl text-sm hover:shadow-md transition"
-          >
-            Share profile 🔗
-          </button>
-
-          <TrialsBadge tutorId={tutor._id || tutor.id || id} />
-        </div>
-
-        <Link to={backTo} className="text-sm underline block pt-2">
-          ← Back to tutors
-        </Link>
-      </div>
-
-      {/* Bio */}
-      {tutor.bio && (
-        <div className="p-4 border rounded-2xl whitespace-pre-line text-sm">
-          {tutor.bio}
-        </div>
-      )}
-
-      {/* Reviews panel */}
-      <ReviewsPanel tutorId={tutor._id || tutor.id || id} tutorName={tutor.name} />
-    </div>
-  );
-}
+module.exports = router;
