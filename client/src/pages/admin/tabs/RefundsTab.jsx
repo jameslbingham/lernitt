@@ -421,11 +421,11 @@ function RefundsTabInner() {
     if (qq) arr = arr.filter((r) => JSON.stringify(r).toLowerCase().includes(qq));
 
     if (status) arr = arr.filter((r) => (r.status || "") === status);
-    if (currency) arr = arr.filter((r) => (r.currency || "") === currency);
+    if (currency) arr = arr.filter((r) => (r.currency || "").toLowerCase() === currency.toLowerCase());
     if (tutor)
-      arr = arr.filter((r) => (r.tutor?.name || "").toLowerCase() === tutor.toLowerCase());
+      arr = arr.filter((r) => (r.tutor?.name || "").toLowerCase().includes(tutor.toLowerCase()));
     if (student)
-      arr = arr.filter((r) => (r.student?.name || "").toLowerCase() === student.toLowerCase());
+      arr = arr.filter((r) => (r.student?.name || "").toLowerCase().includes(student.toLowerCase()));
 
     if (fromDate) {
       const from = new Date(fromDate);
@@ -615,7 +615,83 @@ function RefundsTabInner() {
               }}
             />
 
-            {/* Additional filter controls unchanged */}
+            {/* Status + currency */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+              <select
+                className="border rounded px-2 py-1 w-full"
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All statuses</option>
+                <option value="queued">Queued</option>
+                <option value="approved">Approved</option>
+                <option value="denied">Denied</option>
+                <option value="failed">Failed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <input
+                className="border rounded px-2 py-1 w-full"
+                placeholder="Currency (e.g. USD)"
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            {/* Tutor + student */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+              <input
+                className="border rounded px-2 py-1 w-full"
+                placeholder="Tutor name…"
+                value={tutor}
+                onChange={(e) => {
+                  setTutor(e.target.value);
+                  setPage(1);
+                }}
+              />
+              <input
+                className="border rounded px-2 py-1 w-full"
+                placeholder="Student name…"
+                value={student}
+                onChange={(e) => {
+                  setStudent(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            {/* Date range */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">From</span>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={fromDate}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-600">To</span>
+                <input
+                  type="date"
+                  className="border rounded px-2 py-1 w-full"
+                  value={toDate}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
