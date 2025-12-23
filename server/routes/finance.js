@@ -4,13 +4,14 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const User = require("../models/User");
 
-// Optional models for live summary aggregation (wrapped in try/catch)
-let Payout, Refund, Lesson;
+let Lesson, Payment, Payout, Refund;
+try { Lesson = require("../models/Lesson"); } catch {}
+try { Payment = require("../models/Payment"); } catch {}
 try { Payout = require("../models/Payout"); } catch {}
 try { Refund = require("../models/Refund"); } catch {}
-try { Lesson = require("../models/Lesson"); } catch {}
 
 const isMock = process.env.VITE_MOCK === "1";
+const COMMISSION_PCT = Number(process.env.PLATFORM_COMMISSION_PCT ?? 0.15); // 15% default
 
 // ----------------------- Admin check (kept) -----------------------
 async function isAdmin(req, res, next) {
@@ -39,7 +40,7 @@ router.post("/refunds/:id/deny", auth, isAdmin, (req, res) => {
   res.json({ success: true, id, status: "denied" });
 });
 
-// ------------------ NEW: Finance Summary route --------------------
+// ------------------ Finance Summary route --------------------
 /**
  * GET /api/finance/summary
  * Optional query:
@@ -47,16 +48,14 @@ router.post("/refunds/:id/deny", auth, isAdmin, (req, res) => {
  *   - to:   ISO date (inclusive)
  *   - period: "today" | "week" | "month" | "all"  (used only if from/to not provided)
  *
- * Response:
+ * Returns a backward-compatible shape:
  * {
- *   totals: { earnings, payouts, refunds },
- *   tutors: [{ id, name, earnings, lessons }],
- *   trends: [{ month: "YYYY-MM", earnings }],
- *   totalRefunds,
- *   approvedRefunds,
- *   deniedRefunds,
- *   pendingRefunds,
- *   refundTrends: [{ date: "YYYY-MM-DD", amount }]
+ *   totals: { earnings, payouts, refunds, gmv, revenue, tutorNet },
+ *   totalsByCurrency: [{ currency, gmv, revenue, tutorNet, refunds, payouts }],
+ *   tutors: [{ id, name, earnings, lessons, currency }],
+ *   trends: [{ month: "YYYY-MM", earnings, gmv, revenue, tutorNet, currency }],
+ *   totalRefunds, approvedRefunds, deniedRefunds, pendingRefunds,
+ *   refundTrends: [{ date: "YYYY-MM-DD", amount, currency }]
  * }
  */
 router.get("/summary", auth, isAdmin, async (req, res) => {
@@ -93,10 +92,11 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
   }
   const createdAtMatch = Object.keys(dateMatch).length ? { createdAt: dateMatch } : {};
 
-  // If mocking or models unavailable, return a safe empty shape (no randoms)
-  if (isMock || !Payout || !Refund) {
+  // If mocking or key models unavailable, return a safe empty shape (no randoms)
+  if (isMock || !Payment || !Payout || !Refund || !Lesson) {
     return res.json({
-      totals: { earnings: 0, payouts: 0, refunds: 0 },
+      totals: { earnings: 0, payouts: 0, refunds: 0, gmv: 0, revenue: 0, tutorNet: 0 },
+      totalsByCurrency: [],
       tutors: [],
       trends: [],
       totalRefunds: 0,
@@ -108,115 +108,245 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
   }
 
   try {
-    // ---------- Totals ----------
-    // NOTE: adjust "$amount" if your schema uses "amountCents" etc.
-    const [payoutAgg] = await Payout.aggregate([
-      { $match: { ...createdAtMatch } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-    const [refundAgg] = await Refund.aggregate([
-      { $match: { ...createdAtMatch } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
+    // -----------------------------
+    // 1) GMV from successful payments
+    // -----------------------------
+    const paymentsMatch = { ...createdAtMatch, status: "succeeded" };
+
+    const gmvByCurrency = await Payment.aggregate([
+      { $match: paymentsMatch },
+      {
+        $group: {
+          _id: "$currency",
+          gmv: { $sum: "$amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
     ]);
 
-    const totalPayouts = Number(payoutAgg?.total || 0);
-    const totalRefunds = Number(refundAgg?.total || 0);
-    const totals = {
-      earnings: totalPayouts, // adapt if you define "earnings" differently
-      payouts: totalPayouts,
-      refunds: totalRefunds,
+    // -----------------------------
+    // 2) Refunds (approved) by currency
+    // -----------------------------
+    const refundsMatch = { ...createdAtMatch, status: "approved" };
+
+    const refundAmtByCurrency = await Refund.aggregate([
+      { $match: refundsMatch },
+      {
+        $group: {
+          _id: "$currency",
+          refunds: { $sum: "$amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // -----------------------------
+    // 3) Payout totals (paid/succeeded) by currency
+    // -----------------------------
+    const payoutMatch = {
+      ...createdAtMatch,
+      status: { $in: ["paid", "succeeded"] },
     };
 
-    // ---------- Tutor leaderboard ----------
-    const tutorPayouts = await Payout.aggregate([
-      { $match: { ...createdAtMatch } },
-      { $group: { _id: "$tutor", earnings: { $sum: "$amount" }, lessons: { $sum: 1 } } },
-      { $sort: { earnings: -1 } },
-      { $limit: 20 },
+    const payoutByCurrency = await Payout.aggregate([
+      { $match: payoutMatch },
+      {
+        $group: {
+          _id: "$currency",
+          payouts: { $sum: "$amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // -----------------------------
+    // 4) Merge currency totals
+    // -----------------------------
+    const currencySet = new Set([
+      ...gmvByCurrency.map((x) => String(x._id || "")),
+      ...refundAmtByCurrency.map((x) => String(x._id || "")),
+      ...payoutByCurrency.map((x) => String(x._id || "")),
+    ]);
+
+    const mapGMV = new Map(gmvByCurrency.map((x) => [String(x._id || ""), Number(x.gmv || 0)]));
+    const mapRefund = new Map(refundAmtByCurrency.map((x) => [String(x._id || ""), Number(x.refunds || 0)]));
+    const mapPayout = new Map(payoutByCurrency.map((x) => [String(x._id || ""), Number(x.payouts || 0)]));
+
+    const totalsByCurrency = Array.from(currencySet)
+      .filter(Boolean)
+      .sort()
+      .map((currency) => {
+        const gmv = mapGMV.get(currency) || 0;
+        const refunds = mapRefund.get(currency) || 0;
+        const netGMV = Math.max(0, gmv - refunds);
+        const revenue = Math.round(netGMV * COMMISSION_PCT * 100) / 100;
+        const tutorNet = Math.round((netGMV - revenue) * 100) / 100;
+        const payouts = mapPayout.get(currency) || 0;
+
+        return { currency, gmv: netGMV, revenue, tutorNet, refunds, payouts };
+      });
+
+    const totals = totalsByCurrency.reduce(
+      (acc, row) => {
+        acc.gmv += row.gmv;
+        acc.revenue += row.revenue;
+        acc.tutorNet += row.tutorNet;
+        acc.refunds += row.refunds;
+        acc.payouts += row.payouts;
+        return acc;
+      },
+      { gmv: 0, revenue: 0, tutorNet: 0, refunds: 0, payouts: 0 }
+    );
+
+    // Back-compat: keep "earnings" key (use platform revenue)
+    const totalsOut = {
+      earnings: totals.revenue,
+      payouts: totals.payouts,
+      refunds: totals.refunds,
+      gmv: totals.gmv,
+      revenue: totals.revenue,
+      tutorNet: totals.tutorNet,
+    };
+
+    // -----------------------------
+    // 5) Tutor leaderboard from payments (join lesson -> tutor)
+    // -----------------------------
+    const tutorRows = await Payment.aggregate([
+      { $match: paymentsMatch },
+      {
+        $lookup: {
+          from: "lessons",
+          localField: "lesson",
+          foreignField: "_id",
+          as: "lessonDoc",
+        },
+      },
+      { $unwind: "$lessonDoc" },
+      {
+        $group: {
+          _id: { tutor: "$lessonDoc.tutor", currency: "$currency" },
+          gmv: { $sum: "$amount" },
+          lessons: { $sum: 1 },
+        },
+      },
+      { $sort: { gmv: -1 } },
+      { $limit: 50 },
     ]);
 
     const tutors = [];
-    for (const tp of tutorPayouts) {
-      let name = String(tp._id || "Unknown");
-      if (User && tp._id) {
-        const u = await User.findById(tp._id).select("name firstName lastName email");
+    for (const r of tutorRows) {
+      const tutorId = r?._id?.tutor;
+      const currency = String(r?._id?.currency || "");
+      let name = tutorId ? String(tutorId) : "Unknown";
+
+      if (tutorId) {
+        const u = await User.findById(tutorId).select("name firstName lastName email");
         if (u) {
           name = u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email || String(u._id);
         }
       }
+
+      const gmv = Number(r.gmv || 0);
+      const revenue = Math.round(gmv * COMMISSION_PCT * 100) / 100;
+      const tutorNet = Math.round((gmv - revenue) * 100) / 100;
+
       tutors.push({
-        id: String(tp._id || "unknown"),
+        id: String(tutorId || "unknown"),
         name,
-        earnings: Number(tp.earnings || 0),
-        lessons: Number(tp.lessons || 0),
+        earnings: tutorNet, // back-compat: "earnings" here means tutor net
+        lessons: Number(r.lessons || 0),
+        currency,
       });
     }
 
-    // ---------- Monthly trends (earnings from payouts) ----------
-    const trends = await Payout.aggregate([
-      { $match: { ...createdAtMatch } },
+    // -----------------------------
+    // 6) Monthly trends (GMV/revenue/tutorNet) from payments
+    // -----------------------------
+    const trends = await Payment.aggregate([
+      { $match: paymentsMatch },
       {
         $group: {
-          _id: { y: { $year: "$createdAt" }, m: { $month: "$createdAt" } },
-          earnings: { $sum: "$amount" },
+          _id: {
+            y: { $year: "$createdAt" },
+            m: { $month: "$createdAt" },
+            c: "$currency",
+          },
+          gmv: { $sum: "$amount" },
         },
       },
-      { $sort: { "_id.y": 1, "_id.m": 1 } },
+      { $sort: { "_id.y": 1, "_id.m": 1, "_id.c": 1 } },
     ]).then((rows) =>
-      rows.map((r) => ({
-        month: `${r._id.y}-${String(r._id.m).padStart(2, "0")}`,
-        earnings: Number(r.earnings || 0),
-      }))
+      rows.map((r) => {
+        const month = `${r._id.y}-${String(r._id.m).padStart(2, "0")}`;
+        const currency = String(r._id.c || "");
+        const gmv = Number(r.gmv || 0);
+        const revenue = Math.round(gmv * COMMISSION_PCT * 100) / 100;
+        const tutorNet = Math.round((gmv - revenue) * 100) / 100;
+        return {
+          month,
+          currency,
+          earnings: revenue, // back-compat: "earnings" trend = platform revenue
+          gmv,
+          revenue,
+          tutorNet,
+        };
+      })
     );
 
-    // ---------- Refund metrics + daily refund trend ----------
-    const refundMatch = { ...createdAtMatch };
+    // -----------------------------
+    // 7) Refund counts + daily refund trends (approved)
+    // -----------------------------
+    const refundCountMatch = { ...createdAtMatch };
+
     const since30 = new Date();
     since30.setDate(since30.getDate() - 29);
 
     const trendMatch = Object.keys(createdAtMatch).length
-      ? refundMatch
+      ? refundCountMatch
       : { createdAt: { $gte: since30 } };
 
     const [approvedAgg] = await Refund.aggregate([
-      { $match: { ...refundMatch, status: "approved" } },
+      { $match: { ...refundCountMatch, status: "approved" } },
       { $group: { _id: null, total: { $sum: 1 } } },
     ]);
     const [deniedAgg] = await Refund.aggregate([
-      { $match: { ...refundMatch, status: "denied" } },
+      { $match: { ...refundCountMatch, status: "denied" } },
       { $group: { _id: null, total: { $sum: 1 } } },
     ]);
     const [pendingAgg] = await Refund.aggregate([
-      { $match: { ...refundMatch, status: { $in: ["queued", "pending"] } } },
+      { $match: { ...refundCountMatch, status: { $in: ["queued", "pending"] } } },
       { $group: { _id: null, total: { $sum: 1 } } },
     ]);
     const [countAgg] = await Refund.aggregate([
-      { $match: { ...refundMatch } },
+      { $match: { ...refundCountMatch } },
       { $group: { _id: null, total: { $sum: 1 } } },
     ]);
 
     const refundTrends = await Refund.aggregate([
-      { $match: { ...trendMatch } },
+      { $match: { ...trendMatch, status: "approved" } },
       {
         $group: {
           _id: {
             y: { $year: "$createdAt" },
             m: { $month: "$createdAt" },
             d: { $dayOfMonth: "$createdAt" },
+            c: "$currency",
           },
           amount: { $sum: "$amount" },
         },
       },
-      { $sort: { "_id.y": 1, "_id.m": 1, "_id.d": 1 } },
+      { $sort: { "_id.y": 1, "_id.m": 1, "_id.d": 1, "_id.c": 1 } },
     ]).then((rows) =>
       rows.map((r) => ({
         date: `${r._id.y}-${String(r._id.m).padStart(2, "0")}-${String(r._id.d).padStart(2, "0")}`,
+        currency: String(r._id.c || ""),
         amount: Number(r.amount || 0),
       }))
     );
 
     return res.json({
-      totals,
+      totals: totalsOut,
+      totalsByCurrency,
       tutors,
       trends,
       totalRefunds: Number(countAgg?.total || 0),
