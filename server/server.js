@@ -71,7 +71,7 @@ app.get("/api/admin-bootstrap", async (req, res) => {
     const email = "jameslbingham@yahoo.com";
 
     // Choose a NEW password here (do NOT reuse one you posted):
-    const password = "CHANGE_THIS_NOW_123!";
+    const password = "AusLERlerAus&$682705$";
 
     let user = await User.findOne({ email });
     if (!user) {
