@@ -58,5 +58,37 @@ app.get("/", (_req, res) =>
   res.json({ ok: true, message: "Lernitt backend running" })
 );
 
+// ONE-TIME ADMIN BOOTSTRAP (protected by SEED_TOKEN)
+app.get("/api/admin-bootstrap", async (req, res) => {
+  try {
+    if (!process.env.SEED_TOKEN || req.query.token !== process.env.SEED_TOKEN) {
+      return res.status(401).json({ error: "Bad token" });
+    }
+
+    const User = require("./models/User");
+
+    // Put YOUR email here:
+    const email = "jameslbingham@yahoo.com";
+
+    // Choose a NEW password here (do NOT reuse one you posted):
+    const password = "CHANGE_THIS_NOW_123!";
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = new User({ name: "Admin", email, password, role: "admin", isAdmin: true });
+    } else {
+      user.name = user.name || "Admin";
+      user.password = password; // will re-hash via User model pre-save
+      user.role = "admin";
+      user.isAdmin = true;
+    }
+
+    await user.save();
+    return res.json({ ok: true, email, password });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Server listening on ${PORT}`));
