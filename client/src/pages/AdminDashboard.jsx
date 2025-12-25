@@ -52,6 +52,8 @@ import GrowthDashboard from "./admin/tabs/GrowthDashboard.jsx";
 import { safeFetchJSON } from "@/lib/safeFetch.js";
 import { exportTableToXLSX } from "@/lib/adminExports.js";
 
+const MOCK = import.meta.env.VITE_MOCK === "1";
+
 /* =====================================================================================================================
    0) SMALL UI BUILDING BLOCKS
    ===================================================================================================================== */
@@ -1295,9 +1297,11 @@ export default function AdminDashboard({ initialTab = "users" }) {
     <div className="p-6 max-w-7xl mx-auto" ref={topRef}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Admin Dashboard (Mock)</h1>
+        <h1 className="text-2xl font-bold">
+          Admin Dashboard{MOCK ? " (Mock)" : ""}
+        </h1>
         <div className="hidden md:flex items-center gap-2">
-          <Badge color="slate">Mode: mock-friendly</Badge>
+          <Badge color="slate">Mode: {MOCK ? "mock" : "live"}</Badge>
           <Badge color="blue">{tab}</Badge>
         </div>
       </div>
