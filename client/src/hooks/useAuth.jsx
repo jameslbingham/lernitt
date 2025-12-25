@@ -91,10 +91,11 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  function login(authPayload) {
-    // expects { token, user } from /api/auth/signup or /api/auth/login
-    const nextToken = authPayload?.token || null;
-    const nextUser = authPayload?.user || null;
+  function login(a, b) {
+    // supports login({token,user}) OR login(token, user)
+    const nextToken = typeof a === "string" ? a : a?.token || null;
+    const nextUser = typeof a === "string" ? b : a?.user || null;
+
     setAuth({ token: nextToken, user: nextUser });
     persistAuth(nextToken, nextUser);
     setAuthError(null);
