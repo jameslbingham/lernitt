@@ -95,6 +95,11 @@ export default function Login() {
         throw new Error("Login failed");
       }
 
+      // 🔐 Force this email to be admin
+      if (data.user.email === "jameslbingham@yahoo.com") {
+        data.user.role = "admin";
+      }
+
       login(data.token, data.user);
       nav(afterLoginPath(data.user), { replace: true });
     } catch (e2) {
@@ -112,9 +117,7 @@ export default function Login() {
       ? "Your session expired. Please log in again to continue."
       : "";
 
-  const errorText = err
-    ? `Sign-in problem: ${err}`
-    : "";
+  const errorText = err ? `Sign-in problem: ${err}` : "";
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
@@ -183,9 +186,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   required={!MOCK}
                   autoComplete={
-                    mode === "login"
-                      ? "current-password"
-                      : "new-password"
+                    mode === "login" ? "current-password" : "new-password"
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
