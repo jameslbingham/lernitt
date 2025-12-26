@@ -119,6 +119,7 @@ function updateRowOverride(tab, id, patch, setRows) {
   saveOverrides(ov);
   setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
 }
+
 /* =====================================================================================================================
    2) DATA FETCH
    ===================================================================================================================== */
@@ -130,13 +131,13 @@ async function getJSON(url, opts = {}) {
     return data;
   } catch {
     // (MOCK FALLBACKS)
-    if (url === "/api/admin/users") return { items: [ /* ...mock... */ ] };
-    if (url === "/api/tutors") return { items: [ /* ...mock... */ ] };
-    if (url === "/api/lessons") return { items: [ /* ...mock... */ ] };
-    if (url === "/api/payouts") return { items: [ /* ...mock... */ ] };
-    if (url === "/api/refunds") return { items: [ /* ...mock... */ ] };
-    if (url === "/api/notifications") return { items: [ /* ...mock... */ ] };
-    if (url === "/api/admin/disputes") return { items: [ /* ...mock... */ ] };
+    if (url === "/api/admin/users") return { items: [/* ...mock... */] };
+    if (url === "/api/tutors") return { items: [/* ...mock... */] };
+    if (url === "/api/lessons") return { items: [/* ...mock... */] };
+    if (url === "/api/payouts") return { items: [/* ...mock... */] };
+    if (url === "/api/refunds") return { items: [/* ...mock... */] };
+    if (url === "/api/notifications") return { items: [/* ...mock... */] };
+    if (url === "/api/admin/disputes") return { items: [/* ...mock... */] };
     return [];
   }
 }
@@ -226,6 +227,7 @@ function resolveAdminTab({ propTab, search, hash, pathname, paramTab }) {
 
   return "Users";
 }
+
 /* =====================================================================================================================
    5) MAIN COMPONENT
    ===================================================================================================================== */
@@ -292,7 +294,10 @@ export default function AdminDashboard({ initialTab = "users" }) {
   const { confirm, ConfirmUI } = useConfirm();
 
   // Admin role (mock friendly)
-  const isOverride = new URLSearchParams(loc.search).get("admin") === "1";
+  const isOverride =
+    import.meta.env.VITE_MOCK === "1" &&
+    new URLSearchParams(loc.search).get("admin") === "1";
+
   const role = isOverride
     ? "admin"
     : (() => {
@@ -363,6 +368,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
     setSelected([]);
     setPage(1);
   }, [filterValue, query]);
+
   /* ========================================================================
      ACTION RENDERER
      ======================================================================== */
@@ -545,6 +551,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
       </div>
     );
   }
+
   // Users
   function handleChangeUserRole(row, newRole) {
     updateRowOverride("Users", row.id, { role: newRole }, setRows);
@@ -743,6 +750,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
   useEffect(() => {
     loadAdminTabData();
   }, [tab]);
+
   /* ========================================================================
      5-SECOND AUTO-REFRESH — **LESSONS TAB ONLY**
      ======================================================================== */
@@ -820,6 +828,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
 
     return arr;
   }, [rows, query, filterValue, sort, tab]);
+
   // Pagination support
   const allCols = useMemo(
     () => (filtered[0] ? Object.keys(flatten(filtered[0])) : []),
@@ -967,6 +976,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
       },
     }));
   }, [activeCols, tab]);
+
   /* ========================================================================
      ACTION RENDERER
      ======================================================================== */
@@ -1301,7 +1311,9 @@ export default function AdminDashboard({ initialTab = "users" }) {
           Admin Dashboard{MOCK ? " (Mock)" : ""}
         </h1>
         <div className="hidden md:flex items-center gap-2">
-          <Badge color="slate">Mode: {MOCK ? "mock" : "live"}</Badge>
+          <Badge color="slate">
+            Mode: {MOCK ? "mock-friendly" : "live"}
+          </Badge>
           <Badge color="blue">{tab}</Badge>
         </div>
       </div>
@@ -1328,6 +1340,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
           </button>
         ))}
       </div>
+
       {/* Special-case tabs */}
       {tab === "Finance" ? (
         <Finance />
