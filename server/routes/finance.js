@@ -16,8 +16,10 @@ const COMMISSION_PCT = Number(process.env.PLATFORM_COMMISSION_PCT ?? 0.15); // 1
 // ----------------------- Admin check (kept) -----------------------
 async function isAdmin(req, res, next) {
   try {
-    const me = await User.findById(req.user.id).select("isAdmin");
-    if (!me || !me.isAdmin) return res.status(403).json({ error: "Admin only" });
+    const me = await User.findById(req.user.id).select("isAdmin role");
+    if (!me || (!me.isAdmin && me.role !== "admin")) {
+      return res.status(403).json({ error: "Admin only" });
+    }
     next();
   } catch {
     return res.status(401).json({ error: "Auth error" });
@@ -357,6 +359,19 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Failed to compute finance summary" });
+  }
+});
+
+// ------------------ Finance FX rates (very simple for now) ------------------
+router.get("/rates", auth, isAdmin, async (req, res) => {
+  try {
+    return res.json({
+      base: "USD",
+      ts: new Date().toISOString(),
+      rates: { USD: 1 }, // extend later if you add real FX
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "Failed to load FX rates" });
   }
 });
 
