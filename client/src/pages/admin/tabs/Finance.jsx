@@ -13,12 +13,18 @@
 // ✅ ErrorBoundary, skeletons, drilldowns, column visibility, saved views
 // -----------------------------------------------------------------------------
 // Refactor notes:
-// • Uses /lib/safeFetch.js for all API calls.
+// • Uses /lib/safeFetch.js for some API calls.
 // • Uses export helpers from /lib/adminExports.js
 // • Keeps existing UI/logic; removes inline export helpers & ad-hoc fetch.
 // -----------------------------------------------------------------------------
 
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LineChart,
@@ -39,11 +45,9 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 // Shared helpers
 import { safeFetchJSON } from "@/lib/safeFetch.js";
-
-// 🔁 FIXED: import the correct functions from adminExports.js
 import { exportTableToCSV, exportTableToXLSX } from "@/lib/adminExports.js";
 
-// ✅ NEW: authenticated fetch helper (adds JWT)
+// ✅ NEW: use apiFetch so JWT is sent
 import { apiFetch } from "@/lib/apiFetch.js";
 
 /* ============================ API + constants ============================ */
@@ -67,7 +71,9 @@ const pad = (x) => String(x).padStart(2, "0");
 const ymd = (s) => {
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s || "";
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+    d.getDate()
+  )}`;
 };
 const ym = (s) => {
   const d = new Date(s);
@@ -105,13 +111,18 @@ function normalizeFxShape(raw) {
     return { base: "USD", ts: new Date().toISOString(), rates: { USD: 1 } };
   }
   const base = raw.base || "USD";
-  const rates = raw.rates && typeof raw.rates === "object" ? raw.rates : { [base]: 1 };
+  const rates =
+    raw.rates && typeof raw.rates === "object" ? raw.rates : { [base]: 1 };
   if (!rates[base]) rates[base] = 1;
   return { base, ts: raw.ts || new Date().toISOString(), rates };
 }
 
 function makeFx(base, rates, displayCurrency) {
-  const safeRates = { ...(rates || {}), [base]: rates?.[base] ?? 1, [displayCurrency]: rates?.[displayCurrency] ?? 1 };
+  const safeRates = {
+    ...(rates || {}),
+    [base]: rates?.[base] ?? 1,
+    [displayCurrency]: rates?.[displayCurrency] ?? 1,
+  };
   function convert(amount, from) {
     const amt = n(amount);
     const rFrom = safeRates[from] ?? 1;
@@ -137,7 +148,11 @@ function RetryCard({ onRetry, error }) {
   return (
     <div className="p-4 border rounded-2xl bg-white">
       <h3 className="font-bold mb-2">Something went wrong.</h3>
-      {error?.message ? <div className="text-sm text-red-600 mb-3">{String(error.message)}</div> : null}
+      {error?.message ? (
+        <div className="text-sm text-red-600 mb-3">
+          {String(error.message)}
+        </div>
+      ) : null}
       <button className="px-3 py-1 border rounded" onClick={onRetry}>
         Retry
       </button>
@@ -155,7 +170,12 @@ class ErrorBoundary extends React.Component {
   }
   render() {
     if (this.state.err) {
-      return <RetryCard error={this.state.err} onRetry={() => location.reload()} />;
+      return (
+        <RetryCard
+          error={this.state.err}
+          onRetry={() => location.reload()}
+        />
+      );
     }
     return this.props.children;
   }
@@ -180,6 +200,7 @@ function SkeletonTable({ rows = 6 }) {
     </table>
   );
 }
+
 /* ================================= component ================================ */
 export default function Finance() {
   const navigate = useNavigate();
@@ -200,7 +221,11 @@ export default function Finance() {
   const [to, setTo] = useState(""); // YYYY-MM
 
   // Display currency & FX
-  const [fx, setFx] = useState({ base: "USD", rates: { USD: 1 }, ts: "" });
+  const [fx, setFx] = useState({
+    base: "USD",
+    rates: { USD: 1 },
+    ts: "",
+  });
   const [displayCurrency, setDisplayCurrency] = useState("USD");
   const [manualRates, setManualRates] = useState(""); // JSON string for manual override (optional)
   const [fxError, setFxError] = useState("");
@@ -263,16 +288,20 @@ export default function Finance() {
       setLoading(true);
       setLoadError("");
       try {
-        // ✅ use apiFetch so JWT is sent (fixes 401s from backend)
+        // 🔐 use apiFetch so JWT is sent (fixes 401)
         const [pR, rR] = await Promise.all([
           apiFetch("/api/payouts").catch(() => []),
           apiFetch("/api/refunds").catch(() => []),
         ]);
+
         setPayouts(pR?.items || pR || []);
         setRefunds(rR?.items || rR || []);
 
-        // Summary (GUARDED, still tolerant of weird shapes)
-        const sum = (await apiFetch("/api/finance/summary").catch(() => ({}))) || {};
+        // Finance summary (also authed)
+        const sum =
+          (await apiFetch("/api/finance/summary").catch(() => ({}))) ||
+          {};
+
         const next = {
           totals: sum.totals || {},
           tutors: Array.isArray(sum.tutors) ? sum.tutors : [],
@@ -281,7 +310,9 @@ export default function Finance() {
           approvedRefunds: n(sum.approvedRefunds),
           deniedRefunds: n(sum.deniedRefunds),
           pendingRefunds: n(sum.pendingRefunds),
-          refundTrends: Array.isArray(sum.refundTrends) ? sum.refundTrends : [],
+          refundTrends: Array.isArray(sum.refundTrends)
+            ? sum.refundTrends
+            : [],
         };
         setSummary(next);
         try {
@@ -317,8 +348,12 @@ export default function Finance() {
       const ok = await confirm(`Approve payout ${id}?`);
       if (!ok) return;
       try {
-        await safeFetchJSON(`${API}/api/payouts/${id}/approve`, { method: "POST" });
-        setPayouts((ps) => ps.map((p) => (p.id === id ? { ...p, status: "paid" } : p)));
+        await safeFetchJSON(`${API}/api/payouts/${id}/approve`, {
+          method: "POST",
+        });
+        setPayouts((ps) =>
+          ps.map((p) => (p.id === id ? { ...p, status: "paid" } : p))
+        );
         toast.success("Payout approved.");
       } catch (e) {
         console.error(e);
@@ -333,8 +368,12 @@ export default function Finance() {
       const ok = await confirm(`Deny refund ${id}?`);
       if (!ok) return;
       try {
-        await safeFetchJSON(`${API}/api/refunds/${id}/deny`, { method: "POST" });
-        setRefunds((rs) => rs.map((r) => (r.id === id ? { ...r, status: "denied" } : r)));
+        await safeFetchJSON(`${API}/api/refunds/${id}/deny`, {
+          method: "POST",
+        });
+        setRefunds((rs) =>
+          rs.map((r) => (r.id === id ? { ...r, status: "denied" } : r))
+        );
         toast.success("Refund denied.");
       } catch (e) {
         console.error(e);
@@ -348,16 +387,30 @@ export default function Finance() {
   // DEFENSIVE: never call .filter on a non-array
   const applyFilters = useCallback(
     (listInput) => {
-      const list = Array.isArray(listInput) ? listInput : listInput?.items || [];
+      const list = Array.isArray(listInput)
+        ? listInput
+        : listInput?.items || [];
       if (!Array.isArray(list)) return []; // final guard
 
       return list.filter((row) => {
         if (!row || !row.createdAt) return false;
         if (!withinPeriod(row.createdAt, period)) return false;
         if (currencyFilter && row.currency !== currencyFilter) return false;
-        if (tutorFilter && (row.tutor !== tutorFilter && row.tutor?.name !== tutorFilter)) return false;
-        if (q && !JSON.stringify(row).toLowerCase().includes(q.toLowerCase())) return false;
-        if (from && new Date(row.createdAt) < new Date(from + "-01")) return false;
+        if (
+          tutorFilter &&
+          row.tutor !== tutorFilter &&
+          row.tutor?.name !== tutorFilter
+        )
+          return false;
+        if (
+          q &&
+          !JSON.stringify(row)
+            .toLowerCase()
+            .includes(q.toLowerCase())
+        )
+          return false;
+        if (from && new Date(row.createdAt) < new Date(from + "-01"))
+          return false;
         if (to) {
           const end = new Date(to + "-31");
           if (new Date(row.createdAt) > end) return false;
@@ -368,24 +421,52 @@ export default function Finance() {
     [period, currencyFilter, tutorFilter, q, from, to]
   );
 
-  const fPayouts = useMemo(() => applyFilters(payouts), [payouts, applyFilters]);
-  const fRefunds = useMemo(() => applyFilters(refunds), [refunds, applyFilters]);
+  const fPayouts = useMemo(
+    () => applyFilters(payouts),
+    [payouts, applyFilters]
+  );
+  const fRefunds = useMemo(
+    () => applyFilters(refunds),
+    [refunds, applyFilters]
+  );
 
   /* ------------------------ display currency conversion ---------------------- */
   const convert = useMemo(
-    () => makeFx(fx.base || "USD", fx.rates || { USD: 1 }, displayCurrency || fx.base || "USD"),
+    () =>
+      makeFx(
+        fx.base || "USD",
+        fx.rates || { USD: 1 },
+        displayCurrency || fx.base || "USD"
+      ),
     [fx.base, fx.rates, displayCurrency]
   );
-  const cAmt = useCallback((amount, currency) => convert(n(amount), currency || fx.base || "USD"), [convert, fx.base]);
+  const cAmt = useCallback(
+    (amount, currency) =>
+      convert(n(amount), currency || fx.base || "USD"),
+    [convert, fx.base]
+  );
 
   /* --------------------------------- totals -------------------------------- */
-  const nativeTotalPayouts = fPayouts.reduce((s, p) => s + n(p.amount), 0); // kept for reference
-  const nativeTotalRefunds = fRefunds.reduce((s, r) => s + n(r.amount), 0); // kept for reference
+  const nativeTotalPayouts = fPayouts.reduce(
+    (s, p) => s + n(p.amount),
+    0
+  ); // kept for reference
+  const nativeTotalRefunds = fRefunds.reduce(
+    (s, r) => s + n(r.amount),
+    0
+  ); // kept for reference
 
-  const totalPayouts = fPayouts.reduce((s, p) => s + cAmt(p.amount, p.currency), 0);
-  const totalRefunds = fRefunds.reduce((s, r) => s + cAmt(r.amount, r.currency), 0);
+  const totalPayouts = fPayouts.reduce(
+    (s, p) => s + cAmt(p.amount, p.currency),
+    0
+  );
+  const totalRefunds = fRefunds.reduce(
+    (s, r) => s + cAmt(r.amount, r.currency),
+    0
+  );
 
-  const gmv = (1 - n(rate)) !== 0 ? totalPayouts / (1 - n(rate)) : totalPayouts;
+  const gmv =
+    1 - n(rate) !== 0 ? totalPayouts / (1 - n(rate)) : totalPayouts;
   const platformFee = gmv * n(rate);
   const tutorNet = gmv - platformFee - totalRefunds;
 
@@ -393,71 +474,136 @@ export default function Finance() {
     const map = {};
     fPayouts.forEach((p) => {
       const k = ymd(p.createdAt);
-      map[k] = map[k] || { date: k, payouts: 0, refunds: 0, net: 0 };
+      map[k] = map[k] || {
+        date: k,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[k].payouts += cAmt(p.amount, p.currency);
     });
     fRefunds.forEach((r) => {
       const k = ymd(r.createdAt);
-      map[k] = map[k] || { date: k, payouts: 0, refunds: 0, net: 0 };
+      map[k] = map[k] || {
+        date: k,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[k].refunds += cAmt(r.amount, r.currency);
     });
-    return Object.values(map).map((x) => ({ ...x, net: x.payouts - x.refunds }));
+    return Object.values(map).map((x) => ({
+      ...x,
+      net: x.payouts - x.refunds,
+    }));
   }, [fPayouts, fRefunds, cAmt]);
 
-  const avgDaily =
-    byDayForForecast.length > 0
-      ? byDayForForecast.reduce((s, r) => s + r.net, 0) / byDayForForecast.length
-      : 0;
+  const avgDaily = byDayForForecast.length
+    ? byDayForForecast.reduce((s, r) => s + r.net, 0) /
+      byDayForForecast.length
+    : 0;
   const forecast30 = avgDaily * 30;
 
   /* --------------------------------- queues -------------------------------- */
-  const queuedPayouts = useMemo(() => fPayouts.filter((p) => p.status === "queued"), [fPayouts]);
-  const queuedRefunds = useMemo(() => fRefunds.filter((r) => r.status === "queued"), [fRefunds]);
-  const failedPayouts = useMemo(() => fPayouts.filter((p) => p.status === "failed"), [fPayouts]);
-  const failedRefunds = useMemo(() => fRefunds.filter((r) => r.status === "failed"), [fRefunds]);
+  const queuedPayouts = useMemo(
+    () => fPayouts.filter((p) => p.status === "queued"),
+    [fPayouts]
+  );
+  const queuedRefunds = useMemo(
+    () => fRefunds.filter((r) => r.status === "queued"),
+    [fRefunds]
+  );
+  const failedPayouts = useMemo(
+    () => fPayouts.filter((p) => p.status === "failed"),
+    [fPayouts]
+  );
+  const failedRefunds = useMemo(
+    () => fRefunds.filter((r) => r.status === "failed"),
+    [fRefunds]
+  );
 
   /* ------------------------------ breakdowns ------------------------------ */
   const byDay = useMemo(() => {
     const map = {};
     fPayouts.forEach((p) => {
       const k = ymd(p.createdAt);
-      map[k] = map[k] || { date: k, payouts: 0, refunds: 0, net: 0 };
+      map[k] = map[k] || {
+        date: k,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[k].payouts += cAmt(p.amount, p.currency);
     });
     fRefunds.forEach((r) => {
       const k = ymd(r.createdAt);
-      map[k] = map[k] || { date: k, payouts: 0, refunds: 0, net: 0 };
+      map[k] = map[k] || {
+        date: k,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[k].refunds += cAmt(r.amount, r.currency);
     });
-    return Object.values(map).map((x) => ({ ...x, net: x.payouts - x.refunds }));
+    return Object.values(map).map((x) => ({
+      ...x,
+      net: x.payouts - x.refunds,
+    }));
   }, [fPayouts, fRefunds, cAmt]);
 
   const byTutor = useMemo(() => {
     const map = {};
     fPayouts.forEach((p) => {
       const label = p.tutor?.name || p.tutor || "Unknown";
-      map[label] = map[label] || { tutor: label, payouts: 0, refunds: 0, net: 0 };
+      map[label] = map[label] || {
+        tutor: label,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[label].payouts += cAmt(p.amount, p.currency);
     });
     fRefunds.forEach((r) => {
       const label = r.tutor?.name || r.tutor || "Unknown";
-      map[label] = map[label] || { tutor: label, payouts: 0, refunds: 0, net: 0 };
+      map[label] = map[label] || {
+        tutor: label,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[label].refunds += cAmt(r.amount, r.currency);
     });
-    return Object.values(map).map((x) => ({ ...x, net: x.payouts - x.refunds }));
+    return Object.values(map).map((x) => ({
+      ...x,
+      net: x.payouts - x.refunds,
+    }));
   }, [fPayouts, fRefunds, cAmt]);
 
   const byCurrencyDisplayConverted = useMemo(() => {
-    const nativePayouts = sumByCurrency(fPayouts, (r) => r.amount, (r) => r.currency);
-    const nativeRefunds = sumByCurrency(fRefunds, (r) => r.amount, (r) => r.currency);
-    const keys = Array.from(new Set([...Object.keys(nativePayouts), ...Object.keys(nativeRefunds)]));
+    const nativePayouts = sumByCurrency(
+      fPayouts,
+      (r) => r.amount,
+      (r) => r.currency
+    );
+    const nativeRefunds = sumByCurrency(
+      fRefunds,
+      (r) => r.amount,
+      (r) => r.currency
+    );
+    const keys = Array.from(
+      new Set([
+        ...Object.keys(nativePayouts),
+        ...Object.keys(nativeRefunds),
+      ])
+    );
     return keys.map((cur) => {
       const p = nativePayouts[cur] || 0;
       const r = nativeRefunds[cur] || 0;
       const pDisp = cAmt(p, cur);
       const rDisp = cAmt(r, cur);
       const netDisp = pDisp - rDisp;
-      const gmvCur = (1 - n(rate)) !== 0 ? pDisp / (1 - n(rate)) : pDisp;
+      const gmvCur =
+        1 - n(rate) !== 0 ? pDisp / (1 - n(rate)) : pDisp;
       const feeCur = gmvCur * n(rate);
       const tutorNetCur = gmvCur - feeCur - rDisp;
       return {
@@ -478,23 +624,44 @@ export default function Finance() {
     const map = {};
     fPayouts.forEach((p) => {
       const k = ym(p.createdAt);
-      map[k] = map[k] || { month: k, payouts: 0, refunds: 0, net: 0 };
+      map[k] = map[k] || {
+        month: k,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[k].payouts += cAmt(p.amount, p.currency);
     });
     fRefunds.forEach((r) => {
       const k = ym(r.createdAt);
-      map[k] = map[k] || { month: k, payouts: 0, refunds: 0, net: 0 };
+      map[k] = map[k] || {
+        month: k,
+        payouts: 0,
+        refunds: 0,
+        net: 0,
+      };
       map[k].refunds += cAmt(r.amount, r.currency);
     });
-    return Object.values(map).map((x) => ({ ...x, net: x.payouts - x.refunds }));
+    return Object.values(map).map((x) => ({
+      ...x,
+      net: x.payouts - x.refunds,
+    }));
   }, [fPayouts, fRefunds, cAmt]);
 
   const commissionByTutor = useMemo(
-    () => byTutor.map((t) => ({ tutor: t.tutor, commission: t.payouts * n(rate) })),
+    () =>
+      byTutor.map((t) => ({
+        tutor: t.tutor,
+        commission: t.payouts * n(rate),
+      })),
     [byTutor, rate]
   );
   const commissionByCurrency = useMemo(
-    () => byCurrencyDisplayConverted.map((c) => ({ currency: c.currency, commission: c.payouts * n(rate) })),
+    () =>
+      byCurrencyDisplayConverted.map((c) => ({
+        currency: c.currency,
+        commission: c.payouts * n(rate),
+      })),
     [byCurrencyDisplayConverted, rate]
   );
 
@@ -509,7 +676,10 @@ export default function Finance() {
   }, [payouts]);
 
   const currencyOptions = useMemo(
-    () => Array.from(new Set(payouts.map((p) => p.currency).filter(Boolean))),
+    () =>
+      Array.from(
+        new Set(payouts.map((p) => p.currency).filter(Boolean))
+      ),
     [payouts]
   );
 
@@ -566,14 +736,35 @@ export default function Finance() {
 
   /* ------------------------------ saved views ------------------------------ */
   const saveView = useCallback(() => {
-    const v = { period, rate, currencyFilter, tutorFilter, q, from, to, displayCurrency };
-    const name = viewName || `View ${Object.keys(views).length + 1}`;
+    const v = {
+      period,
+      rate,
+      currencyFilter,
+      tutorFilter,
+      q,
+      from,
+      to,
+      displayCurrency,
+    };
+    const name =
+      viewName || `View ${Object.keys(views).length + 1}`;
     const next = { ...views, [name]: v };
     setViews(next);
     try {
       localStorage.setItem("fin_views", JSON.stringify(next));
     } catch {}
-  }, [period, rate, currencyFilter, tutorFilter, q, from, to, displayCurrency, viewName, views]);
+  }, [
+    period,
+    rate,
+    currencyFilter,
+    tutorFilter,
+    q,
+    from,
+    to,
+    displayCurrency,
+    viewName,
+    views,
+  ]);
 
   const loadView = useCallback(
     (name) => {
@@ -591,7 +782,7 @@ export default function Finance() {
     [views]
   );
 
-  /* ------------------------------ column prefs ------------------------------ */
+  /* ------------------------------ column prefs ----------------------------- */
   useEffect(() => {
     try {
       localStorage.setItem("fin_cols", JSON.stringify(showCols));
@@ -616,6 +807,7 @@ export default function Finance() {
       toast.error("FX refresh failed.");
     }
   }, [displayCurrency, toast]);
+
   /* ----------------------------------- UI ---------------------------------- */
   return (
     <ErrorBoundary>
@@ -747,13 +939,21 @@ export default function Finance() {
 
           {/* Exports */}
           <button
-            onClick={() => exportTableToCSV(exportAllRows, "finance_all.csv")}
+            onClick={() =>
+              exportTableToCSV(exportAllRows, "finance_all.csv")
+            }
             className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
           >
             Export All (CSV)
           </button>
           <button
-            onClick={() => exportTableToXLSX(exportAllRows, "finance.xlsx", "Finance")}
+            onClick={() =>
+              exportTableToXLSX(
+                exportAllRows,
+                "finance.xlsx",
+                "Finance"
+              )
+            }
             className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
           >
             Export XLSX
@@ -766,12 +966,18 @@ export default function Finance() {
             <div className="text-sm">
               <b>FX Base:</b> {fx.base || "—"} &nbsp; <b>As of:</b>{" "}
               {fx.ts ? new Date(fx.ts).toLocaleString() : "—"}{" "}
-              {usingManualFx && <span title="Manual FX active">• Manual</span>}
-              {usingFallbackFx && <span title="Fallback FX in use">• Fallback</span>}
+              {usingManualFx && (
+                <span title="Manual FX active">• Manual</span>
+              )}
+              {usingFallbackFx && (
+                <span title="Fallback FX in use">• Fallback</span>
+              )}
             </div>
             <div className="text-sm">
               <b>Known rates:</b>{" "}
-              {Object.keys(fx.rates || {}).slice(0, 8).join(", ")}
+              {Object.keys(fx.rates || {})
+                .slice(0, 8)
+                .join(", ")}
               {Object.keys(fx.rates || {}).length > 8 ? "…" : ""}
             </div>
             <button
@@ -785,7 +991,9 @@ export default function Finance() {
           {/* Manual FX override (optional) */}
           <div className="mt-3">
             <details>
-              <summary className="cursor-pointer text-sm">Manual FX override (JSON)</summary>
+              <summary className="cursor-pointer text-sm">
+                Manual FX override (JSON)
+              </summary>
               <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
                 <textarea
                   className="border rounded p-2 min-h=[80px] min-h-[80px]"
@@ -807,7 +1015,9 @@ export default function Finance() {
                         }
                         toast.success("Manual FX applied.");
                       } catch (err) {
-                        setFxError("Invalid JSON for manual FX override.");
+                        setFxError(
+                          "Invalid JSON for manual FX override."
+                        );
                         toast.error("Manual FX JSON invalid.");
                       }
                     }}
@@ -826,45 +1036,79 @@ export default function Finance() {
                   </button>
                 </div>
               </div>
-              {fxError ? <div className="text-red-600 text-sm mt-2">{fxError}</div> : null}
+              {fxError ? (
+                <div className="text-red-600 text-sm mt-2">
+                  {fxError}
+                </div>
+              ) : null}
             </details>
           </div>
         </div>
+
         {/* ========================= Finance Summary Header ========================= */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center" aria-label="GMV approximate">
-            <div className="text-sm text-gray-500">GMV (approx)</div>
+          <div
+            className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center"
+            aria-label="GMV approximate"
+          >
+            <div className="text-sm text-gray-500">
+              GMV (approx)
+            </div>
             <div className="text-2xl font-bold text-green-600">
               {displayCurrency} {fmt(gmv)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Based on payouts & commission</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Based on payouts & commission
+            </div>
           </div>
 
           {canSeeFinance() && (
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center" aria-label="Platform fee">
-              <div className="text-sm text-gray-500">Platform Fee</div>
+            <div
+              className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-center"
+              aria-label="Platform fee"
+            >
+              <div className="text-sm text-gray-500">
+                Platform Fee
+              </div>
               <div className="text-2xl font-bold text-blue-600">
                 {displayCurrency} {fmt(platformFee)}
               </div>
-              <div className="text-xs text-gray-500 mt-1">Rate: {(n(rate) * 100).toFixed(0)}%</div>
+              <div className="text-xs text-gray-500 mt-1">
+                Rate: {(n(rate) * 100).toFixed(0)}%
+              </div>
             </div>
           )}
 
           {canSeeFinance() && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center" aria-label="Tutor net">
-              <div className="text-sm text-gray-500">Tutor Net</div>
+            <div
+              className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center"
+              aria-label="Tutor net"
+            >
+              <div className="text-sm text-gray-500">
+                Tutor Net
+              </div>
               <div className="text-2xl font-bold text-amber-600">
                 {displayCurrency} {fmt(tutorNet)}
               </div>
-              <div className="text-xs text-gray-500 mt-1">After refunds</div>
+              <div className="text-xs text-gray-500 mt-1">
+                After refunds
+              </div>
             </div>
           )}
 
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center" aria-label="Total lessons">
-            <div className="text-sm text-gray-500">Total Lessons</div>
+          <div
+            className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center"
+            aria-label="Total lessons"
+          >
+            <div className="text-sm text-gray-500">
+              Total Lessons
+            </div>
             <div className="text-2xl font-bold">
               {Array.isArray(summary?.tutors)
-                ? summary.tutors.reduce((a, t) => a + (Number(t.lessons) || 0), 0)
+                ? summary.tutors.reduce(
+                    (a, t) => a + (Number(t.lessons) || 0),
+                    0
+                  )
                 : 0}
             </div>
           </div>
@@ -876,7 +1120,8 @@ export default function Finance() {
             <div className="bg-white rounded-2xl border p-4 text-center">
               <h3 className="font-bold">Total Earnings</h3>
               <p className="text-xl">
-                {displayCurrency} {fmt(cAmt(summary.totals.earnings || 0, fx.base))}
+                {displayCurrency}{" "}
+                {fmt(cAmt(summary.totals.earnings || 0, fx.base))}
               </p>
             </div>
             <div className="bg-white rounded-2xl border p-4 text-center">
@@ -897,10 +1142,26 @@ export default function Finance() {
         {/* =================== Refund Summary Metrics (clickable) ================== */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {[
-            { label: "Total Refunds (count)", val: summary.totalRefunds || 0, cls: "" },
-            { label: "Approved Refunds", val: summary.approvedRefunds || 0, cls: "text-green-600" },
-            { label: "Denied Refunds", val: summary.deniedRefunds || 0, cls: "text-red-600" },
-            { label: "Pending Refunds", val: summary.pendingRefunds || 0, cls: "text-yellow-600" },
+            {
+              label: "Total Refunds (count)",
+              val: summary.totalRefunds || 0,
+              cls: "",
+            },
+            {
+              label: "Approved Refunds",
+              val: summary.approvedRefunds || 0,
+              cls: "text-green-600",
+            },
+            {
+              label: "Denied Refunds",
+              val: summary.deniedRefunds || 0,
+              cls: "text-red-600",
+            },
+            {
+              label: "Pending Refunds",
+              val: summary.pendingRefunds || 0,
+              cls: "text-yellow-600",
+            },
           ].map((x) => (
             <div
               key={x.label}
@@ -909,18 +1170,24 @@ export default function Finance() {
               title="Open Refunds tab"
             >
               <div className="text-sm text-gray-500">{x.label}</div>
-              <div className={`text-2xl font-bold ${x.cls}`}>{x.val}</div>
+              <div className={`text-2xl font-bold ${x.cls}`}>
+                {x.val}
+              </div>
             </div>
           ))}
         </div>
 
         {/* =========================== Refund Trends Chart ========================= */}
         <div className="bg-white border rounded-2xl p-4">
-          <h3 className="font-semibold mb-2">Refund Trends (Last 30 Days)</h3>
+          <h3 className="font-semibold mb-2">
+            Refund Trends (Last 30 Days)
+          </h3>
           {loading ? (
             <SkeletonBlock />
           ) : (summary.refundTrends || []).length === 0 ? (
-            <div className="text-sm text-gray-600">No data for current filters.</div>
+            <div className="text-sm text-gray-600">
+              No data for current filters.
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={summary.refundTrends || []}>
@@ -956,13 +1223,17 @@ export default function Finance() {
             </div>
           </div>
           <div className="bg-white rounded shadow p-4">
-            <div className="text-sm text-gray-500">Net (Payouts - Refunds)</div>
+            <div className="text-sm text-gray-500">
+              Net (Payouts - Refunds)
+            </div>
             <div className="text-xl font-bold">
               {displayCurrency} {fmt(totalPayouts - totalRefunds)}
             </div>
           </div>
           <div className="bg-white rounded shadow p-4">
-            <div className="text-sm text-gray-500">Commission (Payouts × %)</div>
+            <div className="text-sm text-gray-500">
+              Commission (Payouts × %)
+            </div>
             <div className="text-xl font-bold">
               {displayCurrency} {fmt(totalPayouts * n(rate))}
             </div>
@@ -978,12 +1249,17 @@ export default function Finance() {
         {/* ================================ Charts ================================= */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Revenue by Day */}
-          <div className="bg-white rounded shadow p-4 h-80" aria-label="Revenue by Day chart">
+          <div
+            className="bg-white rounded shadow p-4 h-80"
+            aria-label="Revenue by Day chart"
+          >
             <h3>Revenue by Day</h3>
             {loading ? (
               <SkeletonBlock h="h-64" />
             ) : byDay.length === 0 ? (
-              <div className="text-sm text-gray-600">No data for current filters.</div>
+              <div className="text-sm text-gray-600">
+                No data for current filters.
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
@@ -1002,25 +1278,35 @@ export default function Finance() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line dataKey="net" stroke="#2196f3" name={`Net (${displayCurrency})`} />
+                  <Line
+                    dataKey="net"
+                    stroke="#2196f3"
+                    name={`Net (${displayCurrency})`}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
 
           {/* By Tutor Earnings */}
-          <div className="bg-white rounded shadow p-4 h-80" aria-label="By Tutor earnings chart">
+          <div
+            className="bg-white rounded shadow p-4 h-80"
+            aria-label="By Tutor earnings chart"
+          >
             <h3>By Tutor Earnings</h3>
             {loading ? (
               <SkeletonBlock h="h-64" />
             ) : byTutor.length === 0 ? (
-              <div className="text-sm text-gray-600">No data for current filters.</div>
+              <div className="text-sm text-gray-600">
+                No data for current filters.
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={byTutor}
                   onClick={(e) => {
-                    const t = e?.activePayload?.[0]?.payload?.tutor;
+                    const t =
+                      e?.activePayload?.[0]?.payload?.tutor;
                     if (t) {
                       setTutorFilter(t);
                       toast.success(`Filtered to tutor: ${t}`);
@@ -1032,28 +1318,52 @@ export default function Finance() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="net" fill="#2196f3" name={`Net (${displayCurrency})`} />
+                  <Bar
+                    dataKey="net"
+                    fill="#2196f3"
+                    name={`Net (${displayCurrency})`}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
+
           {/* Monthly earnings trend */}
-          <div className="bg-white rounded shadow p-4 h-80 lg:col-span-2" aria-label="Monthly trend chart">
+          <div
+            className="bg-white rounded shadow p-4 h-80 lg:col-span-2"
+            aria-label="Monthly trend chart"
+          >
             <h3>Monthly Trend</h3>
             {loading ? (
               <SkeletonBlock h="h-64" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={summary.trends && summary.trends.length ? summary.trends : byMonth}>
+                <LineChart
+                  data={
+                    summary.trends && summary.trends.length
+                      ? summary.trends
+                      : byMonth
+                  }
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={summary.trends && summary.trends.length ? "month" : "month"} />
+                  <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
                   {summary.trends && summary.trends.length ? (
-                    <Line type="monotone" dataKey="earnings" stroke="#3b82f6" name={`Earnings (${displayCurrency})`} />
+                    <Line
+                      type="monotone"
+                      dataKey="earnings"
+                      stroke="#3b82f6"
+                      name={`Earnings (${displayCurrency})`}
+                    />
                   ) : null}
-                  <Line type="monotone" dataKey="net" stroke="#2196f3" name={`Net (${displayCurrency})`} />
+                  <Line
+                    type="monotone"
+                    dataKey="net"
+                    stroke="#2196f3"
+                    name={`Net (${displayCurrency})`}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -1061,12 +1371,19 @@ export default function Finance() {
         </div>
 
         {/* ========================== Refunds vs Payouts ========================== */}
-        <div className="bg-white border rounded-2xl p-4 mt-4" aria-label="Refunds vs Payouts chart">
-          <h3 className="font-semibold mb-2">Refunds vs Payouts</h3>
+        <div
+          className="bg-white border rounded-2xl p-4 mt-4"
+          aria-label="Refunds vs Payouts chart"
+        >
+          <h3 className="font-semibold mb-2">
+            Refunds vs Payouts
+          </h3>
           {loading ? (
             <SkeletonBlock h="h-64" />
           ) : byMonth.length === 0 ? (
-            <div className="text-sm text-gray-600">No data for current filters.</div>
+            <div className="text-sm text-gray-600">
+              No data for current filters.
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={byMonth}>
@@ -1075,8 +1392,16 @@ export default function Finance() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="payouts" fill="#3b82f6" name={`Payouts (${displayCurrency})`} />
-                <Bar dataKey="refunds" fill="#ef4444" name={`Refunds (${displayCurrency})`} />
+                <Bar
+                  dataKey="payouts"
+                  fill="#3b82f6"
+                  name={`Payouts (${displayCurrency})`}
+                />
+                <Bar
+                  dataKey="refunds"
+                  fill="#ef4444"
+                  name={`Refunds (${displayCurrency})`}
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -1084,9 +1409,12 @@ export default function Finance() {
 
         {/* ===================== GMV / Fee / Tutor Net by Tutor ===================== */}
         <div className="bg-white border rounded-2xl p-4 mt-4 overflow-auto">
-          <h3 className="font-semibold mb-2">GMV / Fee / Tutor Net by Tutor</h3>
+          <h3 className="font-semibold mb-2">
+            GMV / Fee / Tutor Net by Tutor
+          </h3>
           <div className="text-xs text-gray-500 mb-2">
-            Approximated from payouts & commission. Converted into {displayCurrency} for display.
+            Approximated from payouts & commission. Converted into{" "}
+            {displayCurrency} for display.
           </div>
           {loading ? (
             <SkeletonTable rows={6} />
@@ -1096,45 +1424,75 @@ export default function Finance() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="p-2 text-left">Tutor</th>
-                    <th className="p-2 text-right">Payouts</th>
-                    <th className="p-2 text-right">Refunds</th>
-                    {canSeeFinance() && <th className="p-2 text-right">GMV</th>}
-                    {canSeeFinance() && <th className="p-2 text-right">Platform Fee</th>}
-                    {canSeeFinance() && <th className="p-2 text-right">Tutor Net</th>}
+                    <th className="p-2 text-right">
+                      Payouts
+                    </th>
+                    <th className="p-2 text-right">
+                      Refunds
+                    </th>
+                    {canSeeFinance() && (
+                      <th className="p-2 text-right">
+                        GMV
+                      </th>
+                    )}
+                    {canSeeFinance() && (
+                      <th className="p-2 text-right">
+                        Platform Fee
+                      </th>
+                    )}
+                    {canSeeFinance() && (
+                      <th className="p-2 text-right">
+                        Tutor Net
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {byTutor.map((row) => {
-                    const g = (1 - n(rate)) !== 0 ? row.payouts / (1 - n(rate)) : row.payouts;
+                    const g =
+                      1 - n(rate) !== 0
+                        ? row.payouts / (1 - n(rate))
+                        : row.payouts;
                     const fee = g * n(rate);
                     const net = g - fee - row.refunds;
                     return (
                       <tr
                         key={row.tutor}
                         className="border-t cursor-pointer hover:bg-blue-50"
-                        onClick={() => navigate(`/admin?tab=Users&role=tutor&q=${encodeURIComponent(row.tutor)}`)}
+                        onClick={() =>
+                          navigate(
+                            `/admin?tab=Users&role=tutor&q=${encodeURIComponent(
+                              row.tutor
+                            )}`
+                          )
+                        }
                         title="Go to Tutors tab filtered to this tutor"
                       >
                         <td className="p-2">{row.tutor}</td>
                         <td className="p-2 text-right">
-                          {displayCurrency} {fmt(row.payouts)}
+                          {displayCurrency}{" "}
+                          {fmt(row.payouts)}
                         </td>
                         <td className="p-2 text-right">
-                          {displayCurrency} {fmt(row.refunds)}
+                          {displayCurrency}{" "}
+                          {fmt(row.refunds)}
                         </td>
                         {canSeeFinance() && (
                           <td className="p-2 text-right">
-                            {displayCurrency} {fmt(g)}
+                            {displayCurrency}{" "}
+                            {fmt(g)}
                           </td>
                         )}
                         {canSeeFinance() && (
                           <td className="p-2 text-right">
-                            {displayCurrency} {fmt(fee)}
+                            {displayCurrency}{" "}
+                            {fmt(fee)}
                           </td>
                         )}
                         {canSeeFinance() && (
                           <td className="p-2 text-right">
-                            {displayCurrency} {fmt(net)}
+                            {displayCurrency}{" "}
+                            {fmt(net)}
                           </td>
                         )}
                       </tr>
@@ -1148,7 +1506,10 @@ export default function Finance() {
                   className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
                   onClick={() => {
                     const rows = byTutor.map((row) => {
-                      const g = (1 - n(rate)) !== 0 ? row.payouts / (1 - n(rate)) : row.payouts;
+                      const g =
+                        1 - n(rate) !== 0
+                          ? row.payouts / (1 - n(rate))
+                          : row.payouts;
                       const fee = g * n(rate);
                       const net = g - fee - row.refunds;
                       const base = {
@@ -1158,7 +1519,12 @@ export default function Finance() {
                         Currency: displayCurrency,
                       };
                       if (!canSeeFinance()) return base;
-                      return { ...base, GMV: to2(g), PlatformFee: to2(fee), TutorNet: to2(net) };
+                      return {
+                        ...base,
+                        GMV: to2(g),
+                        PlatformFee: to2(fee),
+                        TutorNet: to2(net),
+                      };
                     });
                     exportTableToCSV(rows, "gmv_by_tutor.csv");
                   }}
@@ -1169,7 +1535,10 @@ export default function Finance() {
                   className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
                   onClick={() => {
                     const rows = byTutor.map((row) => {
-                      const g = (1 - n(rate)) !== 0 ? row.payouts / (1 - n(rate)) : row.payouts;
+                      const g =
+                        1 - n(rate) !== 0
+                          ? row.payouts / (1 - n(rate))
+                          : row.payouts;
                       const fee = g * n(rate);
                       const net = g - fee - row.refunds;
                       const base = {
@@ -1179,9 +1548,18 @@ export default function Finance() {
                         Currency: displayCurrency,
                       };
                       if (!canSeeFinance()) return base;
-                      return { ...base, GMV: to2(g), PlatformFee: to2(fee), TutorNet: to2(net) };
+                      return {
+                        ...base,
+                        GMV: to2(g),
+                        PlatformFee: to2(fee),
+                        TutorNet: to2(net),
+                      };
                     });
-                    exportTableToXLSX(rows, "gmv_by_tutor.xlsx", "GMV_Tutor");
+                    exportTableToXLSX(
+                      rows,
+                      "gmv_by_tutor.xlsx",
+                      "GMV_Tutor"
+                    );
                   }}
                 >
                   Export XLSX
@@ -1193,31 +1571,43 @@ export default function Finance() {
 
         {/* =================== GMV / Fee / Tutor Net by Currency =================== */}
         <div className="bg-white border rounded-2xl p-4 mt-4 overflow-auto">
-          <h3 className="font-semibold mb-2">GMV / Fee / Tutor Net by Currency</h3>
+          <h3 className="font-semibold mb-2">
+            GMV / Fee / Tutor Net by Currency
+          </h3>
           <div className="text-xs text-gray-500 mb-2">
-            Native sums shown, with converted display columns. GMV/Fees/Tutor Net are shown in {displayCurrency}.
+            Native sums shown, with converted display columns.
+            GMV/Fees/Tutor Net are shown in {displayCurrency}.
           </div>
 
           {/* Column visibility menu */}
           <details className="mb-2">
-            <summary className="cursor-pointer text-sm">Columns</summary>
-            {["nativePayouts", "nativeRefunds", "payouts", "refunds", "GMV", "PlatformFee", "TutorNet", "net"].map(
-              (k) => (
-                <label key={k} className="mr-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={col(k)}
-                    onChange={() =>
-                      setShowCols((s) => ({
-                        ...s,
-                        [k]: !(s[k] !== false),
-                      }))
-                    }
-                  />{" "}
-                  {k}
-                </label>
-              )
-            )}
+            <summary className="cursor-pointer text-sm">
+              Columns
+            </summary>
+            {[
+              "nativePayouts",
+              "nativeRefunds",
+              "payouts",
+              "refunds",
+              "GMV",
+              "PlatformFee",
+              "TutorNet",
+              "net",
+            ].map((k) => (
+              <label key={k} className="mr-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={col(k)}
+                  onChange={() =>
+                    setShowCols((s) => ({
+                      ...s,
+                      [k]: !(s[k] !== false),
+                    }))
+                  }
+                />{" "}
+                {k}
+              </label>
+            ))}
           </details>
 
           {loading ? (
@@ -1228,18 +1618,46 @@ export default function Finance() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="p-2 text-left">Currency</th>
-                    {col("nativePayouts") && <th className="p-2 text-right">Payouts (native)</th>}
-                    {col("nativeRefunds") && <th className="p-2 text-right">Refunds (native)</th>}
-                    {col("payouts") && <th className="p-2 text-right">Payouts ({displayCurrency})</th>}
-                    {col("refunds") && <th className="p-2 text-right">Refunds ({displayCurrency})</th>}
-                    {col("GMV") && canSeeFinance() && <th className="p-2 text-right">GMV ({displayCurrency})</th>}
+                    {col("nativePayouts") && (
+                      <th className="p-2 text-right">
+                        Payouts (native)
+                      </th>
+                    )}
+                    {col("nativeRefunds") && (
+                      <th className="p-2 text-right">
+                        Refunds (native)
+                      </th>
+                    )}
+                    {col("payouts") && (
+                      <th className="p-2 text-right">
+                        Payouts ({displayCurrency})
+                      </th>
+                    )}
+                    {col("refunds") && (
+                      <th className="p-2 text-right">
+                        Refunds ({displayCurrency})
+                      </th>
+                    )}
+                    {col("GMV") && canSeeFinance() && (
+                      <th className="p-2 text-right">
+                        GMV ({displayCurrency})
+                      </th>
+                    )}
                     {col("PlatformFee") && canSeeFinance() && (
-                      <th className="p-2 text-right">Platform Fee ({displayCurrency})</th>
+                      <th className="p-2 text-right">
+                        Platform Fee ({displayCurrency})
+                      </th>
                     )}
                     {col("TutorNet") && canSeeFinance() && (
-                      <th className="p-2 text-right">Tutor Net ({displayCurrency})</th>
+                      <th className="p-2 text-right">
+                        Tutor Net ({displayCurrency})
+                      </th>
                     )}
-                    {col("net") && <th className="p-2 text-right">Net ({displayCurrency})</th>}
+                    {col("net") && (
+                      <th className="p-2 text-right">
+                        Net ({displayCurrency})
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -1247,22 +1665,56 @@ export default function Finance() {
                     <tr
                       key={r.currency}
                       className="border-t cursor-pointer hover:bg-blue-50"
-                      onClick={() => navigate(`/admin?tab=Refunds&currency=${r.currency}`)}
+                      onClick={() =>
+                        navigate(
+                          `/admin?tab=Refunds&currency=${r.currency}`
+                        )
+                      }
                       title="Open Refunds tab filtered by currency"
                     >
                       <td className="p-2">{r.currency}</td>
-                      {col("nativePayouts") && <td className="p-2 text-right">{fmt(r.nativePayouts)}</td>}
-                      {col("nativeRefunds") && <td className="p-2 text-right">{fmt(r.nativeRefunds)}</td>}
-                      {col("payouts") && <td className="p-2 text-right">{fmt(r.payouts)}</td>}
-                      {col("refunds") && <td className="p-2 text-right">{fmt(r.refunds)}</td>}
-                      {col("GMV") && canSeeFinance() && <td className="p-2 text-right">{fmt(r.GMV)}</td>}
-                      {col("PlatformFee") && canSeeFinance() && (
-                        <td className="p-2 text-right">{fmt(r.PlatformFee)}</td>
+                      {col("nativePayouts") && (
+                        <td className="p-2 text-right">
+                          {fmt(r.nativePayouts)}
+                        </td>
                       )}
-                      {col("TutorNet") && canSeeFinance() && (
-                        <td className="p-2 text-right">{fmt(r.TutorNet)}</td>
+                      {col("nativeRefunds") && (
+                        <td className="p-2 text-right">
+                          {fmt(r.nativeRefunds)}
+                        </td>
                       )}
-                      {col("net") && <td className="p-2 text-right">{fmt(r.net)}</td>}
+                      {col("payouts") && (
+                        <td className="p-2 text-right">
+                          {fmt(r.payouts)}
+                        </td>
+                      )}
+                      {col("refunds") && (
+                        <td className="p-2 text-right">
+                          {fmt(r.refunds)}
+                        </td>
+                      )}
+                      {col("GMV") && canSeeFinance() && (
+                        <td className="p-2 text-right">
+                          {fmt(r.GMV)}
+                        </td>
+                      )}
+                      {col("PlatformFee") &&
+                        canSeeFinance() && (
+                          <td className="p-2 text-right">
+                            {fmt(r.PlatformFee)}
+                          </td>
+                        )}
+                      {col("TutorNet") &&
+                        canSeeFinance() && (
+                          <td className="p-2 text-right">
+                            {fmt(r.TutorNet)}
+                          </td>
+                        )}
+                      {col("net") && (
+                        <td className="p-2 text-right">
+                          {fmt(r.net)}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1272,20 +1724,29 @@ export default function Finance() {
                 <button
                   className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
                   onClick={() => {
-                    const rows = byCurrencyDisplayConverted.map((r) => {
-                      const base = {
-                        Currency: r.currency,
-                        DisplayCurrency: displayCurrency,
-                        Payouts_Display: to2(r.payouts),
-                        Refunds_Display: to2(r.refunds),
-                        Net: to2(r.net),
-                        NativePayouts: to2(r.nativePayouts),
-                        NativeRefunds: to2(r.nativeRefunds),
-                      };
-                      if (!canSeeFinance()) return base;
-                      return { ...base, GMV: to2(r.GMV), PlatformFee: to2(r.PlatformFee), TutorNet: to2(r.TutorNet) };
-                    });
-                    exportTableToCSV(rows, "gmv_by_currency.csv");
+                    const rows =
+                      byCurrencyDisplayConverted.map((r) => {
+                        const base = {
+                          Currency: r.currency,
+                          DisplayCurrency: displayCurrency,
+                          Payouts_Display: to2(r.payouts),
+                          Refunds_Display: to2(r.refunds),
+                          Net: to2(r.net),
+                          NativePayouts: to2(r.nativePayouts),
+                          NativeRefunds: to2(r.nativeRefunds),
+                        };
+                        if (!canSeeFinance()) return base;
+                        return {
+                          ...base,
+                          GMV: to2(r.GMV),
+                          PlatformFee: to2(r.PlatformFee),
+                          TutorNet: to2(r.TutorNet),
+                        };
+                      });
+                    exportTableToCSV(
+                      rows,
+                      "gmv_by_currency.csv"
+                    );
                   }}
                 >
                   Export CSV
@@ -1293,20 +1754,30 @@ export default function Finance() {
                 <button
                   className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
                   onClick={() => {
-                    const rows = byCurrencyDisplayConverted.map((r) => {
-                      const base = {
-                        Currency: r.currency,
-                        DisplayCurrency: displayCurrency,
-                        Payouts_Display: to2(r.payouts),
-                        Refunds_Display: to2(r.refunds),
-                        Net: to2(r.net),
-                        NativePayouts: to2(r.nativePayouts),
-                        NativeRefunds: to2(r.nativeRefunds),
-                      };
-                      if (!canSeeFinance()) return base;
-                      return { ...base, GMV: to2(r.GMV), PlatformFee: to2(r.PlatformFee), TutorNet: to2(r.TutorNet) };
-                    });
-                    exportTableToXLSX(rows, "gmv_by_currency.xlsx", "GMV_Currency");
+                    const rows =
+                      byCurrencyDisplayConverted.map((r) => {
+                        const base = {
+                          Currency: r.currency,
+                          DisplayCurrency: displayCurrency,
+                          Payouts_Display: to2(r.payouts),
+                          Refunds_Display: to2(r.refunds),
+                          Net: to2(r.net),
+                          NativePayouts: to2(r.nativePayouts),
+                          NativeRefunds: to2(r.nativeRefunds),
+                        };
+                        if (!canSeeFinance()) return base;
+                        return {
+                          ...base,
+                          GMV: to2(r.GMV),
+                          PlatformFee: to2(r.PlatformFee),
+                          TutorNet: to2(r.TutorNet),
+                        };
+                      });
+                    exportTableToXLSX(
+                      rows,
+                      "gmv_by_currency.xlsx",
+                      "GMV_Currency"
+                    );
                   }}
                 >
                   Export XLSX
@@ -1315,83 +1786,121 @@ export default function Finance() {
             </>
           )}
         </div>
+
         {/* ============================ Tutor Comparison =========================== */}
-        {Array.isArray(summary.tutors) && summary.tutors.length > 0 && (
-          <div className="bg-white rounded shadow p-4 overflow-auto">
-            <h3>Tutor Comparison</h3>
-            <button
-              className="px-3 py-1 border rounded mt-2 focus-visible:ring-2 focus-visible:ring-offset-2"
-              onClick={() => {
-                const rows = summary.tutors.map((t) => ({
-                  Tutor: t.name,
-                  Lessons: t.lessons,
-                  Earnings_Display: to2(cAmt(t.earnings || 0, t.currency || fx.base)),
-                  Currency: displayCurrency,
-                }));
-                exportTableToCSV(rows, "tutor-finance.csv");
-              }}
-            >
-              Export CSV
-            </button>
-            <button
-              className="px-3 py-1 border rounded mt-2 ml-2 focus-visible:ring-2 focus-visible:ring-offset-2"
-              onClick={() =>
-                exportTableToXLSX(
-                  summary.tutors.map((t) => ({
+        {Array.isArray(summary.tutors) &&
+          summary.tutors.length > 0 && (
+            <div className="bg-white rounded shadow p-4 overflow-auto">
+              <h3>Tutor Comparison</h3>
+              <button
+                className="px-3 py-1 border rounded mt-2 focus-visible:ring-2 focus-visible:ring-offset-2"
+                onClick={() => {
+                  const rows = summary.tutors.map((t) => ({
                     Tutor: t.name,
                     Lessons: t.lessons,
-                    Earnings_Display: to2(cAmt(t.earnings || 0, t.currency || fx.base)),
+                    Earnings_Display: to2(
+                      cAmt(t.earnings || 0, t.currency || fx.base)
+                    ),
                     Currency: displayCurrency,
-                  })),
-                  "tutor-finance.xlsx",
-                  "Tutors"
-                )
-              }
-            >
-              Export XLSX
-            </button>
-            <table className="min-w-full text-sm border rounded-2xl mt-2">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 text-left">Tutor</th>
-                  <th className="p-2 text-right">Lessons</th>
-                  <th className="p-2 text-right">Earnings ({displayCurrency})</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.tutors.map((t) => (
-                  <tr
-                    key={t.id}
-                    className="border-t cursor-pointer hover:bg-blue-50"
-                    onClick={() => navigate(`/admin?tab=Users&role=tutor&q=${encodeURIComponent(t.name)}`)}
-                    title="Go to Tutors tab filtered to this tutor"
-                  >
-                    <td className="p-2">{t.name}</td>
-                    <td className="p-2 text-right">{t.lessons}</td>
-                    <td className="p-2 text-right">
-                      {displayCurrency} {fmt(cAmt(t.earnings || 0, t.currency || fx.base))}
-                    </td>
+                  }));
+                  exportTableToCSV(rows, "tutor-finance.csv");
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                className="px-3 py-1 border rounded mt-2 ml-2 focus-visible:ring-2 focus-visible:ring-offset-2"
+                onClick={() =>
+                  exportTableToXLSX(
+                    summary.tutors.map((t) => ({
+                      Tutor: t.name,
+                      Lessons: t.lessons,
+                      Earnings_Display: to2(
+                        cAmt(
+                          t.earnings || 0,
+                          t.currency || fx.base
+                        )
+                      ),
+                      Currency: displayCurrency,
+                    })),
+                    "tutor-finance.xlsx",
+                    "Tutors"
+                  )
+                }
+              >
+                Export XLSX
+              </button>
+              <table className="min-w-full text-sm border rounded-2xl mt-2">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 text-left">Tutor</th>
+                    <th className="p-2 text-right">
+                      Lessons
+                    </th>
+                    <th className="p-2 text-right">
+                      Earnings ({displayCurrency})
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {summary.tutors.map((t) => (
+                    <tr
+                      key={t.id}
+                      className="border-t cursor-pointer hover:bg-blue-50"
+                      onClick={() =>
+                        navigate(
+                          `/admin?tab=Users&role=tutor&q=${encodeURIComponent(
+                            t.name
+                          )}`
+                        )
+                      }
+                      title="Go to Tutors tab filtered to this tutor"
+                    >
+                      <td className="p-2">{t.name}</td>
+                      <td className="p-2 text-right">
+                        {t.lessons}
+                      </td>
+                      <td className="p-2 text-right">
+                        {displayCurrency}{" "}
+                        {fmt(
+                          cAmt(
+                            t.earnings || 0,
+                            t.currency || fx.base
+                          )
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
         {/* ================================= Tables ================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* By Day */}
-          <div className="bg-white rounded shadow p-4 overflow-auto" aria-label="By Day table">
+          <div
+            className="bg-white rounded shadow p-4 overflow-auto"
+            aria-label="By Day table"
+          >
             <h3>By Day</h3>
             <div className="flex gap-2 my-2">
               <button
-                onClick={() => exportTableToCSV(byDay, "byDay.csv")}
+                onClick={() =>
+                  exportTableToCSV(byDay, "byDay.csv")
+                }
                 className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 Export CSV
               </button>
               <button
-                onClick={() => exportTableToXLSX(byDay, "byDay.xlsx", "ByDay")}
+                onClick={() =>
+                  exportTableToXLSX(
+                    byDay,
+                    "byDay.xlsx",
+                    "ByDay"
+                  )
+                }
                 className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 Export XLSX
@@ -1404,18 +1913,30 @@ export default function Finance() {
                 <thead>
                   <tr>
                     <th className="text-left p-1">Date</th>
-                    <th className="text-right p-1">Payouts ({displayCurrency})</th>
-                    <th className="text-right p-1">Refunds ({displayCurrency})</th>
-                    <th className="text-right p-1">Net ({displayCurrency})</th>
+                    <th className="text-right p-1">
+                      Payouts ({displayCurrency})
+                    </th>
+                    <th className="text-right p-1">
+                      Refunds ({displayCurrency})
+                    </th>
+                    <th className="text-right p-1">
+                      Net ({displayCurrency})
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {byDay.map((r) => (
                     <tr key={r.date} className="border-t">
                       <td className="p-1">{r.date}</td>
-                      <td className="p-1 text-right">{fmt(r.payouts)}</td>
-                      <td className="p-1 text-right">{fmt(r.refunds)}</td>
-                      <td className="p-1 text-right">{fmt(r.net)}</td>
+                      <td className="p-1 text-right">
+                        {fmt(r.payouts)}
+                      </td>
+                      <td className="p-1 text-right">
+                        {fmt(r.refunds)}
+                      </td>
+                      <td className="p-1 text-right">
+                        {fmt(r.net)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1424,17 +1945,28 @@ export default function Finance() {
           </div>
 
           {/* By Tutor */}
-          <div className="bg-white rounded shadow p-4 overflow-auto" aria-label="By Tutor table">
+          <div
+            className="bg-white rounded shadow p-4 overflow-auto"
+            aria-label="By Tutor table"
+          >
             <h3>By Tutor</h3>
             <div className="flex gap-2 my-2">
               <button
-                onClick={() => exportTableToCSV(byTutor, "byTutor.csv")}
+                onClick={() =>
+                  exportTableToCSV(byTutor, "byTutor.csv")
+                }
                 className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 Export CSV
               </button>
               <button
-                onClick={() => exportTableToXLSX(byTutor, "byTutor.xlsx", "ByTutor")}
+                onClick={() =>
+                  exportTableToXLSX(
+                    byTutor,
+                    "byTutor.xlsx",
+                    "ByTutor"
+                  )
+                }
                 className="px-3 py-1 border rounded focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 Export XLSX
@@ -1447,18 +1979,30 @@ export default function Finance() {
                 <thead>
                   <tr>
                     <th className="text-left p-1">Tutor</th>
-                    <th className="text-right p-1">Payouts ({displayCurrency})</th>
-                    <th className="text-right p-1">Refunds ({displayCurrency})</th>
-                    <th className="text-right p-1">Net ({displayCurrency})</th>
+                    <th className="text-right p-1">
+                      Payouts ({displayCurrency})
+                    </th>
+                    <th className="text-right p-1">
+                      Refunds ({displayCurrency})
+                    </th>
+                    <th className="text-right p-1">
+                      Net ({displayCurrency})
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {byTutor.map((r) => (
                     <tr key={r.tutor} className="border-t">
                       <td className="p-1">{r.tutor}</td>
-                      <td className="p-1 text-right">{fmt(r.payouts)}</td>
-                      <td className="p-1 text-right">{fmt(r.refunds)}</td>
-                      <td className="p-1 text-right">{fmt(r.net)}</td>
+                      <td className="p-1 text-right">
+                        {fmt(r.payouts)}
+                      </td>
+                      <td className="p-1 text-right">
+                        {fmt(r.refunds)}
+                      </td>
+                      <td className="p-1 text-right">
+                        {fmt(r.net)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1467,7 +2011,10 @@ export default function Finance() {
           </div>
 
           {/* By Currency (simple net table) */}
-          <div className="bg-white rounded shadow p-4 overflow-auto" aria-label="By Currency net table">
+          <div
+            className="bg-white rounded shadow p-4 overflow-auto"
+            aria-label="By Currency net table"
+          >
             <h3>By Currency</h3>
             <div className="flex gap-2 my-2">
               <button
@@ -1513,18 +2060,30 @@ export default function Finance() {
                 <thead>
                   <tr>
                     <th className="text-left p-1">Currency</th>
-                    <th className="text-right p-1">Payouts ({displayCurrency})</th>
-                    <th className="text-right p-1">Refunds ({displayCurrency})</th>
-                    <th className="text-right p-1">Net ({displayCurrency})</th>
+                    <th className="text-right p-1">
+                      Payouts ({displayCurrency})
+                    </th>
+                    <th className="text-right p-1">
+                      Refunds ({displayCurrency})
+                    </th>
+                    <th className="text-right p-1">
+                      Net ({displayCurrency})
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {byCurrencyDisplayConverted.map((r) => (
                     <tr key={r.currency} className="border-t">
                       <td className="p-1">{r.currency}</td>
-                      <td className="p-1 text-right">{fmt(r.payouts)}</td>
-                      <td className="p-1 text-right">{fmt(r.refunds)}</td>
-                      <td className="p-1 text-right">{fmt(r.net)}</td>
+                      <td className="p-1 text-right">
+                        {fmt(r.payouts)}
+                      </td>
+                      <td className="p-1 text-right">
+                        {fmt(r.refunds)}
+                      </td>
+                      <td className="p-1 text-right">
+                        {fmt(r.net)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1544,14 +2103,18 @@ export default function Finance() {
                 <thead>
                   <tr>
                     <th className="text-left p-1">Tutor</th>
-                    <th className="text-right p-1">Commission ({displayCurrency})</th>
+                    <th className="text-right p-1">
+                      Commission ({displayCurrency})
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {commissionByTutor.map((r) => (
                     <tr key={r.tutor} className="border-t">
                       <td className="p-1">{r.tutor}</td>
-                      <td className="p-1 text-right">{fmt(r.commission)}</td>
+                      <td className="p-1 text-right">
+                        {fmt(r.commission)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1568,14 +2131,18 @@ export default function Finance() {
                 <thead>
                   <tr>
                     <th className="text-left p-1">Currency</th>
-                    <th className="text-right p-1">Commission ({displayCurrency})</th>
+                    <th className="text-right p-1">
+                      Commission ({displayCurrency})
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {commissionByCurrency.map((r) => (
                     <tr key={r.currency} className="border-t">
                       <td className="p-1">{r.currency}</td>
-                      <td className="p-1 text-right">{fmt(r.commission)}</td>
+                      <td className="p-1 text-right">
+                        {fmt(r.commission)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1593,9 +2160,14 @@ export default function Finance() {
               <SkeletonTable rows={4} />
             ) : queuedPayouts.length ? (
               queuedPayouts.map((p) => (
-                <div key={p.id} className="flex justify-between items-center border p-1 my-1 rounded">
+                <div
+                  key={p.id}
+                  className="flex justify-between items-center border p-1 my-1 rounded"
+                >
                   <div className="text-sm">
-                    <b>{p.id}</b> • {p.tutor?.name || p.tutor || "Unknown"} • {displayCurrency}{" "}
+                    <b>{p.id}</b> •{" "}
+                    {p.tutor?.name || p.tutor || "Unknown"} •{" "}
+                    {displayCurrency}{" "}
                     {fmt(cAmt(p.amount, p.currency))}
                   </div>
                   <button
@@ -1618,10 +2190,16 @@ export default function Finance() {
               <SkeletonTable rows={4} />
             ) : queuedRefunds.length ? (
               queuedRefunds.map((r) => (
-                <div key={r.id} className="flex justify-between items-center border p-1 my-1 rounded">
+                <div
+                  key={r.id}
+                  className="flex justify-between items-center border p-1 my-1 rounded"
+                >
                   <div className="text-sm">
-                    <b>{r.id}</b> • {r.student?.name || r.student || "Student"} → {r.tutor?.name || r.tutor || "Tutor"} •{" "}
-                    {displayCurrency} {fmt(cAmt(r.amount, r.currency))}
+                    <b>{r.id}</b> •{" "}
+                    {r.student?.name || r.student || "Student"} →{" "}
+                    {r.tutor?.name || r.tutor || "Tutor"} •{" "}
+                    {displayCurrency}{" "}
+                    {fmt(cAmt(r.amount, r.currency))}
                   </div>
                   <button
                     onClick={() => denyRefund(r.id)}
@@ -1643,8 +2221,14 @@ export default function Finance() {
               <SkeletonTable rows={3} />
             ) : failedPayouts.length ? (
               failedPayouts.map((p) => (
-                <div key={p.id} className="border p-1 my-1 rounded text-sm">
-                  {p.id} • {p.tutor?.name || p.tutor || "Unknown"} • {displayCurrency} {fmt(cAmt(p.amount, p.currency))}
+                <div
+                  key={p.id}
+                  className="border p-1 my-1 rounded text-sm"
+                >
+                  {p.id} •{" "}
+                  {p.tutor?.name || p.tutor || "Unknown"} •{" "}
+                  {displayCurrency}{" "}
+                  {fmt(cAmt(p.amount, p.currency))}
                 </div>
               ))
             ) : (
@@ -1659,9 +2243,15 @@ export default function Finance() {
               <SkeletonTable rows={3} />
             ) : failedRefunds.length ? (
               failedRefunds.map((r) => (
-                <div key={r.id} className="border p-1 my-1 rounded text-sm">
-                  {r.id} • {r.student?.name || r.student || "Student"} → {r.tutor?.name || r.tutor || "Tutor"} •{" "}
-                  {displayCurrency} {fmt(cAmt(r.amount, r.currency))}
+                <div
+                  key={r.id}
+                  className="border p-1 my-1 rounded text-sm"
+                >
+                  {r.id} •{" "}
+                  {r.student?.name || r.student || "Student"} →{" "}
+                  {r.tutor?.name || r.tutor || "Tutor"} •{" "}
+                  {displayCurrency}{" "}
+                  {fmt(cAmt(r.amount, r.currency))}
                 </div>
               ))
             ) : (
@@ -1673,23 +2263,33 @@ export default function Finance() {
         {/* ========================= Additional Diagnostics ========================= */}
         <div className="bg-white border rounded-2xl p-4">
           <details>
-            <summary className="cursor-pointer font-semibold">Diagnostics</summary>
+            <summary className="cursor-pointer font-semibold">
+              Diagnostics
+            </summary>
             <div className="mt-3 grid md:grid-cols-2 gap-4 text-sm">
               <div className="border rounded p-3">
                 <div>
                   <b>Rows (Filtered)</b>
                 </div>
-                <div>Payouts: {fmt0(fPayouts.length)} | Refunds: {fmt0(fRefunds.length)}</div>
                 <div>
-                  Queued Payouts: {fmt0(queuedPayouts.length)} | Queued Refunds: {fmt0(queuedRefunds.length)}
+                  Payouts: {fmt0(fPayouts.length)} | Refunds:{" "}
+                  {fmt0(fRefunds.length)}
                 </div>
                 <div>
-                  Failed Payouts: {fmt0(failedPayouts.length)} | Failed Refunds: {fmt0(failedRefunds.length)}
+                  Queued Payouts: {fmt0(queuedPayouts.length)} |
+                  Queued Refunds: {fmt0(queuedRefunds.length)}
+                </div>
+                <div>
+                  Failed Payouts: {fmt0(failedPayouts.length)} |
+                  Failed Refunds: {fmt0(failedRefunds.length)}
                 </div>
               </div>
               <div className="border rounded p-3">
                 <div>
-                  <b>Numbers (Display Currency: {displayCurrency})</b>
+                  <b>
+                    Numbers (Display Currency:{" "}
+                    {displayCurrency})
+                  </b>
                 </div>
                 <div>Payouts: {fmt(totalPayouts)}</div>
                 <div>Refunds: {fmt(totalRefunds)}</div>
