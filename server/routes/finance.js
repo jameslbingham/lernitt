@@ -13,7 +13,7 @@ try { Refund = require("../models/Refund"); } catch {}
 const isMock = process.env.VITE_MOCK === "1";
 const COMMISSION_PCT = Number(process.env.PLATFORM_COMMISSION_PCT ?? 0.15); // 15% default
 
-// ----------------------- Admin check (kept) -----------------------
+// ----------------------- Admin check (amended) -----------------------
 async function isAdmin(req, res, next) {
   try {
     const me = await User.findById(req.user.id).select("isAdmin role");
