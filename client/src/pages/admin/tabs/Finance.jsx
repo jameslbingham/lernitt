@@ -43,6 +43,9 @@ import { safeFetchJSON } from "@/lib/safeFetch.js";
 // 🔁 FIXED: import the correct functions from adminExports.js
 import { exportTableToCSV, exportTableToXLSX } from "@/lib/adminExports.js";
 
+// ✅ NEW: authenticated fetch helper (adds JWT)
+import { apiFetch } from "@/lib/apiFetch.js";
+
 /* ============================ API + constants ============================ */
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
@@ -260,16 +263,16 @@ export default function Finance() {
       setLoading(true);
       setLoadError("");
       try {
-        // Payouts / Refunds via safeFetchJSON (server or mock handled inside)
+        // ✅ use apiFetch so JWT is sent (fixes 401s from backend)
         const [pR, rR] = await Promise.all([
-          safeFetchJSON(`${API}/api/payouts`).catch(() => []),
-          safeFetchJSON(`${API}/api/refunds`).catch(() => []),
+          apiFetch("/api/payouts").catch(() => []),
+          apiFetch("/api/refunds").catch(() => []),
         ]);
         setPayouts(pR?.items || pR || []);
         setRefunds(rR?.items || rR || []);
 
-        // Summary (GUARDED)
-        const sum = (await safeFetchJSON(`${API}/api/finance/summary`)) || {};
+        // Summary (GUARDED, still tolerant of weird shapes)
+        const sum = (await apiFetch("/api/finance/summary").catch(() => ({}))) || {};
         const next = {
           totals: sum.totals || {},
           tutors: Array.isArray(sum.tutors) ? sum.tutors : [],
@@ -285,8 +288,13 @@ export default function Finance() {
           sessionStorage.setItem("fin_summary", JSON.stringify(next));
         } catch {}
 
-        // FX rates
-        const rawRates = await safeFetchJSON(`${API}/api/finance/rates`);
+        // FX rates (best effort, uses new /api/finance/rates)
+        let rawRates = null;
+        try {
+          rawRates = await apiFetch("/api/finance/rates");
+        } catch {
+          rawRates = null;
+        }
         const norm = normalizeFxShape(rawRates);
         setFx(norm);
         setDisplayCurrency(norm.base || "USD");
@@ -340,7 +348,7 @@ export default function Finance() {
   // DEFENSIVE: never call .filter on a non-array
   const applyFilters = useCallback(
     (listInput) => {
-      const list = Array.isArray(listInput) ? listInput : (listInput?.items || []);
+      const list = Array.isArray(listInput) ? listInput : listInput?.items || [];
       if (!Array.isArray(list)) return []; // final guard
 
       return list.filter((row) => {
@@ -396,10 +404,12 @@ export default function Finance() {
     return Object.values(map).map((x) => ({ ...x, net: x.payouts - x.refunds }));
   }, [fPayouts, fRefunds, cAmt]);
 
-  const avgDaily = byDayForForecast.length
-    ? byDayForForecast.reduce((s, r) => s + r.net, 0) / byDayForForecast.length
-    : 0;
+  const avgDaily =
+    byDayForForecast.length > 0
+      ? byDayForForecast.reduce((s, r) => s + r.net, 0) / byDayForForecast.length
+      : 0;
   const forecast30 = avgDaily * 30;
+
   /* --------------------------------- queues -------------------------------- */
   const queuedPayouts = useMemo(() => fPayouts.filter((p) => p.status === "queued"), [fPayouts]);
   const queuedRefunds = useMemo(() => fRefunds.filter((r) => r.status === "queued"), [fRefunds]);
@@ -581,7 +591,7 @@ export default function Finance() {
     [views]
   );
 
-  /* ------------------------------ column prefs ----------------------------- */
+  /* ------------------------------ column prefs ------------------------------ */
   useEffect(() => {
     try {
       localStorage.setItem("fin_cols", JSON.stringify(showCols));
@@ -1112,9 +1122,21 @@ export default function Finance() {
                         <td className="p-2 text-right">
                           {displayCurrency} {fmt(row.refunds)}
                         </td>
-                        {canSeeFinance() && <td className="p-2 text-right">{displayCurrency} {fmt(g)}</td>}
-                        {canSeeFinance() && <td className="p-2 text-right">{displayCurrency} {fmt(fee)}</td>}
-                        {canSeeFinance() && <td className="p-2 text-right">{displayCurrency} {fmt(net)}</td>}
+                        {canSeeFinance() && (
+                          <td className="p-2 text-right">
+                            {displayCurrency} {fmt(g)}
+                          </td>
+                        )}
+                        {canSeeFinance() && (
+                          <td className="p-2 text-right">
+                            {displayCurrency} {fmt(fee)}
+                          </td>
+                        )}
+                        {canSeeFinance() && (
+                          <td className="p-2 text-right">
+                            {displayCurrency} {fmt(net)}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -1234,8 +1256,12 @@ export default function Finance() {
                       {col("payouts") && <td className="p-2 text-right">{fmt(r.payouts)}</td>}
                       {col("refunds") && <td className="p-2 text-right">{fmt(r.refunds)}</td>}
                       {col("GMV") && canSeeFinance() && <td className="p-2 text-right">{fmt(r.GMV)}</td>}
-                      {col("PlatformFee") && canSeeFinance() && <td className="p-2 text-right">{fmt(r.PlatformFee)}</td>}
-                      {col("TutorNet") && canSeeFinance() && <td className="p-2 text-right">{fmt(r.TutorNet)}</td>}
+                      {col("PlatformFee") && canSeeFinance() && (
+                        <td className="p-2 text-right">{fmt(r.PlatformFee)}</td>
+                      )}
+                      {col("TutorNet") && canSeeFinance() && (
+                        <td className="p-2 text-right">{fmt(r.TutorNet)}</td>
+                      )}
                       {col("net") && <td className="p-2 text-right">{fmt(r.net)}</td>}
                     </tr>
                   ))}
