@@ -64,43 +64,30 @@ export async function apiFetch(path, options = {}) {
 async function handleResponse(res) {
   if (!res || typeof res.ok !== "boolean") throw new Error("Invalid response");
 
-  // 401 → signal auth error + logout + redirect
+  // 401 handling without redirect
   if (res.status === 401) {
-    let code = "UNAUTHORIZED";
-    let message = "Unauthorized";
-
+    let data = null;
     try {
       const ct = res.headers?.get?.("content-type") || "";
       if (ct.includes("application/json") && res.json) {
-        const data = await res.json();
-        if (data && typeof data === "object") {
-          message = data.message || data.error || message;
-          if (typeof data.code === "string") {
-            code = data.code;
-          }
-        }
+        data = await res.json();
       }
     } catch {
-      // swallow parsing errors; fall back to defaults
+      data = null;
     }
 
-    const error = Object.assign(new Error(message), {
-      status: 401,
-      code,
-      authError: { status: 401, code, message },
-    });
-
-    // Global auth-error signal (for Header / useAuth to listen to)
     try {
-      document.dispatchEvent(
-        new CustomEvent("auth-error", { detail: error.authError })
-      );
+      localStorage.removeItem("auth");
+      localStorage.removeItem("token");
     } catch {
-      // ignore if document/CustomEvent not available
+      // ignore
     }
 
-    handleUnauthorizedRedirect();
-    throw error;
+    const msg =
+      (data && (data.error || data.message)) ||
+      "Session expired. Please log in again.";
+    // ⛔ no redirect here – caller decides what to do
+    throw new Error(msg);
   }
 
   let data = null;
