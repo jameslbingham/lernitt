@@ -34,11 +34,11 @@ function buildAuthResponse(user) {
 }
 
 // -----------------------------
-// Signup
+// Signup  (student or tutor)
 // -----------------------------
 router.post("/signup", async (req, res) => {
   try {
-    let { name, email, password, type } = req.body || {};
+    let { name, email, password, type, role } = req.body || {};
 
     if (!email || !password) {
       return res
@@ -56,16 +56,16 @@ router.post("/signup", async (req, res) => {
       name = email.split("@")[0] || "User";
     }
 
-    // Authoritative role decision from "type"
-    const signupType = String(type || "student").toLowerCase();
-    const role = signupType === "tutor" ? "tutor" : "student";
+    // Accept both "type" and "role" from the frontend
+    const signupType = String(type || role || "student").toLowerCase();
+    const resolvedRole = signupType === "tutor" ? "tutor" : "student";
 
     const user = new User({
       name,
       email,
-      password, // hashed by schema
-      role,
-      isTutor: role === "tutor",
+      password, // hashed by schema pre-save hook
+      role: resolvedRole,
+      isTutor: resolvedRole === "tutor",
       isAdmin: false,
     });
 
@@ -82,7 +82,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // -----------------------------
-// Login
+// Login  (supports legacy plain-text passwords)
 // -----------------------------
 router.post("/login", async (req, res) => {
   try {
@@ -98,7 +98,31 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "❌ User not found" });
     }
 
-    const ok = await user.comparePassword(password);
+    let ok = false;
+    const stored = user.password || "";
+    const isHash =
+      typeof stored === "string" && stored.startsWith("$2");
+
+    if (isHash) {
+      // Normal path: bcrypt hash compare
+      ok = await user.comparePassword(password);
+    } else {
+      // Legacy account: password was stored in plain text
+      ok = stored === password;
+      if (ok) {
+        // Migrate: re-save with hashing
+        user.password = password; // pre-save hook will hash
+        try {
+          await user.save();
+        } catch (mErr) {
+          console.error(
+            "Error migrating plain-text password to hash:",
+            mErr
+          );
+        }
+      }
+    }
+
     if (!ok) {
       return res.status(400).json({ error: "❌ Wrong password" });
     }
