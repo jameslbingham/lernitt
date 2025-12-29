@@ -42,6 +42,7 @@ export default function Signup() {
 
     try {
       if (MOCK) {
+        // MOCK: keep using the selected role directly
         login("mock-token", { email, role, name });
         nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup", {
           replace: true,
@@ -49,19 +50,42 @@ export default function Signup() {
         return;
       }
 
+      // ✅ LIVE: send both role and type for backward-compatibility
+      const payload = {
+        email,
+        password,
+        name,
+        role,        // new explicit role field
+        type: role,  // keep old field name so backend still works
+      };
+
       const data = await apiFetch(`${API}/api/auth/signup`, {
         method: "POST",
-        body: { email, password, name, type: role },
+        body: payload,
       });
 
       if (!data?.token || !data?.user) {
         throw new Error("Invalid signup response from server");
       }
 
-      login(data.token, data.user);
-      nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup", {
-        replace: true,
-      });
+      // ✅ Ensure the user object in auth state has the correct role
+      const serverUser = data.user || {};
+      const effectiveRole = serverUser.role || role; // fall back to selected role
+
+      const mergedUser = {
+        ...serverUser,
+        role: effectiveRole,
+      };
+
+      // useAuth supports login(token, user)
+      login(data.token, mergedUser);
+
+      nav(
+        effectiveRole === "tutor" ? "/tutor-profile-setup" : "/welcome-setup",
+        {
+          replace: true,
+        }
+      );
     } catch (e2) {
       setErr(e2?.message || "Signup failed");
     } finally {
