@@ -16,11 +16,27 @@ export default function Login() {
   const next = params.get("next") || "/";
   const reason = params.get("reason");
 
-  // ✅ NEW: role-based post-login routing
+  // ✅ NEW: role-based post-login routing (no /tutor loop)
   function afterLoginPath(u) {
-    if (u?.role === "admin") return "/admin";
-    if (u?.role === "tutor") return "/tutor";
-    return next || "/my-lessons";
+    const role = u?.role || "student";
+
+    // Admins always go to admin
+    if (role === "admin") return "/admin";
+
+    // Tutors can safely go to tutor routes
+    if (role === "tutor") {
+      if (next && next.startsWith("/tutor")) return next;
+      return "/tutor";
+    }
+
+    // Students: never send straight to /tutor,
+    // because that page is tutor-only and would bounce back.
+    if (next && !next.startsWith("/tutor")) {
+      return next;
+    }
+
+    // Safe default
+    return "/my-lessons";
   }
 
   const [email, setEmail] = useState("");
