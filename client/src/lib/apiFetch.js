@@ -113,7 +113,7 @@ async function handleResponse(res) {
       data = null;
     }
   } else {
-    // ✅ FIX: supports mock responses that are plain objects (no .text())
+    // supports mock responses that are plain objects (no .text())
     data = (await res.text?.()) || res;
   }
 
@@ -138,16 +138,26 @@ function pruneUndefined(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null));
 }
 
+// ✅ FIX: read token from combined "auth" key first, then fallback
 function safeGetToken() {
   try {
+    const raw = localStorage.getItem("auth");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.token === "string") {
+        return parsed.token;
+      }
+    }
     return localStorage.getItem("token") || "";
   } catch {
     return "";
   }
 }
 
+// ✅ FIX: clear *all* auth storage, including combined key
 function handleUnauthorizedRedirect() {
   try {
+    localStorage.removeItem("auth");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   } catch {}
