@@ -9,7 +9,7 @@ const MOCK = import.meta.env.VITE_MOCK === "1";
 
 export default function Login() {
   const nav = useNavigate();
-  const { login } = useAuth();
+  const { login, user, token } = useAuth();
 
   const { search } = useLocation();
   const params = new URLSearchParams(search);
@@ -38,6 +38,13 @@ export default function Login() {
     // Safe default
     return "/my-lessons";
   }
+
+  // 🔁 NEW: if we’re already logged in, don’t stay on /login
+  useEffect(() => {
+    if (token && user) {
+      nav(afterLoginPath(user), { replace: true });
+    }
+  }, [token, user, nav]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
