@@ -1,22 +1,23 @@
-// client/src/routes/ProtectedRoute.jsx
+// /client/src/routes/ProtectedRoute.jsx
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-export default function ProtectedRoute({ role }) {
-  const { token, user } = useAuth();
-  const loc = useLocation();
+/**
+ * Wraps all routes that require a logged-in user.
+ * If there is no token, redirect to /login?next=<current-path>.
+ */
+export default function ProtectedRoute() {
+  const { token } = useAuth();
+  const location = useLocation();
 
-  // ❌ No token → force login
+  // Not logged in → send to login with ?next=
   if (!token) {
-    const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
+    const next = encodeURIComponent(
+      `${location.pathname}${location.search || ""}`
+    );
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 
-  // 🔒 If route requires a role, check it
-  if (role && (!user || user.role !== role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  // ✅ Authenticated → allow access
+  // Logged in → render nested routes
   return <Outlet />;
 }
