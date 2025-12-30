@@ -9,45 +9,70 @@ const { Schema } = mongoose;
  *   stripeAccountId, payoutsEnabled, paypalEmail, isAdmin).
  * - Adds optional fields used by dashboards & payouts (role, isTutor, hourlyRate, languages,
  *   country, timezone, totals, lastLogin, verified).
+ * - Adds tutorStatus for approval flow (none | pending | approved | rejected).
  * - Adds password hashing + compare helper (safe: only hashes when password is modified).
  */
 
 const UserSchema = new Schema(
   {
     // ---- Existing required fields (kept) ----
-    name:     { type: String, required: true, trim: true },
-    email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
     password: { type: String, required: true },
 
     // ---- Existing tutor fields (kept) ----
-    bio:      { type: String },
+    bio: { type: String },
     subjects: [{ type: String }],
-    price:    { type: Number },           // you already had "price" for tutors
-    avatar:   { type: String },
+    price: { type: Number }, // you already had "price" for tutors
+    avatar: { type: String },
 
     // ---- Existing payout fields (kept) ----
     stripeAccountId: { type: String },
-    payoutsEnabled:  { type: Boolean, default: false },
-    paypalEmail:     { type: String },
+    payoutsEnabled: { type: Boolean, default: false },
+    paypalEmail: { type: String },
 
     // ---- Existing admin field (kept) ----
     isAdmin: { type: Boolean, default: false },
 
     // ---- New optional fields (added; do not break existing code) ----
-    role:       { type: String, enum: ["student", "tutor", "admin"], default: "student", index: true },
-    isTutor:    { type: Boolean, default: false },
-    hourlyRate: { type: Number, min: 0 },        // complements your existing "price"
-    languages:  [{ type: String, trim: true }],
-    country:    { type: String, trim: true },
-    timezone:   { type: String, trim: true },
+    role: {
+      type: String,
+      enum: ["student", "tutor", "admin"],
+      default: "student",
+      index: true,
+    },
+    isTutor: { type: Boolean, default: false },
+
+    // NEW: tutor approval status
+    // "none"    → normal student
+    // "pending" → applied as tutor, waiting for admin review
+    // "approved"→ tutor visible in search, can accept bookings
+    // "rejected"→ application rejected (can re-apply later if you want)
+    tutorStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+      index: true,
+    },
+
+    hourlyRate: { type: Number, min: 0 }, // complements your existing "price"
+    languages: [{ type: String, trim: true }],
+    country: { type: String, trim: true },
+    timezone: { type: String, trim: true },
 
     // Aggregates for dashboards (optional, can be maintained by jobs/hooks)
     totalEarnings: { type: Number, default: 0 },
-    totalLessons:  { type: Number, default: 0 },
+    totalLessons: { type: Number, default: 0 },
 
     // Account meta
     lastLogin: { type: Date },
-    verified:  { type: Boolean, default: false },
+    verified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -56,6 +81,7 @@ const UserSchema = new Schema(
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isTutor: 1 });
+UserSchema.index({ tutorStatus: 1 });
 
 /* ------------------------- Password helpers ------------------------ */
 // Only hash if the password field has been modified (safe for existing users)
@@ -83,6 +109,7 @@ UserSchema.methods.summary = function () {
     role: this.role,
     isTutor: this.isTutor,
     isAdmin: this.isAdmin,
+    tutorStatus: this.tutorStatus, // ✅ include for dashboards / UI
     country: this.country,
     timezone: this.timezone,
     totalLessons: this.totalLessons,
