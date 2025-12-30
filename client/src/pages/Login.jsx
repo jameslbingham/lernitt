@@ -4,47 +4,53 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-const API = import.meta.env.VITE_API || "http://localhost:5000";
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
 export default function Login() {
   const nav = useNavigate();
-  const { login, user, token } = useAuth();
+  const { login } = useAuth();
 
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const next = params.get("next") || "/";
   const reason = params.get("reason");
 
-  // ✅ NEW: role-based post-login routing (no /tutor loop)
+  // URL-driven defaults
+  const initialMode =
+    params.get("mode") === "signup" ? "signup" : "login";
+  const urlType =
+    params.get("type") === "tutor" ? "tutor" : "student";
+
+  // ✅ Role-based post-login routing (safe, no /login loops)
   function afterLoginPath(u) {
     const role = u?.role || "student";
+    const safeNext =
+      next &&
+      !next.startsWith("/login") &&
+      !next.startsWith("/signup")
+        ? next
+        : null;
 
-    // Admins always go to admin
-    if (role === "admin") return "/admin";
+    // Admin
+    if (role === "admin") {
+      return safeNext || "/admin";
+    }
 
-    // Tutors can safely go to tutor routes
+    // Tutor
     if (role === "tutor") {
-      if (next && next.startsWith("/tutor")) return next;
-      return "/tutor";
+      if (safeNext) return safeNext;
+      // default tutor destination: profile setup
+      return "/tutor-profile-setup";
     }
 
-    // Students: never send straight to /tutor,
-    // because that page is tutor-only and would bounce back.
-    if (next && !next.startsWith("/tutor")) {
-      return next;
+    // Student
+    if (safeNext && !safeNext.startsWith("/tutor")) {
+      return safeNext;
     }
 
-    // Safe default
-    return "/my-lessons";
+    // Default student landing
+    return "/welcome-setup";
   }
-
-  // 🔁 NEW: if we’re already logged in, don’t stay on /login
-  useEffect(() => {
-    if (token && user) {
-      nav(afterLoginPath(user), { replace: true });
-    }
-  }, [token, user, nav]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,7 +59,8 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [mode, setMode] = useState(initialMode); // "login" | "signup"
+  const [signupType, setSignupType] = useState(urlType); // "student" | "tutor"
 
   useEffect(() => {
     try {
@@ -88,15 +95,19 @@ export default function Login() {
         return nav(afterLoginPath({ role }), { replace: true });
       }
 
-      // SIGNUP MODE (student only)
+      // SIGNUP MODE
       if (mode === "signup") {
-        const data = await apiFetch(`${API}/api/auth/signup`, {
+        const baseName = email.split("@")[0] || "User";
+        const signupRole = signupType === "tutor" ? "tutor" : "student";
+
+        const data = await apiFetch("/api/auth/signup", {
           method: "POST",
           body: {
             email,
             password,
-            name: email.split("@")[0] || "User",
-            role: "student",
+            name: baseName,
+            // ✅ Backend expects "type", not "role"
+            type: signupRole,
           },
         });
 
@@ -109,7 +120,7 @@ export default function Login() {
       }
 
       // LOGIN MODE
-      const data = await apiFetch(`${API}/api/auth/login`, {
+      const data = await apiFetch("/api/auth/login", {
         method: "POST",
         body: { email, password },
       });
@@ -118,7 +129,7 @@ export default function Login() {
         throw new Error("Login failed");
       }
 
-      // 🔐 Force this email to be admin
+      // Special-case forced admin, as before
       if (data.user.email === "jameslbingham@yahoo.com") {
         data.user.role = "admin";
       }
@@ -142,6 +153,8 @@ export default function Login() {
 
   const errorText = err ? `Sign-in problem: ${err}` : "";
 
+  const isTutorSignup = mode === "signup" && signupType === "tutor";
+
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <main className="mx-auto max-w-md px-4 pt-20 pb-20 space-y-8">
@@ -157,12 +170,18 @@ export default function Login() {
           </div>
 
           <h1 className="text-3xl font-extrabold">
-            {mode === "login" ? "Welcome back" : "Create your account"}
+            {mode === "login"
+              ? "Welcome back"
+              : isTutorSignup
+              ? "Create your tutor account"
+              : "Create your account"}
           </h1>
 
           <p className="text-sm opacity-80">
             {mode === "login"
               ? "Sign in to manage your lessons, bookings, and tutor settings."
+              : isTutorSignup
+              ? "Create a Lernitt tutor account so students can find, book, and pay you."
               : "Create a Lernitt account to book tutors and manage your lessons."}
           </p>
 
@@ -175,8 +194,37 @@ export default function Login() {
 
         <section className="rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm space-y-6">
           <div className="text-xs opacity-70">
-            After signing in you’ll return to: <code>{comingFrom}</code>
+            After signing {mode === "login" ? "in" : "up"} you’ll return to:{" "}
+            <code>{comingFrom}</code>
           </div>
+
+          {mode === "signup" && (
+            <div className="text-xs flex gap-3 items-center">
+              <span className="opacity-70">I want to:</span>
+              <button
+                type="button"
+                onClick={() => setSignupType("student")}
+                className={
+                  signupType === "student"
+                    ? "px-2 py-1 rounded-full border bg-indigo-600 text-white text-xs"
+                    : "px-2 py-1 rounded-full border text-xs"
+                }
+              >
+                Learn
+              </button>
+              <button
+                type="button"
+                onClick={() => setSignupType("tutor")}
+                className={
+                  signupType === "tutor"
+                    ? "px-2 py-1 rounded-full border bg-indigo-600 text-white text-xs"
+                    : "px-2 py-1 rounded-full border text-xs"
+                }
+              >
+                Teach & earn
+              </button>
+            </div>
+          )}
 
           {errorText && (
             <div
@@ -236,7 +284,13 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => {
-                  setMode(mode === "login" ? "signup" : "login");
+                  if (mode === "login") {
+                    setMode("signup");
+                    // default to student when toggling from login
+                    setSignupType(urlType || "student");
+                  } else {
+                    setMode("login");
+                  }
                   setErr("");
                 }}
                 className="ml-auto text-indigo-600 underline"
