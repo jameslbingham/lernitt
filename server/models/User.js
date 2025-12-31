@@ -9,7 +9,7 @@ const { Schema } = mongoose;
  *   stripeAccountId, payoutsEnabled, paypalEmail, isAdmin).
  * - Adds optional fields used by dashboards & payouts (role, isTutor, hourlyRate, languages,
  *   country, timezone, totals, lastLogin, verified).
- * - Adds tutorStatus for approval flow (none | pending | approved | rejected).
+ * - Adds tutorStatus for tutor approval flow.
  * - Adds password hashing + compare helper (safe: only hashes when password is modified).
  */
 
@@ -49,11 +49,7 @@ const UserSchema = new Schema(
     },
     isTutor: { type: Boolean, default: false },
 
-    // NEW: tutor approval status
-    // "none"    → normal student
-    // "pending" → applied as tutor, waiting for admin review
-    // "approved"→ tutor visible in search, can accept bookings
-    // "rejected"→ application rejected (can re-apply later if you want)
+    // 👇 NEW: tutor approval status
     tutorStatus: {
       type: String,
       enum: ["none", "pending", "approved", "rejected"],
@@ -81,6 +77,7 @@ const UserSchema = new Schema(
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isTutor: 1 });
+// 👇 NEW index so we can quickly query pending/approved tutors
 UserSchema.index({ tutorStatus: 1 });
 
 /* ------------------------- Password helpers ------------------------ */
@@ -109,11 +106,12 @@ UserSchema.methods.summary = function () {
     role: this.role,
     isTutor: this.isTutor,
     isAdmin: this.isAdmin,
-    tutorStatus: this.tutorStatus, // ✅ include for dashboards / UI
     country: this.country,
     timezone: this.timezone,
     totalLessons: this.totalLessons,
     totalEarnings: this.totalEarnings,
+    // 👇 NEW: surface tutorStatus in summaries if needed
+    tutorStatus: this.tutorStatus || "none",
   };
 };
 
