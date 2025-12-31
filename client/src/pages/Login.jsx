@@ -106,8 +106,10 @@ export default function Login() {
             email,
             password,
             name: baseName,
-            // ✅ Backend expects "type", not "role"
+            // ✅ Backend historically expects "type"
             type: signupRole,
+            // ✅ New explicit role field (kept in sync)
+            role: signupRole,
           },
         });
 
@@ -115,8 +117,18 @@ export default function Login() {
           throw new Error("Signup failed");
         }
 
-        login(data.token, data.user);
-        return nav(afterLoginPath(data.user), { replace: true });
+        // ✅ Normalise user so we ALWAYS have a role
+        const serverUser = data.user || {};
+        const effectiveRole =
+          serverUser.role || serverUser.type || signupRole;
+
+        const mergedUser = {
+          ...serverUser,
+          role: effectiveRole,
+        };
+
+        login(data.token, mergedUser);
+        return nav(afterLoginPath(mergedUser), { replace: true });
       }
 
       // LOGIN MODE
@@ -132,10 +144,21 @@ export default function Login() {
       // Special-case forced admin, as before
       if (data.user.email === "jameslbingham@yahoo.com") {
         data.user.role = "admin";
+        data.user.type = "admin";
       }
 
-      login(data.token, data.user);
-      nav(afterLoginPath(data.user), { replace: true });
+      // ✅ Normalise user so we ALWAYS have a role
+      const serverUser = data.user || {};
+      const effectiveRole =
+        serverUser.role || serverUser.type || "student";
+
+      const mergedUser = {
+        ...serverUser,
+        role: effectiveRole,
+      };
+
+      login(data.token, mergedUser);
+      nav(afterLoginPath(mergedUser), { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Error");
     } finally {
