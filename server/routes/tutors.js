@@ -5,6 +5,17 @@ const User = require("../models/User"); // User model
 
 const router = express.Router();
 
+// Helper: match only visible tutors
+// - isTutor: true
+// - tutorStatus: "approved" OR field missing (legacy tutors)
+const visibleTutorMatch = {
+  isTutor: true,
+  $or: [
+    { tutorStatus: "approved" },
+    { tutorStatus: { $exists: false } },
+  ],
+};
+
 /**
  * GET /api/tutors
  * List tutors ONLY with avgRating and reviewsCount
@@ -12,8 +23,8 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const tutors = await User.aggregate([
-      // ✅ ONLY tutors
-      { $match: { isTutor: true } },
+      // ✅ ONLY visible tutors
+      { $match: visibleTutorMatch },
 
       {
         $lookup: {
@@ -49,8 +60,8 @@ router.get("/:id", async (req, res) => {
     const id = new mongoose.Types.ObjectId(req.params.id);
 
     const result = await User.aggregate([
-      // ✅ MUST be tutor
-      { $match: { _id: id, isTutor: true } },
+      // ✅ MUST be visible tutor
+      { $match: { ...visibleTutorMatch, _id: id } },
 
       {
         $lookup: {
