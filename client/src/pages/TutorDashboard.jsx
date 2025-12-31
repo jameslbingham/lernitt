@@ -181,8 +181,7 @@ function AvailabilityPanel() {
         <button
           onClick={async () => {
             const date = document.getElementById("excDate").value;
-            const open =
-              document.getElementById("excOpen").value === "true";
+            const open = document.getElementById("excOpen").value === "true";
             if (!date) return alert("Select a date first!");
             try {
               await apiFetch("/api/availability/exceptions", {
@@ -213,13 +212,10 @@ function AvailabilityPanel() {
               {e.date}: {e.open ? "Open" : "Closed"}{" "}
               <button
                 onClick={async () => {
-                  await apiFetch(
-                    `/api/availability/exceptions/${e.date}`,
-                    {
-                      method: "DELETE",
-                      headers: { Authorization: `Bearer ${token}` },
-                    }
-                  );
+                  await apiFetch(`/api/availability/exceptions/${e.date}`, {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
                   alert("🗑️ Exception removed");
                   await load();
                 }}
@@ -473,9 +469,7 @@ function TutorOnboardingPanel() {
         <li style={{ marginBottom: 6 }}>
           Set weekly availability so students can book time slots.
         </li>
-        <li>
-          Check your hourly rate and review payouts and earnings.
-        </li>
+        <li>Check your hourly rate and review payouts and earnings.</li>
       </ol>
 
       <div
@@ -516,14 +510,9 @@ export default function TutorDashboard() {
   const [unread, setUnread] = useState(null);
   const [err, setErr] = useState("");
 
-  // ✅ NEW: derive tutorStatus for messaging / gating
-  const tutorStatus =
-    user?.tutorStatus ||
-    (user?.role === "tutor" ? "pending" : "none");
-
-  const isTutorPending = tutorStatus === "pending";
-  const isTutorRejected = tutorStatus === "rejected";
-  const isTutorApproved = tutorStatus === "approved";
+  // derive tutorStatus for banner logic
+  const tutorStatus = user?.tutorStatus || user?.status || null;
+  const isRejectedTutor = user?.role === "tutor" && tutorStatus === "rejected";
 
   useEffect(() => {
     async function load() {
@@ -591,63 +580,35 @@ export default function TutorDashboard() {
         </Link>
       </div>
 
-      {/* ✅ NEW: tutor status banner */}
-      {user?.role === "tutor" && (
-        <div style={{ marginBottom: 16 }}>
-          {isTutorPending && (
-            <div
-              style={{
-                borderRadius: 12,
-                padding: 12,
-                background: "#fef9c3",
-                border: "1px solid #facc15",
-                fontSize: 14,
-              }}
-            >
-              <strong>Status: awaiting approval.</strong>{" "}
-              Your tutor profile is <b>pending review</b> by Lernitt
-              admin. You can finish your profile and availability now.
-              Students will see and book you once you are approved.
-            </div>
-          )}
-
-          {isTutorApproved && (
-            <div
-              style={{
-                borderRadius: 12,
-                padding: 12,
-                background: "#ecfdf3",
-                border: "1px solid #4ade80",
-                fontSize: 14,
-              }}
-            >
-              <strong>Status: approved.</strong>{" "}
-              Your tutor profile is live and can appear in search and
-              bookings.
-            </div>
-          )}
-
-          {isTutorRejected && (
-            <div
-              style={{
-                borderRadius: 12,
-                padding: 12,
-                background: "#fee2e2",
-                border: "1px solid #fca5a5",
-                fontSize: 14,
-              }}
-            >
-              <strong>Status: not approved.</strong>{" "}
-              Your tutor application has been marked as{" "}
-              <b>rejected</b>. You won&apos;t appear to students.
-              Please contact support if you believe this is an error.
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Onboarding checklist */}
       <TutorOnboardingPanel />
+
+      {/* Rejected tutor message */}
+      {isRejectedTutor && (
+        <section className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 space-y-2">
+          <h2 className="text-base font-semibold">
+            Your tutor profile wasn&apos;t approved
+          </h2>
+          <p>
+            Our team reviewed your tutor profile and it{" "}
+            <strong>wasn&apos;t approved for public listings</strong> yet.
+            Students can&apos;t currently find or book you on Lernitt.
+          </p>
+          <p>
+            Please review your profile details (headline, bio, experience,
+            pricing) and make sure they:
+          </p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Clearly explain who you teach and how you help</li>
+            <li>Show your qualifications and experience</li>
+            <li>Use clear, professional English</li>
+          </ul>
+          <p>
+            When you&apos;re ready, update your profile and{" "}
+            <strong>contact support to request another review</strong>.
+          </p>
+        </section>
+      )}
 
       {/* Primary availability CTA */}
       <div
@@ -664,8 +625,6 @@ export default function TutorDashboard() {
         </div>
         <div style={{ marginTop: 6, opacity: 0.95 }}>
           Students can’t book lessons until you choose your times.
-          {isTutorPending &&
-            " Once your account is approved, these times will be visible to students."}
         </div>
 
         <div style={{ marginTop: 12 }}>
@@ -689,9 +648,7 @@ export default function TutorDashboard() {
 
       <p>Welcome! This page shows your lessons, students, and earnings.</p>
 
-      {err && (
-        <div style={{ background: "#fee2e2", padding: 8 }}>{err}</div>
-      )}
+      {err && <div style={{ background: "#fee2e2", padding: 8 }}>{err}</div>}
 
       <section style={{ marginTop: 24 }}>
         <h2>Today</h2>
@@ -709,9 +666,6 @@ export default function TutorDashboard() {
 
       <div style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>
         Logged in as {user?.email}
-        {user?.role === "tutor" && tutorStatus
-          ? ` • tutorStatus: ${tutorStatus}`
-          : ""}
       </div>
     </div>
   );
