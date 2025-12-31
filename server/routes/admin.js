@@ -10,7 +10,9 @@ const Dispute = require('../models/Dispute');
 async function isAdmin(req, res, next) {
   try {
     const me = await User.findById(req.user.id).select('isAdmin');
-    if (!me || !me.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    if (!me || !me.isAdmin) {
+      return res.status(403).json({ error: 'Admin only' });
+    }
     next();
   } catch {
     return res.status(401).json({ error: 'Auth error' });
@@ -30,7 +32,10 @@ router.get('/users', auth, isAdmin, async (req, res) => {
 // GET /api/admin/lessons
 router.get('/lessons', auth, isAdmin, async (req, res) => {
   try {
-    const lessons = await Lesson.find().populate('student tutor', 'name email');
+    const lessons = await Lesson.find().populate(
+      'student tutor',
+      'name email'
+    );
     res.json(lessons);
   } catch {
     res.status(500).json({ error: 'Server error' });
@@ -56,7 +61,9 @@ router.get('/disputes/:id', auth, isAdmin, async (req, res) => {
     const dispute = await Dispute.findById(req.params.id)
       .populate('user', 'name email')
       .populate('lesson', 'subject startTime endTime status');
-    if (!dispute) return res.status(404).json({ error: 'Dispute not found' });
+    if (!dispute) {
+      return res.status(404).json({ error: 'Dispute not found' });
+    }
     res.json(dispute);
   } catch {
     res.status(500).json({ error: 'Server error' });
@@ -80,7 +87,9 @@ router.patch('/disputes/:id/status', auth, isAdmin, async (req, res) => {
       .populate('user', 'name email')
       .populate('lesson', 'subject startTime endTime status');
 
-    if (!dispute) return res.status(404).json({ error: 'Dispute not found' });
+    if (!dispute) {
+      return res.status(404).json({ error: 'Dispute not found' });
+    }
 
     res.json(dispute);
   } catch (e) {
@@ -93,7 +102,9 @@ router.patch('/disputes/:id/status', auth, isAdmin, async (req, res) => {
 router.delete('/disputes/:id', auth, isAdmin, async (req, res) => {
   try {
     const deleted = await Dispute.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Dispute not found' });
+    if (!deleted) {
+      return res.status(404).json({ error: 'Dispute not found' });
+    }
     res.json({ ok: true, id: req.params.id });
   } catch {
     res.status(500).json({ error: 'Server error' });
@@ -105,23 +116,84 @@ router.delete('/disputes/:id', auth, isAdmin, async (req, res) => {
    ================================ */
 // PATCH /api/admin/lessons/:id/reschedule
 // Body: { status: "approved" | "denied" }
-router.patch('/lessons/:id/reschedule', auth, isAdmin, async (req, res) => {
+router.patch(
+  '/lessons/:id/reschedule',
+  auth,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { status } = req.body || {};
+      if (!['approved', 'denied'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const lesson = await Lesson.findByIdAndUpdate(
+        req.params.id,
+        { $set: { rescheduleStatus: status } },
+        { new: true }
+      ).populate('student tutor', 'name email');
+
+      if (!lesson) {
+        return res.status(404).json({ error: 'Lesson not found' });
+      }
+      res.json(lesson);
+    } catch (e) {
+      console.error('[ADMIN][LESSON][RESCHEDULE] error=', e);
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+);
+
+/* ================================
+   NEW: Tutor approval workflow
+   ================================ */
+
+// GET /api/admin/tutors?status=pending|approved|rejected|none
+router.get('/tutors', auth, isAdmin, async (req, res) => {
+  try {
+    const { status } = req.query || {};
+    const match = { isTutor: true };
+
+    const allowed = ['pending', 'approved', 'rejected', 'none'];
+    if (status && allowed.includes(status)) {
+      match.tutorStatus = status;
+    }
+
+    const tutors = await User.find(match).select(
+      'name email role isTutor tutorStatus subjects languages hourlyRate price createdAt'
+    );
+
+    res.json(tutors);
+  } catch (e) {
+    console.error('[ADMIN][TUTORS][LIST] error=', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH /api/admin/tutors/:id/status
+// Body: { status: "pending" | "approved" | "rejected" | "none" }
+router.patch('/tutors/:id/status', auth, isAdmin, async (req, res) => {
   try {
     const { status } = req.body || {};
-    if (!['approved', 'denied'].includes(status)) {
+    const allowed = ['pending', 'approved', 'rejected', 'none'];
+
+    if (!allowed.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    const lesson = await Lesson.findByIdAndUpdate(
+    const tutor = await User.findByIdAndUpdate(
       req.params.id,
-      { $set: { rescheduleStatus: status } },
+      { $set: { tutorStatus: status } },
       { new: true }
-    ).populate('student tutor', 'name email');
+    ).select('name email role isTutor tutorStatus');
 
-    if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
-    res.json(lesson);
+    if (!tutor || !tutor.isTutor) {
+      return res.status(404).json({ error: 'Tutor not found' });
+    }
+
+    res.json(tutor);
   } catch (e) {
-    console.error('[ADMIN][LESSON][RESCHEDULE] error=', e);
+    console.error('[ADMIN][TUTORS][STATUS] error=', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
