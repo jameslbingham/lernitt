@@ -516,6 +516,15 @@ export default function TutorDashboard() {
   const [unread, setUnread] = useState(null);
   const [err, setErr] = useState("");
 
+  // ✅ NEW: derive tutorStatus for messaging / gating
+  const tutorStatus =
+    user?.tutorStatus ||
+    (user?.role === "tutor" ? "pending" : "none");
+
+  const isTutorPending = tutorStatus === "pending";
+  const isTutorRejected = tutorStatus === "rejected";
+  const isTutorApproved = tutorStatus === "approved";
+
   useEffect(() => {
     async function load() {
       setErr("");
@@ -582,6 +591,61 @@ export default function TutorDashboard() {
         </Link>
       </div>
 
+      {/* ✅ NEW: tutor status banner */}
+      {user?.role === "tutor" && (
+        <div style={{ marginBottom: 16 }}>
+          {isTutorPending && (
+            <div
+              style={{
+                borderRadius: 12,
+                padding: 12,
+                background: "#fef9c3",
+                border: "1px solid #facc15",
+                fontSize: 14,
+              }}
+            >
+              <strong>Status: awaiting approval.</strong>{" "}
+              Your tutor profile is <b>pending review</b> by Lernitt
+              admin. You can finish your profile and availability now.
+              Students will see and book you once you are approved.
+            </div>
+          )}
+
+          {isTutorApproved && (
+            <div
+              style={{
+                borderRadius: 12,
+                padding: 12,
+                background: "#ecfdf3",
+                border: "1px solid #4ade80",
+                fontSize: 14,
+              }}
+            >
+              <strong>Status: approved.</strong>{" "}
+              Your tutor profile is live and can appear in search and
+              bookings.
+            </div>
+          )}
+
+          {isTutorRejected && (
+            <div
+              style={{
+                borderRadius: 12,
+                padding: 12,
+                background: "#fee2e2",
+                border: "1px solid #fca5a5",
+                fontSize: 14,
+              }}
+            >
+              <strong>Status: not approved.</strong>{" "}
+              Your tutor application has been marked as{" "}
+              <b>rejected</b>. You won&apos;t appear to students.
+              Please contact support if you believe this is an error.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Onboarding checklist */}
       <TutorOnboardingPanel />
 
@@ -600,6 +664,8 @@ export default function TutorDashboard() {
         </div>
         <div style={{ marginTop: 6, opacity: 0.95 }}>
           Students can’t book lessons until you choose your times.
+          {isTutorPending &&
+            " Once your account is approved, these times will be visible to students."}
         </div>
 
         <div style={{ marginTop: 12 }}>
@@ -643,6 +709,9 @@ export default function TutorDashboard() {
 
       <div style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>
         Logged in as {user?.email}
+        {user?.role === "tutor" && tutorStatus
+          ? ` • tutorStatus: ${tutorStatus}`
+          : ""}
       </div>
     </div>
   );
