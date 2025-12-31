@@ -132,7 +132,7 @@ async function getJSON(url, opts = {}) {
   } catch {
     // (MOCK FALLBACKS)
     if (url === "/api/admin/users") return { items: [/* ...mock... */] };
-    if (url === "/api/tutors") return { items: [/* ...mock... */] };
+    if (url === "/api/admin/tutors") return { items: [/* ...mock... */] };
     if (url === "/api/lessons") return { items: [/* ...mock... */] };
     if (url === "/api/payouts") return { items: [/* ...mock... */] };
     if (url === "/api/refunds") return { items: [/* ...mock... */] };
@@ -317,7 +317,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
     setPage(1);
   }, [tab]);
 
-  // Fetch rows for current tab
+  // Fetch rows for current tab (original effect)
   useEffect(() => {
     if (
       tab === "Finance" ||
@@ -335,7 +335,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
 
     let url = "";
     if (tab === "Users") url = "/api/admin/users";
-    if (tab === "Tutors") url = "/api/tutors";
+    if (tab === "Tutors") url = "/api/admin/tutors"; // ✅ use admin tutors API
     if (tab === "Lessons") url = "/api/lessons";
     if (tab === "Payouts") url = "/api/payouts";
     if (tab === "Refunds") url = "/api/refunds";
@@ -374,6 +374,8 @@ export default function AdminDashboard({ initialTab = "users" }) {
      ======================================================================== */
 
   function renderActions(row) {
+    const tutorStatus = row.tutorStatus || row.status || "pending";
+
     return (
       <div className="space-x-1">
         <Btn
@@ -417,7 +419,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
         {/* Tutors */}
         {tab === "Tutors" && (
           <>
-            {row.status === "pending" && (
+            {tutorStatus === "pending" && (
               <>
                 <Btn
                   onClick={() => handleApproveTutor(row)}
@@ -436,10 +438,10 @@ export default function AdminDashboard({ initialTab = "users" }) {
               </>
             )}
 
-            {row.status === "approved" && (
+            {tutorStatus === "approved" && (
               <Badge color="green">Approved</Badge>
             )}
-            {row.status === "rejected" && (
+            {tutorStatus === "rejected" && (
               <Badge color="red">Rejected</Badge>
             )}
           </>
@@ -565,11 +567,40 @@ export default function AdminDashboard({ initialTab = "users" }) {
   }
 
   // Tutors
-  function handleApproveTutor(row) {
-    updateRowOverride("Tutors", row.id, { status: "approved" }, setRows);
+  async function handleApproveTutor(row) {
+    try {
+      await safeFetchJSON(`/api/admin/tutors/${row.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      });
+    } catch {
+      // ignore network errors; still update local view
+    }
+    updateRowOverride(
+      "Tutors",
+      row.id,
+      { tutorStatus: "approved", status: "approved" },
+      setRows
+    );
   }
-  function handleRejectTutor(row) {
-    updateRowOverride("Tutors", row.id, { status: "rejected" }, setRows);
+
+  async function handleRejectTutor(row) {
+    try {
+      await safeFetchJSON(`/api/admin/tutors/${row.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
+    } catch {
+      // ignore network errors; still update local view
+    }
+    updateRowOverride(
+      "Tutors",
+      row.id,
+      { tutorStatus: "rejected", status: "rejected" },
+      setRows
+    );
   }
 
   // Lessons — reschedule handling
@@ -694,10 +725,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
   }
 
   /* ========================================================================
-     MAIN ADMIN UI — HEADER + TABS
-     ======================================================================== */
-
-  /* ========================================================================
      REFACTORED: ADMIN TAB DATA LOADER (original logic moved here)
      ======================================================================== */
 
@@ -717,10 +744,10 @@ export default function AdminDashboard({ initialTab = "users" }) {
       return;
     }
 
-    // Original URL resolution
+    // Original URL resolution (keep in sync with first effect)
     let url = "";
     if (tab === "Users") url = "/api/admin/users";
-    if (tab === "Tutors") url = "/api/tutors";
+    if (tab === "Tutors") url = "/api/admin/tutors"; // ✅ admin tutors API
     if (tab === "Lessons") url = "/api/lessons";
     if (tab === "Payouts") url = "/api/payouts";
     if (tab === "Refunds") url = "/api/refunds";
@@ -729,7 +756,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
 
     setLoading(true);
 
-    // EXACT original logic
     getJSON(url).then((data) => {
       const arr = Array.isArray(data?.items)
         ? data.items
@@ -743,43 +769,22 @@ export default function AdminDashboard({ initialTab = "users" }) {
     });
   }
 
-  /* ========================================================================
-     ORIGINAL useEffect — now calls loadAdminTabData()
-     ======================================================================== */
-
+  /* ORIGINAL useEffect — now calls loadAdminTabData() */
   useEffect(() => {
     loadAdminTabData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  /* ========================================================================
-     5-SECOND AUTO-REFRESH — **LESSONS TAB ONLY**
-     ======================================================================== */
-
+  /* 5-SECOND AUTO-REFRESH — LESSONS TAB ONLY */
   useEffect(() => {
-    if (tab !== "Lessons") return; // refresh ONLY the Lessons tab
+    if (tab !== "Lessons") return;
 
     const id = setInterval(() => {
-      loadAdminTabData(); // safe refresh
+      loadAdminTabData();
     }, 5000);
 
     return () => clearInterval(id);
   }, [tab]);
-
-  /* ========================================================================
-     RESET filters/sort/page when tab changes
-     ======================================================================== */
-
-  useEffect(() => {
-    setFilterValue("");
-    setSort({ key: null, dir: "asc" });
-    setSelected([]);
-    setQuery("");
-  }, [tab]);
-
-  useEffect(() => {
-    setSelected([]);
-    setPage(1);
-  }, [filterValue, query]);
 
   /* ========================================================================
      FILTERED / SORTED / SEARCHED ROWS
@@ -797,9 +802,14 @@ export default function AdminDashboard({ initialTab = "users" }) {
     if (filterValue) {
       arr = arr.filter((r) => {
         if (tab === "Users") return r.role === filterValue;
+        if (tab === "Tutors") {
+          const st = r.tutorStatus || r.status || "pending";
+          return st === filterValue;
+        }
         if (tab === "Payouts") return r.status === filterValue;
         if (tab === "Refunds") return r.status === filterValue;
-        if (tab === "Disputes") return (r.status || "open") === filterValue;
+        if (tab === "Disputes")
+          return (r.status || "open") === filterValue;
         return true;
       });
     }
@@ -978,328 +988,6 @@ export default function AdminDashboard({ initialTab = "users" }) {
   }, [activeCols, tab]);
 
   /* ========================================================================
-     ACTION RENDERER
-     ======================================================================== */
-
-  function renderActions(row) {
-    return (
-      <div className="space-x-1">
-        <Btn
-          onClick={() =>
-            setDetailsRow(detailsRow?.id === row.id ? null : row)
-          }
-          title="View"
-        >
-          {detailsRow?.id === row.id ? "Hide" : "View"}
-        </Btn>
-
-        {/* Users */}
-        {tab === "Users" && (
-          <>
-            <Select
-              value={row.role}
-              onChange={(e) =>
-                handleChangeUserRole(row, e.target.value)
-              }
-              className="text-xs"
-            >
-              <option value="student">Student</option>
-              <option value="tutor">Tutor</option>
-              <option value="admin">Admin</option>
-            </Select>
-            <Btn
-              onClick={() => handleToggleSuspend(row)}
-              className="text-xs"
-            >
-              {row.suspended ? "Unsuspend" : "Suspend"}
-            </Btn>
-            <Btn
-              onClick={() => handleToggleVerify(row)}
-              className="text-xs"
-            >
-              {row.verified ? "Unverify" : "Verify"}
-            </Btn>
-          </>
-        )}
-
-        {/* Tutors */}
-        {tab === "Tutors" && (
-          <>
-            {row.status === "pending" && (
-              <>
-                <Btn
-                  onClick={() => handleApproveTutor(row)}
-                  className="text-xs"
-                  kind="success"
-                >
-                  Approve
-                </Btn>
-                <Btn
-                  onClick={() => handleRejectTutor(row)}
-                  className="text-xs"
-                  kind="danger"
-                >
-                  Reject
-                </Btn>
-              </>
-            )}
-
-            {row.status === "approved" && (
-              <Badge color="green">Approved</Badge>
-            )}
-            {row.status === "rejected" && (
-              <Badge color="red">Rejected</Badge>
-            )}
-          </>
-        )}
-
-        {/* Lessons — reschedule */}
-        {tab === "Lessons" && row.rescheduleRequested && !row.rescheduleStatus && (
-          <>
-            <Btn
-              onClick={() => handleReschedule(row, "approved")}
-              className="text-xs"
-              kind="success"
-            >
-              Approve
-            </Btn>
-            <Btn
-              onClick={() => handleReschedule(row, "denied")}
-              className="text-xs"
-              kind="danger"
-            >
-              Deny
-            </Btn>
-            <Badge color="yellow">reschedule pending</Badge>
-          </>
-        )}
-
-        {/* Lessons — reschedule result */}
-        {tab === "Lessons" && row.rescheduleStatus && (
-          <Badge
-            color={
-              row.rescheduleStatus === "approved"
-                ? "green"
-                : "red"
-            }
-          >
-            {row.rescheduleStatus}
-          </Badge>
-        )}
-
-        {/* Disputes */}
-        {tab === "Disputes" &&
-          (row.status === "open" || !row.status) && (
-            <>
-              <Btn
-                onClick={() =>
-                  handleDisputeStatus(
-                    row,
-                    "resolved",
-                    "Resolved by admin"
-                  )
-                }
-                className="text-xs"
-                kind="success"
-              >
-                Resolve
-              </Btn>
-              <Btn
-                onClick={() =>
-                  handleDisputeStatus(
-                    row,
-                    "rejected",
-                    "Rejected by admin"
-                  )
-                }
-                className="text-xs"
-                kind="danger"
-              >
-                Reject
-              </Btn>
-              <Badge color="yellow">open</Badge>
-            </>
-          )}
-
-        {tab === "Disputes" &&
-          row.status &&
-          row.status !== "open" && (
-            <Badge
-              color={
-                row.status === "resolved"
-                  ? "green"
-                  : "red"
-              }
-            >
-              {row.status}
-            </Badge>
-          )}
-
-        {/* Notifications */}
-        {tab === "Notifications" && (
-          <>
-            <Btn
-              onClick={() => handleResendNotification(row.id)}
-              className="text-xs"
-              kind="info"
-            >
-              Resend
-            </Btn>
-            <Btn
-              onClick={() => handleDeleteNotification(row.id)}
-              className="text-xs"
-              kind="danger"
-            >
-              Delete
-            </Btn>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // Users
-  function handleChangeUserRole(row, newRole) {
-    updateRowOverride("Users", row.id, { role: newRole }, setRows);
-  }
-  function handleToggleSuspend(row) {
-    const next = !row.suspended;
-    updateRowOverride("Users", row.id, { suspended: next }, setRows);
-  }
-  function handleToggleVerify(row) {
-    updateRowOverride("Users", row.id, { verified: !row.verified }, setRows);
-  }
-
-  // Tutors
-  function handleApproveTutor(row) {
-    updateRowOverride("Tutors", row.id, { status: "approved" }, setRows);
-  }
-  function handleRejectTutor(row) {
-    updateRowOverride("Tutors", row.id, { status: "rejected" }, setRows);
-  }
-
-  // Lessons — reschedule handling
-  async function handleReschedule(row, status) {
-    try {
-      await safeFetchJSON(`/api/admin/lessons/${row.id}/reschedule`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-    } catch {}
-    updateRowOverride("Lessons", row.id, { rescheduleStatus: status }, setRows);
-  }
-
-  // Disputes
-  async function handleDisputeStatus(row, status, resolution = "") {
-    try {
-      await safeFetchJSON(`/api/admin/disputes/${row.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, resolution }),
-      });
-    } catch {}
-    updateRowOverride("Disputes", row.id, { status, resolution }, setRows);
-  }
-
-  // Notifications: broadcast
-  async function handleBroadcast() {
-    if (!broadcast.title.trim() || !broadcast.message.trim()) return;
-    setSending(true);
-    try {
-      await safeFetchJSON("/api/notifications/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(broadcast),
-      });
-    } catch {
-    } finally {
-      const synthetic = {
-        id: `N${Date.now()}`,
-        userId: "*",
-        type: "broadcast",
-        title: broadcast.title.trim(),
-        message: broadcast.message.trim(),
-        read: false,
-        createdAt: new Date().toISOString(),
-        audience: broadcast.audience,
-      };
-      if (tab === "Notifications") setRows((prev) => [synthetic, ...prev]);
-      setBroadcast({ title: "", message: "", audience: "all" });
-      setSending(false);
-    }
-  }
-
-  // Notifications: custom send
-  async function handleCustomSend() {
-    if (!custom.title.trim() || !custom.message.trim()) return;
-    const ids = custom.userIds.split(",").map((s) => s.trim()).filter(Boolean);
-    if (ids.length === 0) return;
-
-    setSending(true);
-    try {
-      await safeFetchJSON("/api/notifications/custom", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: custom.title.trim(),
-          message: custom.message.trim(),
-          userIds: ids,
-        }),
-      });
-    } catch {
-    } finally {
-      setCustom({ title: "", message: "", userIds: "" });
-      setSending(false);
-    }
-  }
-
-  async function handleDeleteNotification(id) {
-    confirm({
-      title: "Delete notification",
-      msg: "Are you sure you want to delete this notification?",
-      onConfirm: async () => {
-        try {
-          await safeFetchJSON(`/api/notifications/${id}`, {
-            method: "DELETE",
-          });
-        } catch {}
-        setRows((rs) => rs.filter((r) => r.id !== id));
-      },
-    });
-  }
-
-  async function handleResendNotification(id) {
-    try {
-      await safeFetchJSON(`/api/notifications/${id}/resend`, {
-        method: "POST",
-      });
-      setRows((rs) =>
-        rs.map((r) =>
-          r.id === id ? { ...r, resentAt: new Date().toISOString() } : r
-        )
-      );
-    } catch {}
-  }
-
-  /* ========================================================================
-     ADMIN ROLE GUARD
-     ======================================================================== */
-
-  if (role !== "admin") {
-    return (
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="mb-4 p-4 rounded-xl bg-yellow-100 border border-yellow-300">
-          <b>Admin only.</b>
-          In mock mode, set <code>localStorage.user</code> to {"{ role: 'admin' }"}
-          or add <code>?admin=1</code> to the URL.
-        </div>
-        <Link to="/">Go home</Link>
-      </div>
-    );
-  }
-
-  /* ========================================================================
      MAIN ADMIN UI — HEADER + TABS
      ======================================================================== */
 
@@ -1405,6 +1093,22 @@ export default function AdminDashboard({ initialTab = "users" }) {
                       <option value="student">Student</option>
                       <option value="tutor">Tutor</option>
                       <option value="admin">Admin</option>
+                    </Select>
+                    <Btn onClick={() => setFilterValue("")}>Reset</Btn>
+                  </>
+                )}
+
+                {tab === "Tutors" && (
+                  <>
+                    <Select
+                      value={filterValue}
+                      onChange={(e) => setFilterValue(e.target.value)}
+                      aria-label="Filter tutors by status"
+                    >
+                      <option value="">All tutors</option>
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
                     </Select>
                     <Btn onClick={() => setFilterValue("")}>Reset</Btn>
                   </>
@@ -1534,14 +1238,22 @@ export default function AdminDashboard({ initialTab = "users" }) {
                 <div className="px-3 py-2 border rounded-2xl bg-white text-sm">
                   recordings ready:{" "}
                   <span className="font-semibold">
-                    {filtered.filter((r) => r.recordingStatus === "available").length}
+                    {
+                      filtered.filter(
+                        (r) => r.recordingStatus === "available"
+                      ).length
+                    }
                   </span>
                 </div>
 
                 <div className="px-3 py-2 border rounded-2xl bg-white text-sm">
                   recordings processing:{" "}
                   <span className="font-semibold">
-                    {filtered.filter((r) => r.recordingStatus === "processing").length}
+                    {
+                      filtered.filter(
+                        (r) => r.recordingStatus === "processing"
+                      ).length
+                    }
                   </span>
                 </div>
               </>
@@ -1553,7 +1265,9 @@ export default function AdminDashboard({ initialTab = "users" }) {
             {loading ? (
               <div className="p-6">Loading {tab}…</div>
             ) : pageRows.length === 0 ? (
-              <div className="p-6 text-gray-600">No {tab.toLowerCase()} found.</div>
+              <div className="p-6 text-gray-600">
+                No {tab.toLowerCase()} found.
+              </div>
             ) : (
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-100">
@@ -1656,7 +1370,9 @@ export default function AdminDashboard({ initialTab = "users" }) {
 
                             return (
                               <td key={k} className="px-3 py-2 border-b">
-                                <Badge color={color}>{formatCell(val)}</Badge>
+                                <Badge color={color}>
+                                  {formatCell(val)}
+                                </Badge>
                               </td>
                             );
                           }
@@ -1862,7 +1578,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
           </div>
 
           <div className="text-xs text-gray-500 mt-3">
-            Endpoints: /api/admin/users, /api/tutors, /api/lessons,
+            Endpoints: /api/admin/users, /api/admin/tutors, /api/lessons,
             /api/payouts, /api/refunds, /api/notifications,
             /api/admin/disputes.
           </div>
@@ -1872,4 +1588,64 @@ export default function AdminDashboard({ initialTab = "users" }) {
       {ConfirmUI}
     </div>
   );
+}
+
+/* small helpers at bottom (unchanged from your existing file) */
+
+function flatten(obj, prefix = "", out = {}) {
+  if (!obj || typeof obj !== "object") return out;
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      flatten(v, key, out);
+    } else {
+      out[key] = v;
+    }
+  }
+  if (obj.id != null && out.id == null) out.id = obj.id;
+  if (obj._id != null && out.id == null) out.id = obj._id;
+  return out;
+}
+
+function formatCell(v) {
+  if (v == null) return "";
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    if (v.length > 80) return v.slice(0, 77) + "…";
+    return v;
+  }
+  if (Array.isArray(v)) return v.join(", ");
+  return JSON.stringify(v);
+}
+
+function exportToCSV(rows, filename) {
+  if (!rows || !rows.length) return;
+  const flat = rows.map((r) => flatten(r));
+  const cols = Object.keys(flat[0]);
+  const header = cols.join(",");
+  const data = flat
+    .map((r) =>
+      cols
+        .map((c) => {
+          const raw = r[c];
+          if (raw == null) return "";
+          const s = String(raw).replace(/"/g, '""');
+          if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+            return `"${s}"`;
+          }
+          return s;
+        })
+        .join(",")
+    )
+    .join("\n");
+
+  const csv = [header, data].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "export.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
