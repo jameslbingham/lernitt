@@ -1,4 +1,4 @@
-//client/src/pages/AdminDashboard.jsx
+// client/src/pages/AdminDashboard.jsx
 // =====================================================================================================================
 // LERNITT — ADMIN DASHBOARD (MOCK + REAL READY)
 // ---------------------------------------------------------------------------------------------------------------------
@@ -132,6 +132,7 @@ async function getJSON(url, opts = {}) {
   } catch {
     // (MOCK FALLBACKS)
     if (url === "/api/admin/users") return { items: [/* ...mock... */] };
+    if (url === "/api/tutors") return { items: [/* ...mock... */] };
     if (url === "/api/admin/tutors") return { items: [/* ...mock... */] };
     if (url === "/api/lessons") return { items: [/* ...mock... */] };
     if (url === "/api/payouts") return { items: [/* ...mock... */] };
@@ -485,7 +486,8 @@ export default function AdminDashboard({ initialTab = "users" }) {
 
         {/* Disputes */}
         {tab === "Disputes" &&
-          (row.status === "open" || !row.status) && (
+          row.status &&
+          row.status === "open" && (
             <>
               <Btn
                 onClick={() =>
