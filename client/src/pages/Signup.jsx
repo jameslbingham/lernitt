@@ -44,9 +44,12 @@ export default function Signup() {
       if (MOCK) {
         // MOCK: keep using the selected role directly
         login("mock-token", { email, role, name });
-        nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup", {
-          replace: true,
-        });
+        nav(
+          role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup",
+          {
+            replace: true,
+          }
+        );
         return;
       }
 
@@ -55,8 +58,8 @@ export default function Signup() {
         email,
         password,
         name,
-        role,        // new explicit role field
-        type: role,  // keep old field name so backend still works
+        role, // explicit role field
+        type: role, // old field name so backend still works
       };
 
       const data = await apiFetch(`${API}/api/auth/signup`, {
@@ -68,20 +71,27 @@ export default function Signup() {
         throw new Error("Invalid signup response from server");
       }
 
-      // ✅ Ensure the user object in auth state has the correct role
+      // ✅ Ensure the user object in auth state has the correct role + tutorStatus
       const serverUser = data.user || {};
       const effectiveRole = serverUser.role || role; // fall back to selected role
+
+      const effectiveTutorStatus =
+        serverUser.tutorStatus ||
+        (effectiveRole === "tutor" ? "pending" : "none");
 
       const mergedUser = {
         ...serverUser,
         role: effectiveRole,
+        tutorStatus: effectiveTutorStatus,
       };
 
       // useAuth supports login(token, user)
       login(data.token, mergedUser);
 
       nav(
-        effectiveRole === "tutor" ? "/tutor-profile-setup" : "/welcome-setup",
+        effectiveRole === "tutor"
+          ? "/tutor-profile-setup"
+          : "/welcome-setup",
         {
           replace: true,
         }
@@ -114,8 +124,8 @@ export default function Signup() {
           </h2>
           <p className="text-sm leading-relaxed opacity-90">
             Lernitt was founded by a tutor with over{" "}
-            <strong>10 years of online teaching experience</strong>, thousands of
-            lessons taught, and real success helping students pass exams and
+            <strong>10 years of online teaching experience</strong>, thousands
+            of lessons taught, and real success helping students pass exams and
             land jobs.
           </p>
           <p className="text-sm leading-relaxed opacity-90">
@@ -242,7 +252,10 @@ export default function Signup() {
               />
               <span>
                 I agree to the{" "}
-                <Link to="/legal/terms" className="underline font-semibold">
+                <Link
+                  to="/legal/terms"
+                  className="underline font-semibold"
+                >
                   Terms
                 </Link>
               </span>
@@ -258,7 +271,10 @@ export default function Signup() {
               />
               <span>
                 I have read the{" "}
-                <Link to="/legal/privacy" className="underline font-semibold">
+                <Link
+                  to="/legal/privacy"
+                  className="underline font-semibold"
+                >
                   Privacy Policy
                 </Link>
               </span>
