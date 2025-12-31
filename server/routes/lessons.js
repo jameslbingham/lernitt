@@ -7,6 +7,7 @@ const { notify } = require('../utils/notify');
 const auth = require('../middleware/auth');
 const { canReschedule } = require('../utils/policies');
 const validateSlot = require("../utils/validateSlot");
+const User = require('../models/User'); // ✅ NEW: to check tutorStatus
 
 /* --------------------------
    Normalize old/legacy statuses
@@ -82,6 +83,20 @@ router.post('/', auth, async (req, res) => {
     console.log('[BOOK] body:', req.body);
 
     const { tutor, subject, startTime, endTime, price, currency, notes } = req.body;
+
+    // ✅ Guard: only approved tutors can be booked
+    const tutorUser = await User.findById(tutor).select('role tutorStatus');
+    if (!tutorUser) {
+      return res.status(404).json({ message: 'Tutor not found' });
+    }
+    if (tutorUser.role !== 'tutor') {
+      return res.status(400).json({ message: 'User is not a tutor' });
+    }
+    if (tutorUser.tutorStatus !== 'approved') {
+      return res.status(403).json({
+        message: 'This tutor is not approved for bookings yet',
+      });
+    }
 
     // trial logic
     const isTrial = req.body.isTrial === true;
