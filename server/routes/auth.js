@@ -29,6 +29,7 @@ function buildAuthResponse(user) {
       role: user.role || "student",
       isTutor: !!user.isTutor,
       isAdmin: !!user.isAdmin,
+      tutorStatus: user.tutorStatus || "none", // 👈 NEW
     },
   };
 }
@@ -38,7 +39,7 @@ function buildAuthResponse(user) {
 // -----------------------------
 router.post("/signup", async (req, res) => {
   try {
-    let { name, email, password, type, role } = req.body || {};
+    let { name, email, password, type } = req.body || {};
 
     if (!email || !password) {
       return res
@@ -56,16 +57,18 @@ router.post("/signup", async (req, res) => {
       name = email.split("@")[0] || "User";
     }
 
-    // Accept both "type" and "role" from the frontend
-    const signupType = String(type || role || "student").toLowerCase();
-    const resolvedRole = signupType === "tutor" ? "tutor" : "student";
+    // Decide if this signup is for a tutor
+    const signupType = String(type || "student").toLowerCase();
+    const isTutorSignup = signupType === "tutor";
+    const role = isTutorSignup ? "tutor" : "student";
 
     const user = new User({
       name,
       email,
-      password, // hashed by schema pre-save hook
-      role: resolvedRole,
-      isTutor: resolvedRole === "tutor",
+      password, // hashed by schema
+      role,
+      isTutor: isTutorSignup,
+      tutorStatus: isTutorSignup ? "pending" : "none", // 👈 NEW
       isAdmin: false,
     });
 
