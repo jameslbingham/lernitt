@@ -1,5 +1,6 @@
 // /server/routes/paypalWebhook.js
 const Payment = require('../models/Payment');
+const Lesson = require('../models/Lesson'); // ✅ ADDED: Required to update lesson status
 
 module.exports = async (req, res) => {
   // In dev/simulated mode we accept plain JSON (no signature verification)
@@ -29,6 +30,16 @@ module.exports = async (req, res) => {
         { status: 'succeeded' },
         { new: true }
       );
+
+      // ✅ ADDED: Update Lesson status so dashboard reflects payment
+      if (updated && updated.lesson) {
+        await Lesson.findByIdAndUpdate(updated.lesson, {
+          status: 'paid',
+          isPaid: true,
+          paidAt: new Date()
+        });
+      }
+
       console.log('PayPal succeeded:', orderId, '->', updated?._id || 'none');
     } else if (type === 'PAYMENT.CAPTURE.DENIED') {
       const updated = await Payment.findOneAndUpdate(
