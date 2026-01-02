@@ -84,6 +84,9 @@ export default function LessonEnded() {
     return <p style={{ padding: 20 }}>Loading lesson summary…</p>;
   }
 
+  // ✅ ADDED: Helper to extract tutor ID for review link
+  const tutorId = lesson?.tutor?._id || lesson?.tutor;
+
   return (
     <div
       style={{
@@ -178,9 +181,29 @@ export default function LessonEnded() {
             display: "flex",
             justifyContent: "flex-end",
             gap: 10,
+            flexWrap: "wrap"
           }}
         >
-          {/* NEW — View Recordings */}
+          {/* ✅ ADDED: Write Review Button (Student only) */}
+          {!isTutor && tutorId && (
+            <button
+              type="button"
+              onClick={() => navigate(`/tutors/${tutorId}?review=1`)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "none",
+                background: "#f59e0b",
+                color: "white",
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              Write Review
+            </button>
+          )}
+
+          {/* View Recordings */}
           <button
             type="button"
             onClick={() => navigate(`/lesson-recordings?lessonId=${lessonId}`)}
