@@ -34,12 +34,22 @@ async function dailyFetch(path, options = {}) {
   return data;
 }
 
-/* ---------------- CREATE ROOM ---------------- */
-router.post("/create-room", async (req, res) => {
+/* ---------------- CREATE ROOM (SECURED) ---------------- */
+// ✅ BUG FIX: Added 'auth' middleware to prevent public API abuse
+router.post("/create-room", auth, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
     if (!lessonId) {
       return res.status(400).json({ error: "lessonId is required" });
+    }
+
+    // ✅ SECURE: Verify user is part of this lesson before creating room
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+
+    const userId = String(req.user.id || req.user._id);
+    if (userId !== String(lesson.tutor) && userId !== String(lesson.student)) {
+      return res.status(403).json({ error: "Not allowed to create room for this lesson" });
     }
 
     const roomBody = {
@@ -113,7 +123,13 @@ router.post("/access-token", auth, async (req, res) => {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ error: "Lesson not found" });
 
-    const userId = String(req.user._id);
+    // ✅ SECURE: Only allow join if lesson is PAID, CONFIRMED, or COMPLETED (for playback)
+    const validStatuses = ["paid", "confirmed", "completed"];
+    if (!validStatuses.includes(lesson.status)) {
+      return res.status(403).json({ error: "You cannot join an unpaid or unconfirmed lesson." });
+    }
+
+    const userId = String(req.user.id || req.user._id);
     const isTutor = userId === String(lesson.tutor);
     const isStudent = userId === String(lesson.student);
 
@@ -175,7 +191,7 @@ router.post("/start-recording", auth, async (req, res) => {
 
     lesson.recordingActive = true;
     lesson.recordingId = recording.id || null;
-    lesson.recordingStartedBy = String(req.user._id);
+    lesson.recordingStartedBy = String(req.user.id || req.user._id);
     lesson.recordingStopVotes = { tutor: false, student: false };
     await lesson.save();
 
@@ -206,7 +222,7 @@ router.post("/request-stop-recording", auth, async (req, res) => {
     if (!lesson.recordingActive)
       return res.status(400).json({ error: "No active recording" });
 
-    const userId = String(req.user._id);
+    const userId = String(req.user.id || req.user._id);
     const isTutor = userId === String(lesson.tutor);
     const isStudent = userId === String(lesson.student);
 
@@ -247,7 +263,7 @@ router.post("/cancel-stop-vote", auth, async (req, res) => {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ error: "Lesson not found" });
 
-    const userId = String(req.user._id);
+    const userId = String(req.user.id || req.user._id);
     const isTutor = userId === String(lesson.tutor);
     const isStudent = userId === String(lesson.student);
 
@@ -346,7 +362,7 @@ router.get("/lesson-recordings", auth, async (req, res) => {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
-    const userId = String(req.user._id);
+    const userId = String(req.user.id || req.user._id);
     const isTutor = userId === String(lesson.tutor);
     const isStudent = userId === String(lesson.student);
     if (!isTutor && !isStudent) {
