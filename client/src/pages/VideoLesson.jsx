@@ -116,7 +116,7 @@ export default function VideoLesson() {
       try {
         const res = await fetch(`${API}/api/video/create-room`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ lessonId }),
         });
 
@@ -129,9 +129,8 @@ export default function VideoLesson() {
       }
     }
 
-    // Allow tutor and student to join directly
     loadRoom();
-  }, [lesson, hasStarted, isTutor, isStudent, lessonId, API]);
+  }, [lesson, hasStarted, isTutor, isStudent, lessonId, API, token]);
 
   /* ---------------------------------------------------------------
     3) DAILY CALL SETUP (JOIN WITH SECURE ACCESS TOKEN)
@@ -353,15 +352,12 @@ export default function VideoLesson() {
 
       const data = await res.json();
       if (data?.recordingState) {
-        const voteMine = false;
-        const voteTheirs = false;
-
         setRecordingState({
           active: true,
           id: data.recordingState.id || null,
           startedBy: data.recordingState.startedBy,
-          myVote: voteMine,
-          theirVote: voteTheirs,
+          myVote: false,
+          theirVote: false,
           stopVotes: data.recordingState.stopVotes,
         });
 
@@ -470,23 +466,21 @@ export default function VideoLesson() {
   }
 
   /* ---------------------------------------------------------------
-    12) AUTO-END TIMER
+    12) AUTO-END TIMER — FIXED REFRESH BUG
   ----------------------------------------------------------------*/
   useEffect(() => {
     if (!lesson || !roomUrl || timerStarted) return;
 
-    let mins = 0;
-    if (typeof lesson.durationMins === "number" && lesson.durationMins > 0) {
-      mins = lesson.durationMins;
-    } else if (lesson.startTime && lesson.endTime) {
-      const start = new Date(lesson.startTime);
-      const end = new Date(lesson.endTime);
-      mins = Math.max(0, Math.round((end - start) / 60000));
-    }
+    const scheduledEnd = lesson.endTime ? new Date(lesson.endTime) : null;
+    if (!scheduledEnd) return;
 
-    if (!mins) mins = 60;
+    // Calculate actual remaining seconds from NOW until SCHEDULED END
+    const calculateRemaining = () => {
+      const diffMs = scheduledEnd.getTime() - Date.now();
+      return Math.max(0, Math.floor(diffMs / 1000));
+    };
 
-    setTimeLeftSecs(mins * 60);
+    setTimeLeftSecs(calculateRemaining());
     setTimerStarted(true);
   }, [lesson, roomUrl, timerStarted]);
 
@@ -561,6 +555,11 @@ export default function VideoLesson() {
         }}
       >
         lernitt — Live Lesson
+        {timerStarted && timeLeftSecs !== null && (
+          <span style={{ marginLeft: "20px", fontWeight: "normal", fontSize: "14px" }}>
+            Time Remaining: {minutesLeft}:{secondsLeft < 10 ? `0${secondsLeft}` : secondsLeft}
+          </span>
+        )}
       </div>
 
       {/* MAIN */}
@@ -755,7 +754,7 @@ export default function VideoLesson() {
             Leave Lesson
           </button>
 
-          {/* VIEW RECORDINGS BUTTON (NEW) */}
+          {/* VIEW RECORDINGS BUTTON */}
           <button
             onClick={() =>
               navigate(`/lesson-recordings?lessonId=${lessonId}`)
