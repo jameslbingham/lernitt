@@ -186,6 +186,13 @@ export default function MyLessons() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  // ✅ ADDED: Live time state to refresh Join button visibility
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000); // refresh every 30s
+    return () => clearInterval(id);
+  }, []);
+
   // filters
   const [hidePast, setHidePast] = useState(false);
   const [onlyTrials, setOnlyTrials] = useState(false);
@@ -466,6 +473,12 @@ export default function MyLessons() {
 
             const isCompleted = status === "completed";
 
+            // ✅ NEW: 10-minute buffer logic for Join button
+            const startMs = start.getTime();
+            const joinBufferMs = 10 * 60 * 1000; // 10 minutes
+            const canJoin = (now >= startMs - joinBufferMs) && (now <= (end?.getTime() || 0)) && 
+                          (status === "confirmed" || status === "paid_waiting_tutor");
+
             return (
               <li key={l._id} className="border rounded-2xl p-3">
                 <Link
@@ -491,6 +504,16 @@ export default function MyLessons() {
                 </div>
 
                 <div className="mt-3 flex gap-2 flex-wrap">
+                  {/* ✅ NEW: Join Lesson Button with Buffer */}
+                  {canJoin && (
+                    <Link
+                      to={`/video-lesson?lessonId=${l._id}`}
+                      className="text-sm border px-3 py-1 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                    >
+                      Join Lesson
+                    </Link>
+                  )}
+
                   {canPay && (
                     <Link
                       to={`/pay/${encodeURIComponent(l._id)}`}
