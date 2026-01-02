@@ -511,20 +511,25 @@ export default function BookLesson() {
           </select>
         </label>
 
-        <label title="Trials are 30 minutes and free. Limits: max 3 total, 1 per tutor.">
-          <input
-            type="checkbox"
-            checked={trial && trialAllowed}
-            disabled={!trialAllowed}
-            onChange={(e) => setTrial(e.target.checked)}
-          />{" "}
-          Trial lesson (30 min, free)
-        </label>
+        {/* ✅ UPDATED: Added Trial checkbox guard for quota limits */}
+        {trialAllowed ? (
+          <label title="Trials are 30 minutes and free. Limits: max 3 total, 1 per tutor.">
+            <input
+              type="checkbox"
+              checked={trial}
+              onChange={(e) => setTrial(e.target.checked)}
+            />{" "}
+            Trial lesson (30 min, free)
+          </label>
+        ) : (
+          <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>
+            Trial limit reached for this account.
+          </div>
+        )}
 
         <div style={{ fontSize: 12, opacity: 0.85 }}>
           Trials used: {trialInfo.totalUsed}/{trialInfo.limitTotal} {"  •  "}
           This tutor: {trialInfo.usedWithTutor}/{trialInfo.limitPerTutor}
-          {!trialAllowed ? "  —  Trial limits reached" : ""}
         </div>
 
         <div style={{ fontSize: 12, opacity: 0.8 }}>
