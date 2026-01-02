@@ -65,11 +65,15 @@ function normalizeLesson(raw) {
   };
 }
 
+/* Apply expiry rule on top of translation — FIXED LOGIC */
 function deriveStatus(l) {
-  const started = new Date(l.start).getTime() <= Date.now();
+  const now = Date.now();
+  const startMs = new Date(l.start).getTime();
+  const durationMs = (l.duration || 0) * 60000;
+  const ended = now > (startMs + durationMs);
   const translated = translateStatus(l.status);
 
-  if (started && !["completed", "cancelled", "expired"].includes(translated)) {
+  if (ended && !["completed", "cancelled", "expired"].includes(translated)) {
     return "expired";
   }
   return translated;
