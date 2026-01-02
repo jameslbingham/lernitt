@@ -140,6 +140,13 @@ export default function TutorLessons() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // ✅ ADDED: Live time state to refresh Join button visibility
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000); // refresh every 30s
+    return () => clearInterval(id);
+  }, []);
+
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const navigate = useNavigate();
 
@@ -309,6 +316,14 @@ export default function TutorLessons() {
               l.status
             );
 
+          // ✅ NEW: 10-minute early join buffer for Tutors
+          const startMs = start?.getTime() || 0;
+          const durationMs = (l.duration || 60) * 60 * 1000;
+          const endMs = startMs + durationMs;
+          const joinBufferMs = 10 * 60 * 1000; // 10 minutes
+          const canJoin = (now >= startMs - joinBufferMs) && (now <= endMs) && 
+                          (l.status === "confirmed" || l.status === "paid");
+
           return (
             <div
               key={l._id}
@@ -344,6 +359,22 @@ export default function TutorLessons() {
 
               {/* ACTION BUTTONS */}
               <div className="flex flex-wrap gap-2">
+                {/* ✅ NEW: Join/Enter Lesson Button with Buffer */}
+                {canJoin && (
+                  <button
+                    className="px-3 py-1 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                    onClick={() =>
+                      navigate(
+                        `/video-lesson?lessonId=${encodeURIComponent(
+                          l._id
+                        )}`
+                      )
+                    }
+                  >
+                    Enter lesson
+                  </button>
+                )}
+
                 {/* Student still needs to pay */}
                 {l.status === "booked" && (
                   <span className="px-3 py-1 text-xs opacity-70">
@@ -391,18 +422,15 @@ export default function TutorLessons() {
                 {/* Confirmed */}
                 {l.status === "confirmed" && (
                   <>
-                    <button
-                      className="px-3 py-1 rounded-2xl border hover:shadow-sm"
-                      onClick={() =>
-                        navigate(
-                          `/video-lesson?lessonId=${encodeURIComponent(
-                            l._id
-                          )}`
-                        )
-                      }
-                    >
-                      Enter lesson
-                    </button>
+                    {/* Only show duplicate "Enter" if buffer logic above is not active yet */}
+                    {!canJoin && (
+                      <button
+                        className="px-3 py-1 rounded-2xl border opacity-50 cursor-not-allowed"
+                        disabled
+                      >
+                        Enter lesson (Locked)
+                      </button>
+                    )}
                     <button
                       className="px-3 py-1 rounded-2xl border hover:shadow-sm"
                       onClick={() => onComplete(l._id)}
