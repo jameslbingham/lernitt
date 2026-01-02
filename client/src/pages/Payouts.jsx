@@ -204,6 +204,10 @@ export default function Payouts() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  // ✅ ADDED: Payout Setup State for PayPal choice
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const [setupSaving, setSetupSaving] = useState(false);
+
   // UI controls (original)
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
@@ -255,6 +259,10 @@ export default function Payouts() {
       const res = await apiFetch(`${API}/api/${endpoint}`, { auth: true });
       const data = Array.isArray(res) ? res : res?.data || [];
       setItems(data);
+
+      // ✅ ADDED: Fetch tutor details to pre-fill PayPal email field
+      const me = await apiFetch(`${API}/api/me`, { auth: true });
+      if (me?.paypalEmail) setPaypalEmail(me.paypalEmail);
     } catch (e) {
       setErr(e?.message || "Failed to load items");
     } finally {
@@ -266,6 +274,23 @@ export default function Payouts() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  // ✅ ADDED: Function to save Payout Method settings
+  async function onSaveSettings() {
+    setSetupSaving(true);
+    try {
+      await apiFetch(`${API}/api/profile`, {
+        method: "PUT",
+        auth: true,
+        body: { paypalEmail },
+      });
+      alert("Payout settings updated!");
+    } catch (e) {
+      alert("Failed to save settings: " + e.message);
+    } finally {
+      setSetupSaving(false);
+    }
+  }
 
   // Derived: filtering + pagination (original logic)
   const filtered = useMemo(() => {
@@ -323,7 +348,7 @@ export default function Payouts() {
   }, [page, totalPages]);
 
   /* ==========================================================================
-     ADMIN TOOLS (additive, collapsible)
+      ADMIN TOOLS (additive, collapsible)
   ========================================================================== */
 
   const [showAdmin, setShowAdmin] = useState(false);
@@ -573,7 +598,7 @@ export default function Payouts() {
   }
 
   /* ==========================================================================
-     UI SECTION — end-user payouts/refunds
+      UI SECTION — end-user payouts/refunds
   ========================================================================== */
 
   if (loading) {
@@ -672,6 +697,32 @@ export default function Payouts() {
           >
             Export CSV
           </button>
+        </div>
+      </div>
+
+      {/* ✅ ADDED: Payout Setup Card (Targeting dual-track preference) */}
+      <div className="border rounded-2xl p-4 bg-white shadow-sm">
+        <h2 className="text-lg font-semibold mb-2">Payout Method Settings</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium mb-1">PayPal Email Address</label>
+            <input 
+              className="w-full border rounded-xl px-3 py-2 text-sm"
+              placeholder="email@example.com"
+              value={paypalEmail}
+              onChange={(e) => setPaypalEmail(e.target.value)}
+            />
+            <p className="text-xs text-slate-500 mt-1">If empty, payouts will default to your Stripe bank account.</p>
+          </div>
+          <div className="flex items-end">
+            <button 
+              className="border px-4 py-2 rounded-2xl text-sm font-medium hover:bg-slate-50 transition disabled:opacity-60"
+              onClick={onSaveSettings}
+              disabled={setupSaving}
+            >
+              {setupSaving ? "Saving..." : "Save Payout Preference"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1296,9 +1347,3 @@ export default function Payouts() {
     </div>
   );
 }
-
-/* Developer notes:
-   - This version removes the illegal top-level hook usage and keeps
-     toast/confirm guarded via stubs so the page runs in all environments.
-   - No functions or UI were removed. End-user and admin features preserved.
-*/
