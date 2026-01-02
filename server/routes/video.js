@@ -332,8 +332,20 @@ router.post("/complete-lesson", auth, async (req, res) => {
       return res.status(404).json({ error: "Lesson not found" });
     }
 
+    // ✅ FIXED: Prevent marking as completed if it's already done
+    if (lesson.status === "completed") {
+      return res.json({ ok: true, message: "Already completed" });
+    }
+
     lesson.status = "completed";
     lesson.endTime = new Date();
+    
+    // ✅ NEW: Ensure we don't accidentally clear recording metadata
+    // before the webhook has a chance to finalize the file transfer.
+    if (lesson.recordingActive) {
+      console.log(`[Video] Lesson ${lessonId} completed while recording is still active.`);
+    }
+
     await lesson.save();
 
     return res.json({
