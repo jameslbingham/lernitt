@@ -22,19 +22,19 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (event.type === 'payment_intent.succeeded') {
-      const pi = event.data.object;
-      console.log('Webhook PI succeeded:', pi.id);
+    // ✅ NEW EVENT TYPE: Handles the "Checkout Session" success signal
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      console.log('Webhook Checkout Session succeeded:', session.id);
 
-      // Update Payment to succeeded
+      // Find the payment record using the Session ID we saved in payments.js
       const payment = await Payment.findOneAndUpdate(
-        { provider: 'stripe', 'providerIds.paymentIntentId': pi.id },
+        { provider: 'stripe', 'providerIds.checkoutSessionId': session.id },
         { status: 'succeeded' },
         { new: true }
       );
 
       if (payment && payment.lesson) {
-        // Update related Lesson lifecycle → paid
         const lesson = await Lesson.findById(payment.lesson);
         if (lesson) {
           lesson.status = 'paid';
@@ -42,19 +42,18 @@ module.exports = async (req, res) => {
           lesson.paidAt = new Date();
           lesson.payment = payment._id;
           await lesson.save();
+          console.log(`Lesson ${lesson._id} marked as PAID via Checkout Webhook`);
         }
       }
-    } else if (event.type === 'payment_intent.payment_failed') {
+    } 
+    // Keep support for standard Payment Intent failures if needed
+    else if (event.type === 'payment_intent.payment_failed') {
       const pi = event.data.object;
-      console.log('Webhook PI failed:', pi.id);
-
       await Payment.findOneAndUpdate(
         { provider: 'stripe', 'providerIds.paymentIntentId': pi.id },
         { status: 'failed' },
         { new: true }
       );
-    } else {
-      console.log('Stripe webhook: ignoring event type:', event.type);
     }
 
     return res.json({ received: true });
