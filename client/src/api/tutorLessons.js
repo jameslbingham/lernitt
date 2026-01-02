@@ -41,11 +41,11 @@ export async function tutorRejectBooking(id) {
 /* ================================================================
    ACTION: Approve reschedule request
    - Status: reschedule_requested → confirmed (new times)
-   - Backend: PATCH /api/reschedule/:id/approve
+   - ✅ FIXED: Route updated to match server/routes/lessons.js
 ================================================================ */
 export async function tutorApproveReschedule(id) {
   if (!id) throw new Error("Missing lessonId");
-  await apiFetch(`/api/reschedule/${encodeURIComponent(id)}/approve`, {
+  await apiFetch(`/api/lessons/${encodeURIComponent(id)}/reschedule-approve`, {
     method: "PATCH",
     auth: true,
   });
@@ -55,11 +55,11 @@ export async function tutorApproveReschedule(id) {
 /* ================================================================
    ACTION: Reject reschedule request
    - Status: reschedule_requested → confirmed (original time)
-   - Backend: PATCH /api/reschedule/:id/reject
+   - ✅ FIXED: Route updated to match server/routes/lessons.js
 ================================================================ */
 export async function tutorRejectReschedule(id) {
   if (!id) throw new Error("Missing lessonId");
-  await apiFetch(`/api/reschedule/${encodeURIComponent(id)}/reject`, {
+  await apiFetch(`/api/lessons/${encodeURIComponent(id)}/reschedule-reject`, {
     method: "PATCH",
     auth: true,
   });
