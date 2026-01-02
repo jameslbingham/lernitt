@@ -86,7 +86,7 @@ router.post('/', auth, async (req, res) => {
 
     // ✅ Guard: only approved tutors can be booked
     const tutorUser = await User.findById(tutor).select('role tutorStatus');
-    if (!tutorUser) {
+    if (! tutorUser) {
       return res.status(404).json({ message: 'Tutor not found' });
     }
     if (tutorUser.role !== 'tutor') {
@@ -192,7 +192,7 @@ router.get('/mine', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const l = await Lesson.findById(req.params.id).populate('tutor', '_id name');
-    if (!l) return res.status(404).json({ message: 'Not found' });
+    if (! l) return res.status(404).json({ message: 'Not found' });
     if (l.student.toString() !== req.user.id && l.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
     }
@@ -213,7 +213,7 @@ router.get('/:id', auth, async (req, res) => {
 router.patch('/:id/confirm', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     if (lesson.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
@@ -226,14 +226,14 @@ router.patch('/:id/confirm', auth, async (req, res) => {
     let paid = lesson.isPaid === true;
 
     if (lesson.isTrial) paid = true;
-    if (!lesson.isTrial && lesson.status === 'paid') paid = true;
+    if (! lesson.isTrial && lesson.status === 'paid') paid = true;
 
-    if (!paid) {
+    if (! paid) {
       const succeededPayment = await Payment.findOne({
         lesson: lesson._id,
         status: 'succeeded',
       }).lean();
-      if (!succeededPayment) {
+      if (! succeededPayment) {
         return res.status(400).json({ message: 'Lesson must be paid before confirmation' });
       }
 
@@ -266,7 +266,7 @@ router.patch('/:id/confirm', auth, async (req, res) => {
 router.patch('/:id/reject', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     if (lesson.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
@@ -306,19 +306,19 @@ router.patch('/:id/cancel', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     const isStudent = lesson.student.toString() === req.user.id;
     const isTutor = lesson.tutor.toString() === req.user.id;
-    if (!isStudent && !isTutor) return res.status(403).json({ message: 'Not allowed' });
+    if (! isStudent && ! isTutor) return res.status(403).json({ message: 'Not allowed' });
 
-    const within24h = !canReschedule(lesson);
+    const within24h = ! canReschedule(lesson);
 
     lesson.status = 'cancelled';
     lesson.cancelledAt = new Date();
     lesson.cancelledBy = isStudent ? 'student' : 'tutor';
     lesson.cancelReason = reason || (within24h ? 'late-cancel' : 'cancel');
-    lesson.reschedulable = !within24h;
+    lesson.reschedulable = ! within24h;
 
     await lesson.save();
 
@@ -352,11 +352,12 @@ router.patch('/:id/cancel', auth, async (req, res) => {
 
 /* ============================================
    Complete → completed
+   ✅ FIXED: Added 15% commission + dynamic Payout provider
    ============================================ */
 router.patch('/:id/complete', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     if (lesson.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
@@ -373,14 +374,21 @@ router.patch('/:id/complete', auth, async (req, res) => {
     lesson.status = 'completed';
     await lesson.save();
 
-    const amountCents = Math.round((lesson.price || 0) * 100);
-    if (!lesson.isTrial && amountCents > 0) {
+    // 💰 COMMISSION CALCULATION (85% to Tutor, 15% to Lernitt)
+    const rawAmountCents = Math.round((lesson.price || 0) * 100);
+    const tutorTakeHomeCents = Math.floor(rawAmountCents * 0.85);
+
+    if (! lesson.isTrial && tutorTakeHomeCents > 0) {
+      // 🏦 Find tutor to check their preferred payout method
+      const tutorUser = await User.findById(lesson.tutor);
+      const provider = tutorUser?.paypalEmail ? 'paypal' : 'stripe';
+
       await Payout.create({
         lesson: lesson._id,
         tutor: lesson.tutor,
-        amountCents,
+        amountCents: tutorTakeHomeCents,
         currency: lesson.currency || 'EUR',
-        provider: 'stripe',
+        provider,
         status: 'queued',
       });
     }
@@ -408,17 +416,17 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
   try {
     const { newStartTime, newEndTime } = req.body || {};
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     const isStudent = lesson.student.toString() === req.user.id;
     const isTutor = lesson.tutor.toString() === req.user.id;
-    if (!isStudent && !isTutor) return res.status(403).json({ message: 'Not allowed' });
+    if (! isStudent && ! isTutor) return res.status(403).json({ message: 'Not allowed' });
 
-    if (!canReschedule(lesson)) {
+    if (! canReschedule(lesson)) {
       return res.status(403).json({ message: 'Cannot reschedule within 24 hours.' });
     }
 
-    if (!newStartTime || !newEndTime) {
+    if (! newStartTime || ! newEndTime) {
       return res.status(400).json({ message: 'newStartTime and newEndTime required' });
     }
 
@@ -437,7 +445,7 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
       endISO: newEndTime,
       durMins,
     });
-    if (!chk.ok) return res.status(400).json({ error: `slot-invalid:${chk.reason}` });
+    if (! chk.ok) return res.status(400).json({ error: `slot-invalid:${chk.reason}` });
 
     const clash = await Lesson.findOne({
       tutor: lesson.tutor,
@@ -485,7 +493,7 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
 router.patch('/:id/reschedule-approve', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     if (lesson.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
@@ -495,7 +503,7 @@ router.patch('/:id/reschedule-approve', auth, async (req, res) => {
       return res.status(400).json({ message: 'No reschedule request to approve' });
     }
 
-    if (!lesson.pendingStartTime || !lesson.pendingEndTime) {
+    if (! lesson.pendingStartTime || ! lesson.pendingEndTime) {
       return res.status(400).json({ message: 'Missing pending reschedule times' });
     }
 
@@ -533,7 +541,7 @@ router.patch('/:id/reschedule-approve', auth, async (req, res) => {
 router.patch('/:id/reschedule-reject', auth, async (req, res) => {
   try {
     const lesson = await Lesson.findById(req.params.id);
-    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+    if (! lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     if (lesson.tutor.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not allowed' });
