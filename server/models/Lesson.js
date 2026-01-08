@@ -1,3 +1,8 @@
+// /server/models/Lesson.js
+// ======================================================================
+// FINAL COMPLETE LESSON MODEL — INCLUDING ALL PHASE F RECORDING FIELDS
+// ======================================================================
+
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -31,9 +36,7 @@ const LessonSchema = new Schema(
     // ---------------- META ----------------
     subject: { type: String, default: "" },
     price: { type: Number, default: 0 },
-    currency: { type: String, default: "USD" },
     isTrial: { type: Boolean, default: false },
-    notes: { type: String, default: "" },
 
     // ---------------- STATUS ----------------
     status: {
@@ -51,37 +54,47 @@ const LessonSchema = new Schema(
     },
 
     // ---------------- RESCHEDULING ----------------
-    pendingStartTime: { type: Date },
-    pendingEndTime: { type: Date },
-    rescheduleRequestedAt: { type: Date },
-    rescheduleRequestedBy: { type: String },
-    rescheduledAt: { type: Date },
-    reschedulable: { type: Boolean, default: true },
-    cancelledAt: { type: Date },
-    cancelledBy: { type: String },
-    cancelReason: { type: String },
+    rescheduleRequest: {
+      requested: { type: Boolean, default: false },
+      newStart: { type: Date },
+      reason: { type: String },
+    },
 
-    // ---------------- RECORDING SYSTEM (PHASE F) ----------------
+    // =====================================================================
+    //                           RECORDING SYSTEM (PHASE F)
+    // =====================================================================
+
+    // Recording is currently active?
     recordingActive: {
       type: Boolean,
       default: false,
     },
+
+    // Daily internal recording ID
     recordingId: {
       type: String,
       default: null,
     },
+
+    // Who started the recording
     recordingStartedBy: {
       type: String,
       default: null,
     },
+
+    // Tutor + student “stop requests”
     recordingStopVotes: {
       tutor: { type: Boolean, default: false },
       student: { type: Boolean, default: false },
     },
+
+    // Final downloadable URL (Supabase or Daily)
     recordingUrl: {
       type: String,
       default: null,
     },
+
+    // “available”, “error”, “no-participants”
     recordingStatus: {
       type: String,
       default: null,
@@ -93,7 +106,9 @@ const LessonSchema = new Schema(
   { timestamps: true }
 );
 
-// SUMMARY HELPER
+// ======================================================================
+// SUMMARY HELPER (used by complete-lesson)
+// ======================================================================
 LessonSchema.methods.summary = function () {
   return {
     id: this._id,
