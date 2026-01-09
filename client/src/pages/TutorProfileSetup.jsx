@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
+// --- REQUIRED FOR STORAGE ---
+import { supabase } from "../lib/supabaseClient"; 
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
 const MOCK = import.meta.env.VITE_MOCK === "1";
@@ -16,6 +18,11 @@ export default function TutorProfileSetup() {
   const [bio, setBio] = useState("");
   const [languages, setLanguages] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
+  
+  // --- NEW STATE FOR AVATAR ---
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -31,7 +38,7 @@ export default function TutorProfileSetup() {
     }
   }, [user, nav]);
 
-  // Try to load existing profile (safe if backend not ready)
+  // Try to load existing profile
   useEffect(() => {
     if (MOCK) return;
 
@@ -52,6 +59,8 @@ export default function TutorProfileSetup() {
         if (data.bio) setBio(data.bio);
         if (data.languages) setLanguages(data.languages);
         if (data.hourlyRate != null) setHourlyRate(String(data.hourlyRate));
+        // --- LOAD EXISTING AVATAR ---
+        if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
       } catch (e) {
         console.warn(
           "Tutor profile load failed (ok if not implemented yet):",
@@ -67,6 +76,38 @@ export default function TutorProfileSetup() {
       cancelled = true;
     };
   }, [API]);
+
+  // --- NEW: HANDLE AVATAR UPLOAD ---
+  async function handleFileUpload(e) {
+    try {
+      setUploading(true);
+      setErr("");
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Create a unique filename for the bucket
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload to your configured bucket
+      let { error: uploadError } = await supabase.storage
+        .from('tutor-avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Retrieve the public URL based on the SELECT policy
+      const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(filePath);
+      
+      setAvatarUrl(data.publicUrl);
+      setInfo("Profile photo uploaded successfully!");
+    } catch (error) {
+      setErr(error.message || "Failed to upload image.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -88,6 +129,8 @@ export default function TutorProfileSetup() {
         bio,
         languages,
         hourlyRate: hourlyRate ? Number(hourlyRate) : null,
+        // --- INCLUDE AVATAR IN PAYLOAD ---
+        avatarUrl, 
       };
 
       await apiFetch(`${API}/api/profile/tutor`, {
@@ -96,8 +139,6 @@ export default function TutorProfileSetup() {
       });
 
       setInfo("Your tutor profile has been saved.");
-      // Optional: go to tutor dashboard after save
-      // nav("/tutor", { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Could not save your profile.");
     } finally {
@@ -170,6 +211,47 @@ export default function TutorProfileSetup() {
       )}
 
       <form onSubmit={onSubmit}>
+        
+        {/* --- NEW AVATAR UPLOAD SECTION --- */}
+        <div style={{ 
+          marginBottom: 24, 
+          padding: 20, 
+          background: '#f9fafb', 
+          borderRadius: 12, 
+          border: '1px dashed #d1d5db',
+          textAlign: 'center' 
+        }}>
+          <div style={{ 
+            width: 100, 
+            height: 100, 
+            borderRadius: '50%', 
+            background: '#e5e7eb', 
+            margin: '0 auto 12px', 
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px solid white',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: 12, color: '#6b7280' }}>No Photo</span>
+            )}
+          </div>
+          <label style={{ cursor: 'pointer', color: '#4f46e5', fontWeight: 500, fontSize: 14 }}>
+            {uploading ? "Uploading..." : "Click to upload profile photo"}
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileUpload} 
+              disabled={uploading}
+              style={{ display: 'none' }} 
+            />
+          </label>
+        </div>
+
         {/* Display Name */}
         <label style={{ display: "block", marginBottom: 14 }}>
           Display name
@@ -266,7 +348,7 @@ export default function TutorProfileSetup() {
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || uploading}
           style={{
             padding: "10px 16px",
             borderRadius: 10,
@@ -274,7 +356,7 @@ export default function TutorProfileSetup() {
             background: "#4f46e5",
             color: "white",
             fontWeight: 600,
-            cursor: saving ? "not-allowed" : "pointer",
+            cursor: (saving || uploading) ? "not-allowed" : "pointer",
             minWidth: 140,
           }}
         >
