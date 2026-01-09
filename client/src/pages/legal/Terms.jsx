@@ -4,7 +4,7 @@ export default function Terms() {
   return (
     <div className="legal-page">
       <h1>Lernitt Terms and Conditions</h1>
-      <p>as at 11/12/25</p>
+      <p>as at 11/01/26</p>
 
       <h2>Table of Contents</h2>
       <p>1) GENERAL</p>
@@ -163,8 +163,19 @@ export default function Terms() {
       <h2>16) Accepting a Student’s Request to Teach</h2>
       <p>Tutors will receive lesson requests from students. A tutor may accept or decline any request. If no response is given within the request period, the request automatically expires. Once accepted, the tutor must deliver the lesson at the agreed date and time unless both parties agree otherwise.</p>
 
-      <h2>17) Cancelling Lesson Requests</h2>
-      <p>If a lesson request is cancelled by Lernitt, the tutor or the student for any reason, neither party nor Lernitt is liable for compensation beyond any refund expressly provided under these Terms.</p>
+      <h2>17) Cancellation and Rescheduling</h2>
+      <p>a) The 24-Hour Rule: To protect the livelihoods of our Tutors, Lernitt enforces a strict cancellation window.</p>
+      <ul>
+        <li>Cancellations with {">"}24 hours’ notice: Students may reschedule the lesson or receive a full refund in the form of Lernitt Wallet Credit.</li>
+        <li>Cancellations with {"<"}24 hours’ notice: Lessons are non-refundable and non-reschedulable. The full Lesson Fee will be forfeited to compensate the Tutor for their reserved time.</li>
+      </ul>
+      <p>b) Statutory Exceptions (Consumer Guarantees): Notwithstanding the 24-Hour Rule, under the Australian Consumer Law, you are entitled to a remedy (including a full cash refund) if a lesson suffers a “Major Failure.” This includes:</p>
+      <ul>
+        <li>The Tutor failing to attend the scheduled lesson (No-Show).</li>
+        <li>A technical failure of the Lernitt platform that prevents the lesson from occurring.</li>
+        <li>The service being substantially unfit for its purpose.</li>
+      </ul>
+      <p>c) Extenuating Circumstances: Lernitt may, at its sole discretion, waive cancellation fees in cases of documented emergencies or government-mandated restrictions (e.g., severe weather or public health orders).</p>
 
       <h2>18) Lesson Packages</h2>
       <p>a) Lesson packages remain valid for six months. After six months of inactivity, any unused balance will be released to the tutor minus Lernitt’s standard commission.</p>
@@ -222,31 +233,19 @@ export default function Terms() {
       <p>ii) Improperly filed claims may entitle Lernitt to recover legal costs.</p>
       <p>c) Contact Customer Service if anything in these Terms seems unclear.</p>
 
-      <h2>27) Payment Terms and Conditions</h2>
-      <p>a) Lernitt charges commissions from both Students and Tutors for each confirmed lesson.</p>
-      <p>b) Tutor commission is deducted before payout; student commission is added to the total price.</p>
-      <p>c) Tutors authorise Lernitt to receive and hold payments on their behalf until transfer.</p>
-      <p>d) Fees may change but will not affect already-booked lessons.</p>
-      <p>e) All users must have a verified Lernitt Account to send or receive payments.</p>
-      <p>f) Students pay via secure third-party methods (e.g., Stripe, PayPal).</p>
-      <p>g) Authorised payments are final. Unused lessons may be credited but not refunded to cash.</p>
-      <p>h) Third-party payment fees are outside our control.</p>
-      <p>i) Cancelled or expired lesson requests are refunded as wallet credit.</p>
-      <p>j) Package credits expire after six months.</p>
-      <p>k) Avoiding service fees (off-platform payments) is strictly prohibited.</p>
-      <p>l) Tutor payout fees charged by payment providers are the tutor’s responsibility.</p>
-      <p>m) We may delay or withhold funds if fraudulent activity is suspected.</p>
-      <p>n) Lernitt may reclaim funds for refunds or incorrect transactions.</p>
-      <p>o) We may round transactions to the nearest cent.</p>
-      <p>p) Tutors are solely responsible for taxes in their jurisdiction.</p>
-      <p>q) Credits are not bank deposits; Lernitt is not a financial institution.</p>
-      <p>r) Inactive-account credits expire after 12 months.</p>
-      <p>s) Currency fluctuations are at the user’s risk.</p>
-      <p>t) Lernitt may limit or void transactions to prevent fraud.</p>
-      <p>u) Interest earned on operational bank balances belongs exclusively to Lernitt.</p>
-      <p>v) Incorrect payments may be reversed or recovered.</p>
-      <p>w) “Friendly fraud” chargebacks are illegal and will result in account closure.</p>
-      <p>x) Users must comply with all laws and not engage in fraudulent or unauthorised activity.</p>
+      <h2>27) Payment and Refund Terms</h2>
+      <p>a) Payment Processing: All payments are processed securely via third-party providers (Stripe/PayPal). By booking, you authorise Lernitt to hold the Lesson Fee in escrow until the lesson is confirmed.</p>
+      <p>b) Refund Methods:</p>
+      <ul>
+        <li>Wallet Credits: Refunds for voluntary cancellations (Change of Mind) are issued as Lernitt Wallet Credits, which can be used for any future lesson on the platform.</li>
+        <li>Original Payment Method: If a refund is required due to a breach of a Consumer Guarantee (as defined in Section 17b), the refund will be returned to your original payment method (Credit Card/PayPal) within 5–10 business days.</li>
+      </ul>
+      <p>c) Unfair Contract Protection: Lernitt does not charge “penalty fees” for cancellations. All retained fees are a genuine pre-estimate of the loss suffered by the Tutor and the platform (Liquidated Damages).</p>
+      <p>d) Chargebacks: “Friendly fraud” or intentional chargebacks for services successfully rendered is a breach of these Terms. We reserve the right to recover the cost of the lesson and any associated legal or processing fees.</p>
+      <p>e) Commission: Lernitt charges commissions from both Students and Tutors for each confirmed lesson. Tutor commission is deducted before payout; student commission is added to the total price.</p>
+      <p>f) All users must have a verified Lernitt Account to send or receive payments.</p>
+      <p>g) Package credits expire after six months.</p>
+      <p>h) Inactive-account credits expire after 12 months.</p>
 
       <h2>28) Privacy</h2>
       <p>a) Lernitt respects your privacy and protects your personal data. By completing registration, you authorise Lernitt to use your data as needed to provide services.</p>
@@ -293,8 +292,8 @@ export default function Terms() {
       <h2>34) Notices</h2>
       <p>Any official notices from Lernitt will be sent by email or posted in your account. Emails sent to your registered address are deemed received within one business day.</p>
 
-      <h2>35) Controlling Law and Jurisdiction</h2>
-      <p>These Terms are governed by the laws of the Commonwealth of Australia. Any claim or action must be brought within 30 days of arising and will be subject to the exclusive jurisdiction of the courts of Victoria, Australia.</p>
+      <h2>35) Governing Law &amp; Claims</h2>
+      <p>These Terms are governed by the laws of Victoria, Australia. Any claim or dispute must be brought within the statutory limitation periods provided under Victorian law. We encourage users to file complaints via our Complaints Policy as soon as an issue arises to ensure a prompt resolution.</p>
 
       <h2>36) General</h2>
       <p>a) Failure to enforce any term does not waive our right to enforce it later.</p>
@@ -353,6 +352,7 @@ export default function Terms() {
       <p>f) Tutors grant Lernitt permission to use their public profiles or teaching content in marketing.</p>
       <p>g) Lernitt may record or review lessons if required for safety or dispute investigation.</p>
       <p>h) Either party may submit lesson recordings to authorities if criminal or inappropriate behaviour is suspected.</p>
+      <p>i) Consent to Recording: By entering a Lernitt virtual lesson room, you provide express, informed consent for the audio and visual recording of the session. These recordings are used solely for safety monitoring, dispute resolution, and student review. You acknowledge that you have the right to request access to these recordings as per our Privacy Policy.</p>
 
       <h2>45) Community Conduct Policy</h2>
       <p>a) Users must not post ads, spam, or impersonate others.</p>
