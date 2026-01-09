@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
-// --- REQUIRED FOR STORAGE ---
+// --- REQUIRED FOR STORAGE CONNECTION ---
 import { supabase } from "../lib/supabaseClient"; 
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
@@ -38,7 +38,7 @@ export default function TutorProfileSetup() {
     }
   }, [user, nav]);
 
-  // Try to load existing profile
+  // Try to load existing profile (safe if backend not ready)
   useEffect(() => {
     if (MOCK) return;
 
@@ -59,7 +59,7 @@ export default function TutorProfileSetup() {
         if (data.bio) setBio(data.bio);
         if (data.languages) setLanguages(data.languages);
         if (data.hourlyRate != null) setHourlyRate(String(data.hourlyRate));
-        // --- LOAD EXISTING AVATAR ---
+        // --- LOAD EXISTING AVATAR FROM DATABASE ---
         if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
       } catch (e) {
         console.warn(
@@ -77,7 +77,7 @@ export default function TutorProfileSetup() {
     };
   }, [API]);
 
-  // --- NEW: HANDLE AVATAR UPLOAD ---
+  // --- NEW: HANDLE AVATAR UPLOAD TO SUPABASE ---
   async function handleFileUpload(e) {
     try {
       setUploading(true);
@@ -90,7 +90,7 @@ export default function TutorProfileSetup() {
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload to your configured bucket
+      // Upload to the 'tutor-avatars' bucket
       let { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
         .upload(filePath, file);
@@ -129,7 +129,7 @@ export default function TutorProfileSetup() {
         bio,
         languages,
         hourlyRate: hourlyRate ? Number(hourlyRate) : null,
-        // --- INCLUDE AVATAR IN PAYLOAD ---
+        // --- INCLUDE AVATAR URL IN THE DATABASE UPDATE ---
         avatarUrl, 
       };
 
@@ -139,6 +139,8 @@ export default function TutorProfileSetup() {
       });
 
       setInfo("Your tutor profile has been saved.");
+      // Optional: go to tutor dashboard after save
+      // nav("/tutor", { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Could not save your profile.");
     } finally {
@@ -212,44 +214,53 @@ export default function TutorProfileSetup() {
 
       <form onSubmit={onSubmit}>
         
-        {/* --- NEW AVATAR UPLOAD SECTION --- */}
+        {/* --- BULLETPROOF AVATAR UPLOAD SECTION --- */}
         <div style={{ 
           marginBottom: 24, 
           padding: 20, 
-          background: '#f9fafb', 
+          background: '#f3f4f6', 
           borderRadius: 12, 
-          border: '1px dashed #d1d5db',
+          border: '2px solid #e5e7eb',
           textAlign: 'center' 
         }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>Profile Photo</h3>
+          
           <div style={{ 
-            width: 100, 
-            height: 100, 
+            width: 120, 
+            height: 120, 
             borderRadius: '50%', 
-            background: '#e5e7eb', 
-            margin: '0 auto 12px', 
+            background: '#d1d5db', 
+            margin: '0 auto 15px', 
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '2px solid white',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            border: '3px solid white',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
           }}>
             {avatarUrl ? (
               <img src={avatarUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <span style={{ fontSize: 12, color: '#6b7280' }}>No Photo</span>
+              <span style={{ fontSize: 14, color: '#4b5563' }}>No Image</span>
             )}
           </div>
-          <label style={{ cursor: 'pointer', color: '#4f46e5', fontWeight: 500, fontSize: 14 }}>
-            {uploading ? "Uploading..." : "Click to upload profile photo"}
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
             <input 
               type="file" 
               accept="image/*" 
               onChange={handleFileUpload} 
               disabled={uploading}
-              style={{ display: 'none' }} 
+              style={{ 
+                fontSize: '14px',
+                padding: '8px',
+                background: 'white',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db'
+              }} 
             />
-          </label>
+            {uploading && <p style={{ color: '#4f46e5', fontWeight: 'bold' }}>Uploading to Supabase...</p>}
+          </div>
         </div>
 
         {/* Display Name */}
