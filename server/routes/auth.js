@@ -3,7 +3,9 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const auth = require("../middleware/auth");
+
+// Fix: Destructure the auth function from the middleware object
+const { auth } = require("../middleware/auth");
 
 // Helper to build token + public user
 function buildAuthResponse(user) {
@@ -29,7 +31,7 @@ function buildAuthResponse(user) {
       role: user.role || "student",
       isTutor: !!user.isTutor,
       isAdmin: !!user.isAdmin,
-      tutorStatus: user.tutorStatus || "none", // 👈 NEW
+      tutorStatus: user.tutorStatus || "none",
     },
   };
 }
@@ -68,7 +70,7 @@ router.post("/signup", async (req, res) => {
       password, // hashed by schema
       role,
       isTutor: isTutorSignup,
-      tutorStatus: isTutorSignup ? "pending" : "none", // 👈 NEW
+      tutorStatus: isTutorSignup ? "pending" : "none",
       isAdmin: false,
     });
 
