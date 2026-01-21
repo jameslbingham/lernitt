@@ -41,12 +41,17 @@ app.use("/api/refunds", require("./routes/refunds"));
 app.use("/api/finance", require("./routes/finance"));
 app.use("/api/metrics", require("./routes/metrics"));
 app.use("/api/admin", require("./routes/admin"));
-app.use("/api/admin-payments", require("./routes/adminPayments"));
+
+// Amending Admin Payments route to match frontend api.js expectations
+app.use("/api/admin/payments", require("./routes/adminPayments"));
+
 app.use("/api/profile", require("./routes/profile"));
 app.use("/api/support", require("./routes/support"));
+
 // webhooks (no auth)
 app.use("/api/stripe/webhook", require("./routes/stripeWebhook"));
 app.use("/api/paypal/webhook", require("./routes/paypalWebhook"));
+
 // seed utilities (dev only)
 app.use("/api/seed", require("./routes/seed"));
 
