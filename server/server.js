@@ -4,6 +4,8 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+// Import our new security guards
+const { auth, isAdmin } = require("./middleware/auth");
 const videoWebhookRouter = require("./routes/videoWebhook");
 
 const app = express();
@@ -25,43 +27,39 @@ if (process.env.MONGODB_URI) {
     .catch((e) => console.error("❌ Mongo error:", e.message));
 }
 
-// Routes
+/* ------------------------------ Open Routes ------------------------------ */
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/tutors", require("./routes/tutors"));
-app.use("/api/lessons", require("./routes/lessons"));
-app.use("/api/tutor-lessons", require("./routes/tutorLessons"));
-app.use("/api/students", require("./routes/students"));
-app.use("/api/availability", require("./routes/availability"));
-app.use("/api/video", require("./routes/video"));
 app.use("/api/reviews", require("./routes/reviews"));
-app.use("/api/notifications", require("./routes/notifications"));
-app.use("/api/payments", require("./routes/payments"));
-app.use("/api/payouts", require("./routes/payouts"));
-app.use("/api/refunds", require("./routes/refunds"));
-app.use("/api/finance", require("./routes/finance"));
-app.use("/api/metrics", require("./routes/metrics"));
-app.use("/api/admin", require("./routes/admin"));
 
-// Amending Admin Payments route to match frontend api.js expectations
-app.use("/api/admin/payments", require("./routes/adminPayments"));
+/* -------------------------- Authenticated Routes ------------------------- */
+// These require a valid login (Tutors and Students)
+app.use("/api/lessons", auth, require("./routes/lessons"));
+app.use("/api/tutor-lessons", auth, require("./routes/tutorLessons"));
+app.use("/api/students", auth, require("./routes/students"));
+app.use("/api/availability", auth, require("./routes/availability"));
+app.use("/api/video", auth, require("./routes/video"));
+app.use("/api/notifications", auth, require("./routes/notifications"));
+app.use("/api/payments", auth, require("./routes/payments"));
+app.use("/api/profile", auth, require("./routes/profile"));
 
-app.use("/api/profile", require("./routes/profile"));
-app.use("/api/support", require("./routes/support"));
+/* ---------------------------- Admin Only Routes -------------------------- */
+// These strictly require Admin Bob privileges
+app.use("/api/admin", auth, isAdmin, require("./routes/admin"));
+app.use("/api/admin/payments", auth, isAdmin, require("./routes/adminPayments"));
+app.use("/api/payouts", auth, isAdmin, require("./routes/payouts"));
+app.use("/api/refunds", auth, isAdmin, require("./routes/refunds"));
+app.use("/api/finance", auth, isAdmin, require("./routes/finance"));
+app.use("/api/metrics", auth, isAdmin, require("./routes/metrics"));
 
-// webhooks (no auth)
+/* ------------------------------- Webhooks -------------------------------- */
 app.use("/api/stripe/webhook", require("./routes/stripeWebhook"));
 app.use("/api/paypal/webhook", require("./routes/paypalWebhook"));
 
-// seed utilities (dev only)
+/* ------------------------------- Utilities ------------------------------- */
 app.use("/api/seed", require("./routes/seed"));
-
-// Health check (moved under /api)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
-
-// Root check (optional, helps debugging)
-app.get("/", (_req, res) =>
-  res.json({ ok: true, message: "Lernitt backend running" })
-);
+app.get("/", (_req, res) => res.json({ ok: true, message: "Lernitt backend running" }));
 
 // ONE-TIME ADMIN BOOTSTRAP (protected by SEED_TOKEN)
 app.get("/api/admin-bootstrap", async (req, res) => {
@@ -69,13 +67,8 @@ app.get("/api/admin-bootstrap", async (req, res) => {
     if (!process.env.SEED_TOKEN || req.query.token !== process.env.SEED_TOKEN) {
       return res.status(401).json({ error: "Bad token" });
     }
-
     const User = require("./models/User");
-
-    // Put YOUR email here:
     const email = "jameslbingham@yahoo.com";
-
-    // Choose a NEW password here (do NOT reuse one you posted):
     const password = "AusLERlerAus&$682705$";
 
     let user = await User.findOne({ email });
@@ -83,11 +76,10 @@ app.get("/api/admin-bootstrap", async (req, res) => {
       user = new User({ name: "Admin", email, password, role: "admin", isAdmin: true });
     } else {
       user.name = user.name || "Admin";
-      user.password = password; // will re-hash via User model pre-save
+      user.password = password; 
       user.role = "admin";
       user.isAdmin = true;
     }
-
     await user.save();
     return res.json({ ok: true, email, password });
   } catch (e) {
