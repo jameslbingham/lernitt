@@ -1,23 +1,31 @@
 // client/src/lib/api.js
 // ============================================================================
-// API helper layer (mock-safe, backwards-compatible)
+// API helper layer (Render-Synced, Mock-safe, Backwards-compatible)
 // ----------------------------------------------------------------------------
-// - Keeps approveRefund(id, reason) and denyRefund(id, reason) exactly as named
+// - Syncs with Render Environment Variables (VITE_API_URL)
+// - Keeps all Admin Bob functionality (Refunds, Payouts, Finance)
 // - Adds JWT (localStorage.token) automatically
-// - Adds safeFetchJSON with VITE_MOCK=1 fallbacks for local dev
-// - Exposes extra helpers used by Admin tabs (Users, Tutors, Finance, Refunds)
 // ============================================================================
 
-const API = import.meta.env.VITE_API || "http://localhost:5000";
+/**
+ * ENDPOINT SYNCHRONIZATION
+ * Priority 1: VITE_API_URL (Set in Render Dashboard)
+ * Priority 2: VITE_API (Fallback from .env files)
+ * Priority 3: Localhost (Development fallback)
+ */
+const API = import.meta.env.VITE_API_URL || import.meta.env.VITE_API || "http://localhost:10000";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
+
+// Log connection status to console for debugging
+if (import.meta.env.PROD) {
+  console.log('🚀 Lernitt Frontend connecting to:', API);
+}
 
 /* --------------------------------- Core --------------------------------- */
 
 /**
  * safeFetchJSON
  * Adds JSON header + Authorization: Bearer <token> (if present).
- * Parses JSON (returns {} if empty body).
- * If request fails and VITE_MOCK=1, returns minimal sensible fallbacks.
  */
 export async function safeFetchJSON(url, opts = {}) {
   const token = localStorage.getItem("token");
@@ -35,7 +43,6 @@ export async function safeFetchJSON(url, opts = {}) {
     if (!IS_MOCK) throw err;
 
     // ---- Minimal mock fallbacks by endpoint shape ----
-    // Collections
     if (url.endsWith("/api/admin/users") && (!opts.method || opts.method === "GET")) {
       return {
         items: [
@@ -106,39 +113,25 @@ export async function safeFetchJSON(url, opts = {}) {
       };
     }
 
-    // Refund action endpoints
     if (url.includes("/api/refunds/") && /\/(approve|deny|retry|cancel)$/.test(url)) {
       const action = url.split("/").pop();
       const map = { approve: "approved", deny: "denied", retry: "queued", cancel: "cancelled" };
       return { ok: true, status: map[action] || "queued" };
     }
-    if (url.includes("/api/refunds/") && url.endsWith("/note")) {
-      const body = opts?.body ? JSON.parse(opts.body) : {};
-      return { ok: true, note: { by: "admin", at: new Date().toISOString(), text: body?.text || "" } };
-    }
-
+    
     return {};
   }
 }
 
 /* ------------------------------ Refunds API ------------------------------ */
 
-/**
- * Approve a refund (BACKWARDS-COMPATIBLE EXPORT)
- * Signature preserved: approveRefund(id, reason)
- */
 export async function approveRefund(id, reason) {
-  // use server base URL + JWT + mock fallbacks
   return safeFetchJSON(`${API}/api/refunds/${encodeURIComponent(id)}/approve`, {
     method: "POST",
     body: JSON.stringify({ reason }),
   });
 }
 
-/**
- * Deny a refund (BACKWARDS-COMPATIBLE EXPORT)
- * Signature preserved: denyRefund(id, reason)
- */
 export async function denyRefund(id, reason) {
   return safeFetchJSON(`${API}/api/refunds/${encodeURIComponent(id)}/deny`, {
     method: "POST",
@@ -146,17 +139,14 @@ export async function denyRefund(id, reason) {
   });
 }
 
-/** Retry a failed refund */
 export async function retryRefund(id) {
   return safeFetchJSON(`${API}/api/refunds/${encodeURIComponent(id)}/retry`, { method: "POST" });
 }
 
-/** Cancel a queued/approved refund (policy-dependent) */
 export async function cancelRefund(id) {
   return safeFetchJSON(`${API}/api/refunds/${encodeURIComponent(id)}/cancel`, { method: "POST" });
 }
 
-/** Add internal note to a refund */
 export async function addRefundNote(id, text) {
   return safeFetchJSON(`${API}/api/refunds/${encodeURIComponent(id)}/note`, {
     method: "POST",
@@ -190,7 +180,6 @@ export async function unsuspendUser(userId) {
 }
 
 export async function verifyUserApi(userId) {
-  // named verifyUserApi to avoid clashing with any local verifyUser variables
   return safeFetchJSON(`${API}/api/admin/users/${encodeURIComponent(userId)}/verify`, {
     method: "POST",
   });
