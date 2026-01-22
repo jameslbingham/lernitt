@@ -3,7 +3,7 @@ const express = require("express");
 const Availability = require("../models/Availability");
 const Lesson = require("../models/Lesson");
 const { DateTime } = require("luxon");
-const { auth } = require('../middleware/auth'); // ✅ ADDED
+const { auth } = require("../middleware/auth");
 
 const router = express.Router();
 
