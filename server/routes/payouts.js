@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const paypal = require('@paypal/payouts-sdk');
 
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const stripe = require('../utils/stripeClient');
 const User = require('../models/User');
 const Payout = require('../models/Payout');
