@@ -1,6 +1,6 @@
 // /server/routes/students.js
 const express = require('express');
-const { auth } = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 
