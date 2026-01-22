@@ -1,7 +1,9 @@
 // /server/routes/refunds.js
 const express = require("express");
 const router = express.Router();
-const { auth, isAdmin } = require("../middleware/auth"); // ✅ ADDED: Unified Security Import
+
+// ✅ Dual-layer security import
+const { auth, isAdmin } = require("../middleware/auth");
 
 const isMock = process.env.VITE_MOCK === "1";
 
@@ -76,7 +78,7 @@ try {
   RefundModel = require("../models/Refund");
 } catch {}
 
-// Admin-only list
+// Admin-only list protection applied
 router.get("/", auth, isAdmin, async (req, res) => {
   const { status, currency, tutor, student, q } = req.query || {};
 
