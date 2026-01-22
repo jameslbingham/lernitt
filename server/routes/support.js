@@ -1,7 +1,7 @@
 // /server/routes/support.js
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const User = require('../models/User'); // for admin check
 
 // --- simple admin guard ---
