@@ -1,17 +1,18 @@
 // /server/routes/refunds.js
 const express = require("express");
 const router = express.Router();
+const { auth, isAdmin } = require("../middleware/auth"); // ✅ ADDED: Unified Security Import
 
 const isMock = process.env.VITE_MOCK === "1";
 
 // ----------------------- helpers (kept) -----------------------
 function getUserId(req) {
-  // If you later add auth middleware, prefer req.user.id
+  // Now using the validated user object from the auth middleware
   return (req.user && (req.user.id || req.user._id)) || "admin-mock";
 }
 
 // ----------------- very simple in-memory mock -----------------
-// Used when VITE_MOCK=1 (your current behavior)
+// Used when VITE_MOCK=1
 const mockRefunds = new Map(); // id -> refund record
 
 function ensureRefund(id) {
@@ -75,7 +76,8 @@ try {
   RefundModel = require("../models/Refund");
 } catch {}
 
-router.get("/", async (req, res) => {
+// Admin-only list
+router.get("/", auth, isAdmin, async (req, res) => {
   const { status, currency, tutor, student, q } = req.query || {};
 
   // ------- MOCK MODE -------
@@ -132,7 +134,7 @@ router.get("/", async (req, res) => {
 });
 
 /* ============================ APPROVE ============================ */
-router.post("/:id/approve", (req, res) => {
+router.post("/:id/approve", auth, isAdmin, (req, res) => {
   const { id } = req.params;
   const { reason } = req.body || {};
 
@@ -157,7 +159,7 @@ router.post("/:id/approve", (req, res) => {
 });
 
 /* ============================ DENY ============================ */
-router.post("/:id/deny", (req, res) => {
+router.post("/:id/deny", auth, isAdmin, (req, res) => {
   const { id } = req.params;
   const { reason } = req.body || {};
 
@@ -184,7 +186,7 @@ router.post("/:id/deny", (req, res) => {
 });
 
 /* ============================= RETRY ============================= */
-router.post("/:id/retry", (req, res) => {
+router.post("/:id/retry", auth, isAdmin, (req, res) => {
   const { id } = req.params;
   if (!isMock) return res.status(501).json({ error: "Not implemented in live mode yet." });
 
@@ -203,7 +205,7 @@ router.post("/:id/retry", (req, res) => {
 });
 
 /* ============================= CANCEL ============================ */
-router.post("/:id/cancel", (req, res) => {
+router.post("/:id/cancel", auth, isAdmin, (req, res) => {
   const { id } = req.params;
   const { reason } = req.body || {};
 
@@ -227,7 +229,7 @@ router.post("/:id/cancel", (req, res) => {
 });
 
 /* =============================== NOTE ============================= */
-router.post("/:id/note", (req, res) => {
+router.post("/:id/note", auth, isAdmin, (req, res) => {
   const { id } = req.params;
   const { text } = req.body || {};
 
@@ -245,7 +247,7 @@ router.post("/:id/note", (req, res) => {
 });
 
 /* ============================= UPDATE (new) ============================= */
-router.patch("/:id/update", async (req, res) => {
+router.patch("/:id/update", auth, isAdmin, async (req, res) => {
   const { id } = req.params;
   const { amount, currency, reason } = req.body || {};
 
@@ -285,7 +287,7 @@ router.patch("/:id/update", async (req, res) => {
 });
 
 /* ============================ STATS (new) ============================ */
-router.get("/stats", async (req, res) => {
+router.get("/stats", auth, isAdmin, async (req, res) => {
   if (isMock || !RefundModel) {
     const all = Array.from(mockRefunds.values());
     const total = all.length;
@@ -315,7 +317,7 @@ router.get("/stats", async (req, res) => {
 });
 
 /* ============================ DELETE (new) ============================ */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, isAdmin, async (req, res) => {
   const { id } = req.params;
 
   if (isMock || !RefundModel) {
@@ -333,7 +335,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 /* ============================ GET ONE ============================ */
-router.get("/:id", (req, res) => {
+router.get("/:id", auth, isAdmin, (req, res) => {
   if (!isMock) return res.status(501).json({ error: "Not implemented in live mode yet." });
   const { id } = req.params;
   const refund = ensureRefund(id);
