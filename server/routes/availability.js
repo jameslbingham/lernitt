@@ -3,6 +3,7 @@ const express = require("express");
 const Availability = require("../models/Availability");
 const Lesson = require("../models/Lesson");
 const { DateTime } = require("luxon");
+const { auth } = require('../middleware/auth'); // ✅ ADDED
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ function rulesToWeekly(rules) {
 /* ---------- routes: tutor self + admin ---------- */
 
 // GET /api/availability/me
-router.get("/me", async (req, res) => {
+router.get("/me", auth, async (req, res) => { // ✅ PROTECTED
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -105,7 +106,7 @@ router.delete("/all", async (req, res) => {
 /* ---------- routes: exceptions ---------- */
 
 // POST /api/availability/exceptions
-router.post("/exceptions", async (req, res) => {
+router.post("/exceptions", auth, async (req, res) => { // ✅ PROTECTED
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -140,7 +141,7 @@ router.post("/exceptions", async (req, res) => {
 });
 
 // DELETE /api/availability/exceptions/:date
-router.delete("/exceptions/:date", async (req, res) => {
+router.delete("/exceptions/:date", auth, async (req, res) => { // ✅ PROTECTED
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -280,7 +281,7 @@ router.get("/:tutorId", async (req, res) => {
 /* ---------- routes: update base availability ---------- */
 
 // PUT /api/availability
-router.put("/", async (req, res) => {
+router.put("/", auth, async (req, res) => { // ✅ PROTECTED
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "Not authenticated" });
