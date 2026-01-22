@@ -1,7 +1,7 @@
 // /server/routes/admin.js
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 const Dispute = require('../models/Dispute');
