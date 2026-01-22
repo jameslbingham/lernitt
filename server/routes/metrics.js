@@ -5,6 +5,9 @@
 const express = require("express");
 const router = express.Router();
 
+// ✅ ADDED: Import auth function using destructuring
+const { auth } = require('../middleware/auth');
+
 // -------- Config (mock toggle) --------
 const MOCK =
   String(process.env.VITE_MOCK ?? process.env.METRICS_MOCK ?? "1") === "1";
@@ -37,12 +40,14 @@ function weighted(parts) {
 }
 
 // ===== Existing route (preserved) =====
-router.get("/health", (req, res) => {
+// Added auth for security
+router.get("/health", auth, (req, res) => {
   res.json({ ok: true, service: "metrics", ts: new Date().toISOString() });
 });
 
 // ===== Growth & Conversion =====
-router.get("/growth", async (req, res) => {
+// Added auth for security
+router.get("/growth", auth, async (req, res) => {
   if (MOCK) {
     const months = lastNMonths(12);
 
@@ -112,7 +117,8 @@ router.get("/growth", async (req, res) => {
 });
 
 // ===== Lessons & Engagement =====
-router.get("/lessons", async (req, res) => {
+// Added auth for security
+router.get("/lessons", auth, async (req, res) => {
   if (MOCK) {
     const months = lastNMonths(12);
 
@@ -185,7 +191,8 @@ router.get("/lessons", async (req, res) => {
 });
 
 // ===== Financials & Pricing =====
-router.get("/financials", async (req, res) => {
+// Added auth for security
+router.get("/financials", auth, async (req, res) => {
   if (MOCK) {
     const months = lastNMonths(12);
     const categories = ["English", "Spanish", "German", "French", "Math", "Coding"];
@@ -260,7 +267,8 @@ router.get("/financials", async (req, res) => {
 });
 
 // ===== Risk & Ops =====
-router.get("/riskops", async (req, res) => {
+// Added auth for security
+router.get("/riskops", auth, async (req, res) => {
   if (MOCK) {
     const months = lastNMonths(12);
 
