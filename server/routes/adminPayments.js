@@ -1,7 +1,7 @@
 // /server/routes/adminPayments.js
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const User = require('../models/User');
 const Payment = require('../models/Payment');
 
