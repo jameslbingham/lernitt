@@ -2,7 +2,7 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const Lesson = require("../models/Lesson");
-const { auth } = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 
 const router = express.Router();
 
