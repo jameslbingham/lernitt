@@ -1,6 +1,6 @@
 // /server/routes/tutorLessons.js
 const express = require('express');
-const { auth } = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const Lesson = require('../models/Lesson');
 const User = require('../models/User');
 
