@@ -5,6 +5,9 @@ const User = require("../models/User"); // User model
 
 const router = express.Router();
 
+// ✅ ADDED: Import auth function using destructuring
+const { auth } = require('../middleware/auth');
+
 // Helper: match only visible tutors
 // - isTutor: true
 // - tutorStatus: "approved" OR field missing (legacy tutors)
@@ -20,7 +23,8 @@ const visibleTutorMatch = {
  * GET /api/tutors
  * List tutors ONLY with avgRating and reviewsCount
  */
-router.get("/", async (req, res) => {
+// ✅ ADDED: auth middleware
+router.get("/", auth, async (req, res) => {
   try {
     const tutors = await User.aggregate([
       // ✅ ONLY visible tutors
@@ -55,7 +59,8 @@ router.get("/", async (req, res) => {
  * GET /api/tutors/:id
  * Single tutor ONLY
  */
-router.get("/:id", async (req, res) => {
+// ✅ ADDED: auth middleware
+router.get("/:id", auth, async (req, res) => {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
 
