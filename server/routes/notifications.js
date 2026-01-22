@@ -1,7 +1,7 @@
 // /server/routes/notifications.js
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const Notification = require('../models/Notification');
 const User = require('../models/User'); // for admin checks
 
