@@ -1,7 +1,7 @@
 // /server/routes/disputes.js
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require("../middleware/auth");
 const Dispute = require('../models/Dispute');
 
 // POST /api/disputes (student or tutor creates dispute)
