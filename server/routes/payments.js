@@ -1,7 +1,7 @@
 // server/routes/payments.js
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const Payment = require('../models/Payment');
 const Lesson = require('../models/Lesson');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
