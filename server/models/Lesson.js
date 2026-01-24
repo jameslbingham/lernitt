@@ -1,6 +1,6 @@
 // /server/models/Lesson.js
 // ======================================================================
-// FINAL COMPLETE LESSON MODEL — INCLUDING AI SUMMARY & RECORDING FIELDS
+// FINAL COMPLETE LESSON MODEL — MERGED WITH LESSON TYPES & PACKAGES
 // ======================================================================
 
 const mongoose = require("mongoose");
@@ -33,6 +33,27 @@ const LessonSchema = new Schema(
       default: null,
     },
 
+    // ---------------- LESSON TYPES & PACKAGES (NEW) ----------------
+    // Identifies which of the 8 types was chosen (e.g., "Business English")
+    lessonTypeTitle: { 
+      type: String, 
+      default: "General Lesson" 
+    },
+    // Tracks if this is a single lesson or a 5-lesson package
+    isPackage: { 
+      type: Boolean, 
+      default: false 
+    },
+    packageSize: { 
+      type: Number, 
+      default: 1 // 1 for single, 5 for package
+    },
+    // The specific dollar discount applied by the tutor for this package
+    discountApplied: { 
+      type: Number, 
+      default: 0 
+    },
+
     // ---------------- META ----------------
     subject: { type: String, default: "" },
     price: { type: Number, default: 0 },
@@ -61,9 +82,8 @@ const LessonSchema = new Schema(
     },
 
     // =====================================================================
-    //                         AI AGENT SYSTEM (NEW)
+    //                         AI AGENT SYSTEM
     // =====================================================================
-    // Stores the sophisticated Gemini-generated Linguistic Dashboard
     aiSummary: {
       theme: { type: String },
       summary: { type: String },
@@ -95,40 +115,28 @@ const LessonSchema = new Schema(
     },
 
     // =====================================================================
-    //                    RECORDING SYSTEM (PHASE F)
+    //                      RECORDING SYSTEM (PHASE F)
     // =====================================================================
-
-    // Recording is currently active?
     recordingActive: {
       type: Boolean,
       default: false,
     },
-
-    // Daily internal recording ID
     recordingId: {
       type: String,
       default: null,
     },
-
-    // Who started the recording
     recordingStartedBy: {
       type: String,
       default: null,
     },
-
-    // Tutor + student “stop requests”
     recordingStopVotes: {
       tutor: { type: Boolean, default: false },
       student: { type: Boolean, default: false },
     },
-
-    // Final downloadable URL (Supabase or Daily)
     recordingUrl: {
       type: String,
       default: null,
     },
-
-    // “available”, “error”, “no-participants”
     recordingStatus: {
       type: String,
       default: null,
@@ -141,7 +149,7 @@ const LessonSchema = new Schema(
 );
 
 // ======================================================================
-// SUMMARY HELPER (used by complete-lesson)
+// SUMMARY HELPER (Updated to include new fields)
 // ======================================================================
 LessonSchema.methods.summary = function () {
   return {
@@ -153,9 +161,12 @@ LessonSchema.methods.summary = function () {
     durationMins: this.durationMins,
     price: this.price,
     subject: this.subject,
+    lessonTypeTitle: this.lessonTypeTitle, // Added
+    isPackage: this.isPackage,             // Added
+    packageSize: this.packageSize,         // Added
     isTrial: this.isTrial,
     status: this.status,
-    aiSummary: this.aiSummary, // ✅ Included AI summary in helper
+    aiSummary: this.aiSummary, 
     recordingActive: this.recordingActive,
     recordingId: this.recordingId,
     recordingUrl: this.recordingUrl,
