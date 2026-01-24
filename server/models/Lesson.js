@@ -1,6 +1,6 @@
 // /server/models/Lesson.js
 // ======================================================================
-// FINAL COMPLETE LESSON MODEL — INCLUDING ALL PHASE F RECORDING FIELDS
+// FINAL COMPLETE LESSON MODEL — INCLUDING AI SUMMARY & RECORDING FIELDS
 // ======================================================================
 
 const mongoose = require("mongoose");
@@ -61,7 +61,41 @@ const LessonSchema = new Schema(
     },
 
     // =====================================================================
-    //                           RECORDING SYSTEM (PHASE F)
+    //                         AI AGENT SYSTEM (NEW)
+    // =====================================================================
+    // Stores the sophisticated Gemini-generated Linguistic Dashboard
+    aiSummary: {
+      theme: { type: String },
+      summary: { type: String },
+      vocabulary: [
+        {
+          word: String,
+          timestamp: String,
+          definition: String,
+          example: String,
+        },
+      ],
+      grammarLog: [
+        {
+          error: String,
+          correction: String,
+          rule: String,
+        },
+      ],
+      deepDive: {
+        topic: String,
+        expertTip: String,
+        alternativePhrasing: [String],
+      },
+      analytics: {
+        studentTalkTime: Number,
+        fluencyScore: Number,
+      },
+      generatedAt: { type: Date },
+    },
+
+    // =====================================================================
+    //                    RECORDING SYSTEM (PHASE F)
     // =====================================================================
 
     // Recording is currently active?
@@ -121,6 +155,7 @@ LessonSchema.methods.summary = function () {
     subject: this.subject,
     isTrial: this.isTrial,
     status: this.status,
+    aiSummary: this.aiSummary, // ✅ Included AI summary in helper
     recordingActive: this.recordingActive,
     recordingId: this.recordingId,
     recordingUrl: this.recordingUrl,
@@ -129,7 +164,7 @@ LessonSchema.methods.summary = function () {
 };
 
 // ======================================================================
-// OPTIMIZED INDEX FOR DOUBLE-BOOKING CLASH GUARD
+// OPTIMIZED INDEXES
 // ======================================================================
 LessonSchema.index({ 
   tutor: 1, 
