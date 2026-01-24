@@ -16,13 +16,24 @@ const PLATFORM_CURRENCY = "EUR";
 
 /* -------------------------------------------
    Helper: compute amount (cents) from lesson
+   UPDATED: Now handles 1-lesson vs 5-lesson package logic
 ------------------------------------------- */
 function amountCentsFromLesson(lessonDoc) {
   if (!lessonDoc) return 0;
-  if (typeof lessonDoc.amountCents === 'number') return Math.max(0, Math.round(lessonDoc.amountCents));
-  if (typeof lessonDoc.priceCents === 'number') return Math.max(0, Math.round(lessonDoc.priceCents));
-  if (typeof lessonDoc.price === 'number') return Math.max(0, Math.round(lessonDoc.price * 100));
-  return 0;
+  
+  let baseCents = 0;
+  if (typeof lessonDoc.amountCents === 'number') {
+    baseCents = Math.max(0, Math.round(lessonDoc.amountCents));
+  } else if (typeof lessonDoc.priceCents === 'number') {
+    baseCents = Math.max(0, Math.round(lessonDoc.priceCents));
+  } else if (typeof lessonDoc.price === 'number') {
+    baseCents = Math.max(0, Math.round(lessonDoc.price * 100));
+  }
+
+  // NEW: Multiplier logic for italki-style packages
+  // If it's a package, we multiply the locked per-lesson price by the package size
+  const quantity = lessonDoc.isPackage ? (lessonDoc.packageSize || 5) : 1;
+  return baseCents * quantity;
 }
 
 /* -------------------------------------------
@@ -59,12 +70,17 @@ router.post('/stripe/create', auth, async (req, res) => {
     const amount = amountCentsFromLesson(lessonDoc);
     if (!amount || amount <= 0) return res.status(400).json({ message: 'Lesson has no payable amount' });
 
+    // italki Branding: Update the product name for the student's receipt
+    const itemName = lessonDoc.isPackage 
+      ? `Package: 5x ${lessonDoc.lessonTypeTitle || 'Lessons'} with ${lessonDoc.tutor?.name || 'Tutor'}`
+      : `${lessonDoc.lessonTypeTitle || 'Lesson'} with ${lessonDoc.tutor?.name || 'Tutor'}`;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
           currency: PLATFORM_CURRENCY.toLowerCase(),
-          product_data: { name: `Lesson with ${lessonDoc.tutor?.name || 'Tutor'}` },
+          product_data: { name: itemName },
           unit_amount: amount,
         },
         quantity: 1,
@@ -72,7 +88,10 @@ router.post('/stripe/create', auth, async (req, res) => {
       mode: 'payment',
       success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm/${lessonId}?success=true`,
       cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pay/${lessonId}?cancel=true`,
-      metadata: { lesson: lessonId }
+      metadata: { 
+        lesson: lessonId,
+        isPackage: String(lessonDoc.isPackage || false)
+      }
     });
 
     const payment = await Payment.create({
@@ -83,7 +102,11 @@ router.post('/stripe/create', auth, async (req, res) => {
       currency: PLATFORM_CURRENCY,
       status: 'pending',
       providerIds: { checkoutSessionId: session.id },
-      meta: { simulated: false }
+      meta: { 
+        simulated: false,
+        isPackage: lessonDoc.isPackage || false,
+        packageSize: lessonDoc.packageSize || 1
+      }
     });
 
     return res.json({ url: session.url, paymentId: payment._id, status: payment.status });
@@ -102,7 +125,7 @@ router.post('/paypal/create', auth, async (req, res) => {
     const { lessonId } = req.body || {};
     if (!lessonId) return res.status(400).json({ message: 'Missing lessonId' });
 
-    const lessonDoc = await Lesson.findById(lessonId);
+    const lessonDoc = await Lesson.findById(lessonId).populate('tutor');
     if (!lessonDoc) return res.status(404).json({ message: 'Lesson not found' });
     if (lessonDoc.student.toString() !== req.user.id) return res.status(403).json({ message: 'Not allowed' });
 
@@ -112,6 +135,11 @@ router.post('/paypal/create', auth, async (req, res) => {
     const amountDecimal = (amountCents / 100).toFixed(2);
     const accessToken = await getPayPalAccessToken();
     const baseUrl = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
+
+    // italki Branding: Update the description for PayPal
+    const description = lessonDoc.isPackage 
+      ? `5-Lesson Package (${lessonDoc.lessonTypeTitle})` 
+      : `Single Lesson (${lessonDoc.lessonTypeTitle})`;
 
     // Call real PayPal API
     const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
@@ -124,7 +152,8 @@ router.post('/paypal/create', auth, async (req, res) => {
         intent: 'CAPTURE',
         purchase_units: [{
           amount: { currency_code: PLATFORM_CURRENCY, value: amountDecimal },
-          reference_id: lessonId
+          reference_id: lessonId,
+          description: description
         }],
         application_context: {
           return_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm/${lessonId}?success=true`,
@@ -146,7 +175,10 @@ router.post('/paypal/create', auth, async (req, res) => {
       currency: PLATFORM_CURRENCY,
       status: 'pending',
       providerIds: { orderId: order.id },
-      meta: { simulated: false }
+      meta: { 
+        simulated: false,
+        isPackage: lessonDoc.isPackage || false 
+      }
     });
 
     return res.json({ 
