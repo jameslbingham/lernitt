@@ -12,6 +12,7 @@ const { Schema } = mongoose;
  * - Adds tutorStatus for tutor approval flow.
  * - Adds password hashing + compare helper (safe: only hashes when password is modified).
  * - NEW: Adds proficiencyLevel and placementTest for AI "Level Aware" assessments.
+ * - NEW: Adds lessonTemplates for multi-tiered pricing and package discounts.
  */
 
 const UserSchema = new Schema(
@@ -81,6 +82,17 @@ const UserSchema = new Schema(
       completedAt: { type: Date }
     },
 
+    // ✅ NEW: Multi-Tiered Lesson Types & Package Discounts
+    lessonTemplates: [
+      {
+        title: { type: String, required: true },
+        description: { type: String },
+        priceSingle: { type: Number, default: 0 }, // Individual lesson price
+        packageFiveDiscount: { type: Number, default: 0 }, // Dollar discount for 5 lessons
+        isActive: { type: Boolean, default: true }
+      }
+    ],
+
     hourlyRate: { type: Number, min: 0 }, // complements your existing "price"
     languages: [{ type: String, trim: true }],
     country: { type: String, trim: true },
@@ -137,6 +149,8 @@ UserSchema.methods.summary = function () {
     proficiencyLevel: this.proficiencyLevel || "none",
     // ✅ Include placement result in user session data
     placementTest: this.placementTest || null, 
+    // ✅ Include pricing templates for booking logic
+    lessonTemplates: this.lessonTemplates || []
   };
 };
 
