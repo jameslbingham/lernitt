@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
+import { useAuth } from "../hooks/useAuth.jsx"; // Needed for Reputation Badge
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -62,6 +63,9 @@ function normalizeLesson(raw) {
     tutorId,
     tutorName,
     subject: raw.subject || "",
+    // NEW: Package data
+    isPackage: !!raw.isPackage,
+    packageSize: raw.packageSize || 1
   };
 }
 
@@ -172,11 +176,72 @@ function TinyCountdown({ to }) {
   );
 }
 
+// =============================================================================
+// NEW: HIGH-IMPACT STUDENT LEARNING DASHBOARD
+// =============================================================================
+function LearningDashboard({ rows, user }) {
+  // Logic: Calculate used vs total credits based on completed vs paid lessons
+  const packageLessons = rows.filter(l => l.isPackage);
+  const totalCredits = packageLessons.length > 0 ? 5 : 0; // Standard italki bundle
+  const usedCredits = packageLessons.filter(l => ["completed", "confirmed"].includes(l.status)).length;
+  const remaining = totalCredits - usedCredits;
+
+  const hasCredits = totalCredits > 0 && remaining > 0;
+  const level = user?.proficiencyLevel || user?.placementTest?.level || "none";
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {/* 1. CREDIT TRACKER */}
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 p-5 shadow-sm">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-1">Lesson Credits</h3>
+            <p className="text-2xl font-black text-slate-900">{remaining} of {totalCredits} remaining</p>
+          </div>
+          <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
+            {remaining}
+          </div>
+        </div>
+        
+        {hasCredits ? (
+          <Link 
+            to="/tutors" 
+            className="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
+          >
+            Schedule Next Session
+          </Link>
+        ) : (
+          <p className="text-xs text-slate-500 italic">No active packages. Book a bundle to save.</p>
+        )}
+      </div>
+
+      {/* 2. REPUTATION BADGE (Linguistic DNA) */}
+      <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/30 p-5 shadow-sm">
+        <h3 className="text-xs font-black uppercase tracking-widest text-amber-600 mb-1">Global CEFR Profile</h3>
+        <div className="flex items-center gap-4 mt-2">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-2xl font-black text-white shadow-lg">
+            {level === "none" ? "?" : level}
+          </div>
+          <div>
+            <p className="font-bold text-slate-900">
+              {level === "none" ? "Level Assessment Pending" : `${level} · Upper Intermediate`}
+            </p>
+            <Link to="/placement-test" className="text-xs text-amber-700 underline font-medium">
+              {level === "none" ? "Take free assessment →" : "View Linguistic DNA Profile →"}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* -------------------- Page -------------------- */
 
 export default function MyLessons() {
   const nav = useNavigate();
   const loc = useLocation();
+  const { user } = useAuth(); // NEW: Access user for proficiency badge
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -186,7 +251,7 @@ export default function MyLessons() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // ✅ ADDED: Live time state to refresh Join button visibility
+  // ✅ LIVE time state to refresh Join button visibility
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30000); // refresh every 30s
@@ -334,6 +399,9 @@ export default function MyLessons() {
         </Link>
       </div>
 
+      {/* ✅ NEW: HIGH-IMPACT LEARNING DASHBOARD SECTION */}
+      <LearningDashboard rows={rows} user={user} />
+
       <div
         style={{
           padding: "6px 8px",
@@ -473,7 +541,7 @@ export default function MyLessons() {
 
             const isCompleted = status === "completed";
 
-            // ✅ NEW: 10-minute buffer logic for Join button
+            // ✅ 10-minute buffer logic for Join button
             const startMs = start.getTime();
             const joinBufferMs = 10 * 60 * 1000; // 10 minutes
             const canJoin = (now >= startMs - joinBufferMs) && (now <= (end?.getTime() || 0)) && 
@@ -504,7 +572,7 @@ export default function MyLessons() {
                 </div>
 
                 <div className="mt-3 flex gap-2 flex-wrap">
-                  {/* ✅ NEW: Join Lesson Button with Buffer */}
+                  {/* ✅ Join Lesson Button with Buffer */}
                   {canJoin && (
                     <Link
                       to={`/video-lesson?lessonId=${l._id}`}
@@ -550,7 +618,7 @@ export default function MyLessons() {
                     </Link>
                   )}
 
-                  {/* NEW: Write review button → opens tutor profile review form */}
+                  {/* Write review button → opens tutor profile review form */}
                   {isCompleted && (
                     <Link
                       to={`/tutors/${encodeURIComponent(
