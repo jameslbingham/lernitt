@@ -538,12 +538,13 @@ function UpcomingBookings() {
   );
 }
 
-// ================= Earnings Summary =================
+// ================= UPDATED: Earnings Summary with Escrow Logic =================
 function EarningsSummary() {
   const { token } = useAuth();
   const [earnings, setEarnings] = useState({
-    total: 0,
-    pending: 0,
+    totalEarned: 0,   // Money from completed lessons (85%)
+    packageEscrow: 0, // Money paid for packages but lessons not yet given
+    pendingPayout: 0, // Money earned but not yet sent to PayPal/Stripe
     refunded: 0,
   });
 
@@ -552,9 +553,9 @@ function EarningsSummary() {
       const data = await apiFetch("/api/finance/tutor-summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setEarnings(data || { total: 0, pending: 0, refunded: 0 });
+      setEarnings(data || { totalEarned: 0, packageEscrow: 0, pendingPayout: 0, refunded: 0 });
     } catch {
-      setEarnings({ total: 0, pending: 0, refunded: 0 });
+      setEarnings({ totalEarned: 0, packageEscrow: 0, pendingPayout: 0, refunded: 0 });
     }
   }
 
@@ -566,21 +567,43 @@ function EarningsSummary() {
     <div
       style={{
         background: "#f0f9ff",
-        padding: 16,
+        padding: 20,
         marginTop: 20,
-        borderRadius: 12,
+        borderRadius: 16,
+        border: "1px solid #e0f2fe"
       }}
     >
-      <h3 style={{ color: "#075985" }}>💰 Earnings Summary</h3>
-      <p>
-        Total earned: <b>${earnings.total.toFixed(2)}</b>
-      </p>
-      <p>
-        Pending payout: <b>${earnings.pending.toFixed(2)}</b>
-      </p>
-      <p>
-        Refunded: <b>${earnings.refunded.toFixed(2)}</b>
-      </p>
+      <h3 style={{ color: "#075985", marginBottom: 12 }}>💰 Earnings Summary</h3>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div>
+          <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>Total Earned</p>
+          <p style={{ fontSize: 20, fontWeight: 800, color: '#0369a1' }}>
+            ${earnings.totalEarned?.toFixed(2) || "0.00"}
+          </p>
+          <p style={{ fontSize: 10, opacity: 0.6 }}>Released after completion</p>
+        </div>
+
+        <div>
+          <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>Package Escrow</p>
+          <p style={{ fontSize: 20, fontWeight: 800, color: '#6366f1' }}>
+            ${earnings.packageEscrow?.toFixed(2) || "0.00"}
+          </p>
+          <p style={{ fontSize: 10, opacity: 0.6 }}>Unused bundle credits</p>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #bae6fd', display: 'flex', justifyContent: 'space-between' }}>
+        <div>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Pending Payout:</span>
+          <span style={{ marginLeft: 6, fontWeight: 800 }}>${earnings.pendingPayout?.toFixed(2) || "0.00"}</span>
+        </div>
+        {earnings.refunded > 0 && (
+          <div style={{ color: '#b91c1c', fontSize: 13 }}>
+            Refunded: ${earnings.refunded.toFixed(2)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
