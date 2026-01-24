@@ -11,7 +11,7 @@ const { Schema } = mongoose;
  * country, timezone, totals, lastLogin, verified).
  * - Adds tutorStatus for tutor approval flow.
  * - Adds password hashing + compare helper (safe: only hashes when password is modified).
- * - NEW: Adds proficiencyLevel for AI "Level Aware" summaries.
+ * - NEW: Adds proficiencyLevel and placementTest for AI "Level Aware" assessments.
  */
 
 const UserSchema = new Schema(
@@ -50,7 +50,7 @@ const UserSchema = new Schema(
     },
     isTutor: { type: Boolean, default: false },
 
-    // 👇 NEW: tutor approval status
+    // 👇 tutor approval status
     tutorStatus: {
       type: String,
       enum: ["none", "pending", "approved", "rejected"],
@@ -58,11 +58,27 @@ const UserSchema = new Schema(
       index: true,
     },
 
-    // 👇 NEW: AI Proficiency Level (A1-C2)
+    // 👇 AI Proficiency Level (A1-C2)
     proficiencyLevel: {
       type: String,
       enum: ["A1", "A2", "B1", "B2", "C1", "C2", "none"],
       default: "none",
+    },
+
+    // ✅ NEW: Comprehensive Placement Test Results
+    placementTest: {
+      level: { 
+        type: String, 
+        enum: ["A1", "A2", "B1", "B2", "C1", "C2", "none"], 
+        default: "none" 
+      },
+      scores: {
+        grammar: { type: Number, default: 0 },
+        vocabulary: { type: Number, default: 0 },
+        speaking: { type: Number, default: 0 },
+      },
+      insights: { type: String }, // Stores the "Linguistic DNA" summary
+      completedAt: { type: Date }
     },
 
     hourlyRate: { type: Number, min: 0 }, // complements your existing "price"
@@ -85,7 +101,6 @@ const UserSchema = new Schema(
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isTutor: 1 });
-// 👇 NEW index so we can quickly query pending/approved tutors
 UserSchema.index({ tutorStatus: 1 });
 
 /* ------------------------- Password helpers ------------------------ */
@@ -119,7 +134,9 @@ UserSchema.methods.summary = function () {
     totalLessons: this.totalLessons,
     totalEarnings: this.totalEarnings,
     tutorStatus: this.tutorStatus || "none",
-    proficiencyLevel: this.proficiencyLevel || "none", // ✅ Surfaced for AI trigger
+    proficiencyLevel: this.proficiencyLevel || "none",
+    // ✅ Include placement result in user session data
+    placementTest: this.placementTest || null, 
   };
 };
 
