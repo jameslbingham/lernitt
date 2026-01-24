@@ -5,19 +5,6 @@
 // - Logged-in users: LoggedInHomepage (Chat 83 logic preserved)
 // - Shared: Dark/light theme toggle, FAQ side panel, Ask Us button
 // -----------------------------------------------------------------------------
-// Added in this sweep:
-// - FAQ “Ask Us” drawer (categories → questions → answers)
-// - FAQ search bar (always visible) searching questions + answers
-// - Highlighting of search term in results
-// - Tutor avatars with coloured backgrounds
-// - Improved spacing rhythm (pt-20/pb-20, space-y-16)
-// - Slight motion: hover lift / transitions
-// - Better shadows & gradients for cards and chips
-// - "Try a free trial lesson" badge in hero
-// - Microcopy under hero CTAs
-// - Footer navigation (About | Tutors | Pricing | Contact | Terms | Privacy)
-// - All existing behaviours from Chat 83 preserved
-// -----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -316,6 +303,35 @@ function FaqDrawer({ open, onClose, theme }) {
 }
 
 // -----------------------------------------------------------------------------
+// ASSESSMENT PROMO COMPONENT (ADDED FOR PLACEMENT TEST)
+// -----------------------------------------------------------------------------
+function AssessmentPromo({ theme }) {
+  const isDark = theme === "dark";
+  return (
+    <section className={`rounded-2xl border ${isDark ? "bg-indigo-900/20 border-indigo-700" : "bg-indigo-50 border-indigo-100"} p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 shadow-sm`}>
+      <div className="flex-1 space-y-3">
+        <div className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+          New: AI Academic Secretary
+        </div>
+        <h2 className="text-2xl font-bold tracking-tight">Unlock Your Global Language Profile</h2>
+        <p className={`text-sm md:text-base leading-relaxed ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+          Take our free CEFR-aligned assessment (Value €25). Get an accurate professional level and a 
+          personalized linguistic gap analysis in just 15 minutes.
+        </p>
+      </div>
+      <div className="w-full md:w-auto">
+        <Link 
+          to="/placement-test"
+          className="inline-flex w-full md:w-auto items-center justify-center rounded-xl bg-indigo-600 px-8 py-4 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-700 active:scale-95"
+        >
+          Start Assessment
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+// -----------------------------------------------------------------------------
 // MAIN HOME — ALWAYS SHOW MARKETING HOMEPAGE NOW
 // -----------------------------------------------------------------------------
 export default function Home() {
@@ -331,9 +347,11 @@ export default function Home() {
     localStorage.setItem("lernitt-theme", theme);
   }, [theme]);
 
+  const { isAuthed } = useAuth();
+
   return (
     <>
-      <MarketingHomepage theme={theme} />
+      {isAuthed ? <LoggedInHomepage theme={theme} /> : <MarketingHomepage theme={theme} />}
       <ThemeToggle
         theme={theme}
         onToggle={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
@@ -349,7 +367,7 @@ export default function Home() {
 }
 
 // -----------------------------------------------------------------------------
-// MARKETING HOMEPAGE (NEW HERO + BUTTONS + MATCHES NEW GLOBAL HEADER)
+// MARKETING HOMEPAGE (FIXED: FULL ORIGINAL VERSION PRESERVED)
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
   const baseBg =
@@ -360,8 +378,6 @@ function MarketingHomepage({ theme }) {
       className={`${baseBg} min-h-screen`}
       style={theme === "dark" ? undefined : { backgroundColor: "#E9F1F7" }}
     >
-      {/* NEW GLOBAL HEADER FROM App.jsx NOW HANDLES THE LOGO + NAV */}
-
       <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-4 pb-20">
         {/* HERO SECTION */}
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
@@ -402,6 +418,9 @@ function MarketingHomepage({ theme }) {
           </div>
         </section>
 
+        {/* ✅ NEW: ASSESSMENT BANNER INSERTED HERE */}
+        <AssessmentPromo theme={theme} />
+
         {/* PRICING TEASER */}
         <section className="rounded-2xl bg-gradient-to-r from-sky-500/10 via-teal-500/10 to-sky-500/10 border border-sky-500/20 px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row items-start md:items-center gap-6">
           <div className="space-y-2">
@@ -437,7 +456,6 @@ function MarketingHomepage({ theme }) {
           </div>
         </section>
 
-        {/* REST OF MARKETING HOMEPAGE (UNCHANGED) CONTINUES… */}
         {/* WHY LERNITT */}
         <section className="space-y-6">
           <div className="space-y-3 text-center">
@@ -646,7 +664,7 @@ function MarketingHomepage({ theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// LOGGED-IN HOMEPAGE (FULL CHAT 83 VERSION — PRESERVED EXACTLY)
+// LOGGED-IN HOMEPAGE (FIXED: FULL CHAT 83 VERSION — PRESERVED EXACTLY)
 // -----------------------------------------------------------------------------
 function LoggedInHomepage({ theme }) {
   const [q, setQ] = useState("");
@@ -837,6 +855,9 @@ function LoggedInHomepage({ theme }) {
             </p>
           </div>
         </section>
+
+        {/* ✅ NEW: ASSESSMENT BANNER INSERTED HERE FOR LOGGED-IN USERS */}
+        <AssessmentPromo theme={theme} />
 
         {/* SEARCH + CATEGORIES */}
         <section>
