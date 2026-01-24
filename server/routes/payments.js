@@ -8,6 +8,11 @@ const User = require('../models/User'); // ✅ NEW: added to update credits
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const fetch = require('node-fetch'); // Required for real PayPal API calls
 
+// ✅ NEW: Import Email Utilities for Receipt Generation
+// These are required for the automated package receipt trigger
+const { sendEmail } = require('../utils/sendEmail'); 
+const { generatePackageReceiptEmail } = require('../utils/emailTemplates');
+
 // Helper: is simulated mode?
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
 const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_SECRET;
@@ -15,10 +20,11 @@ const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_SEC
 // CONSTANT CURRENCY FOR ENTIRE PLATFORM
 const PLATFORM_CURRENCY = "EUR";
 
-/* -------------------------------------------
+/* --------------------------------------------------------------------------
    Helper: compute amount (cents) from lesson
    UPDATED: Now handles 1-lesson vs 5-lesson package logic
-------------------------------------------- */
+   This ensures the total charged to Stripe/PayPal reflects the full bundle.
+-------------------------------------------------------------------------- */
 function amountCentsFromLesson(lessonDoc) {
   if (!lessonDoc) return 0;
   
@@ -32,13 +38,16 @@ function amountCentsFromLesson(lessonDoc) {
   }
 
   // NEW: Multiplier logic for italki-style packages
+  // If it's a package, we multiply the locked per-lesson price by the package size
+  // This is used to generate the total invoice amount.
   const quantity = lessonDoc.isPackage ? (lessonDoc.packageSize || 5) : 1;
   return baseCents * quantity;
 }
 
-/* -------------------------------------------
-   ✅ NEW: Get PayPal Access Token (Real API)
-------------------------------------------- */
+/* --------------------------------------------------------------------------
+   ✅ Get PayPal Access Token (Real API)
+   Used for authenticated requests to the PayPal v2/checkout/orders API.
+-------------------------------------------------------------------------- */
 async function getPayPalAccessToken() {
   const authHeader = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`).toString('base64');
   const baseUrl = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
@@ -54,10 +63,11 @@ async function getPayPalAccessToken() {
   return data.access_token;
 }
 
-/* ============================================
+/* ==========================================================================
    Create Stripe Checkout Session
    POST /api/payments/stripe/create
-   ============================================ */
+   Used for the initial booking checkout flow.
+   ========================================================================== */
 router.post('/stripe/create', auth, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
@@ -70,6 +80,7 @@ router.post('/stripe/create', auth, async (req, res) => {
     const amount = amountCentsFromLesson(lessonDoc);
     if (!amount || amount <= 0) return res.status(400).json({ message: 'Lesson has no payable amount' });
 
+    // italki Branding: Update the product name for the student's receipt
     const itemName = lessonDoc.isPackage 
       ? `Package: 5x ${lessonDoc.lessonTypeTitle || 'Lessons'} with ${lessonDoc.tutor?.name || 'Tutor'}`
       : `${lessonDoc.lessonTypeTitle || 'Lesson'} with ${lessonDoc.tutor?.name || 'Tutor'}`;
@@ -115,10 +126,10 @@ router.post('/stripe/create', auth, async (req, res) => {
   }
 });
 
-/* ============================================
-   ✅ UPDATED: Create REAL PayPal Order
+/* ==========================================================================
+   Create REAL PayPal Order
    POST /api/payments/paypal/create
-   ============================================ */
+   ========================================================================== */
 router.post('/paypal/create', auth, async (req, res) => {
   try {
     const { lessonId } = req.body || {};
@@ -135,10 +146,12 @@ router.post('/paypal/create', auth, async (req, res) => {
     const accessToken = await getPayPalAccessToken();
     const baseUrl = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
 
+    // italki Branding: Update the description for PayPal
     const description = lessonDoc.isPackage 
       ? `5-Lesson Package (${lessonDoc.lessonTypeTitle})` 
       : `Single Lesson (${lessonDoc.lessonTypeTitle})`;
 
+    // Call real PayPal API
     const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
@@ -190,9 +203,10 @@ router.post('/paypal/create', auth, async (req, res) => {
   }
 });
 
-/* ============================================
+/* ==========================================================================
    Create Stripe PaymentIntent (Manual amount)
-   ============================================ */
+   POST /api/payments/stripe
+   ========================================================================== */
 router.post('/stripe', auth, async (req, res) => {
   try {
     const { amount, lesson } = req.body;
@@ -234,12 +248,13 @@ router.post('/stripe', auth, async (req, res) => {
   }
 });
 
-/* ============================================
+/* ==========================================================================
    Create REAL PayPal Order (Manual)
-   ============================================ */
+   POST /api/payments/paypal
+   ========================================================================== */
 router.post('/paypal', auth, async (req, res) => {
   try {
-    const { amount, lesson } = req.body;
+    const { amount, lesson } = req.body; // amount is in cents
     const lessonDoc = await Lesson.findById(lesson);
     if (!lessonDoc) return res.status(404).json({ message: 'Lesson not found' });
     if (lessonDoc.student.toString() !== req.user.id) return res.status(403).json({ message: 'Not allowed' });
@@ -290,9 +305,9 @@ router.post('/paypal', auth, async (req, res) => {
   }
 });
 
-/* ============================================
+/* ==========================================================================
    Payment list for logged-in user
-   ============================================ */
+   ========================================================================== */
 router.get('/mine', auth, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
@@ -315,10 +330,10 @@ router.get('/mine', auth, async (req, res) => {
   }
 });
 
-/* ============================================
+/* ==========================================================================
    Manual payment status update
-   ✅ UPDATED TO GRANT PACKAGE CREDITS
-   ============================================ */
+   ✅ UPDATED: Now grants credits AND sends receipt emails on success
+   ========================================================================== */
 router.patch('/:id/status', auth, async (req, res) => {
   try {
     const status = (req.body && req.body.status) || req.query.status;
@@ -326,11 +341,16 @@ router.patch('/:id/status', auth, async (req, res) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const payment = await Payment.findById(req.params.id).populate('lesson');
+    // Populate tutor name for the email template
+    const payment = await Payment.findById(req.params.id).populate({
+      path: 'lesson',
+      populate: { path: 'tutor', select: 'name' }
+    });
+    
     if (!payment) return res.status(404).json({ message: 'Payment not found' });
 
     const isOwner = payment.user.toString() === req.user.id;
-    const isTutor = payment.lesson && payment.lesson.tutor.toString() === req.user.id;
+    const isTutor = payment.lesson && payment.lesson.tutor._id.toString() === req.user.id;
     if (!isOwner && !isTutor) return res.status(403).json({ message: 'Not allowed' });
 
     payment.status = status;
@@ -343,22 +363,47 @@ router.patch('/:id/status', auth, async (req, res) => {
       lesson.paidAt = new Date();
       await lesson.save();
 
-      // ✅ NEW: Grant credits to the student if it was a package purchase
-      // Credits represent lessons PAID but not yet scheduled or taught
+      // ✅ 1. Grant credits if it was a package purchase
+      // We grant (Size - 1) because the first lesson is already scheduled.
       if (lesson.isPackage) {
-        const creditCount = (lesson.packageSize || 5) - 1; // 1 used for current lesson
+        const creditCount = (lesson.packageSize || 5) - 1;
         
         await User.updateOne(
-          { _id: lesson.student, "packageCredits.tutorId": lesson.tutor },
+          { _id: lesson.student, "packageCredits.tutorId": lesson.tutor._id },
           { $inc: { "packageCredits.$.count": creditCount } }
         ).then(async (result) => {
+          // If no existing credit entry for this tutor, create a new one
           if (result.matchedCount === 0) {
             await User.updateOne(
               { _id: lesson.student },
-              { $push: { packageCredits: { tutorId: lesson.tutor, count: creditCount } } }
+              { $push: { packageCredits: { tutorId: lesson.tutor._id, count: creditCount } } }
             );
           }
         });
+
+        // ✅ 2. Trigger the automated Receipt Email
+        // This provides the student with immediate confirmation of their bundle purchase.
+        try {
+          const studentUser = await User.findById(lesson.student);
+          const emailHtml = generatePackageReceiptEmail(
+            {
+              ...lesson.toObject(),
+              tutorName: lesson.tutor.name
+            },
+            studentUser.name
+          );
+
+          await sendEmail({
+            to: studentUser.email,
+            subject: `Receipt: Your 5-Lesson Package with ${lesson.tutor.name}`,
+            html: emailHtml,
+          });
+          console.log(`[MAIL] Package receipt sent to ${studentUser.email}`);
+        } catch (mailErr) {
+          console.error('[MAIL] Failed to send receipt:', mailErr);
+          // We don't throw an error here to prevent the UI from breaking 
+          // if only the email delivery fails.
+        }
       }
     }
 
@@ -369,9 +414,9 @@ router.patch('/:id/status', auth, async (req, res) => {
   }
 });
 
-/* ============================================
-   Refund (legal-only)
-   ============================================ */
+/* ==========================================================================
+   Refund (legal-only requirement)
+   ========================================================================== */
 router.patch('/:id/refund', auth, async (req, res) => {
   try {
     const { reason } = req.body || {};
@@ -426,9 +471,9 @@ router.patch('/:id/refund', auth, async (req, res) => {
   }
 });
 
-/* ============================================
+/* ==========================================================================
    Stripe + PayPal SUCCESS / CANCEL callbacks
-   ============================================ */
+   ========================================================================== */
 router.get("/stripe/success", async (req, res) => {
   const { lessonId } = req.query;
   if (!lessonId) return res.status(400).send("Missing lessonId");
@@ -455,9 +500,9 @@ router.get("/paypal/cancel", async (req, res) => {
   return res.redirect(`${frontend}/pay/${encodeURIComponent(lessonId || "")}?cancel=1`);
 });
 
-/* ============================================
+/* ==========================================================================
    Mark lesson as PAID (Internal utility)
-   ============================================ */
+   ========================================================================== */
 router.post("/stripe/mark-paid", async (req, res) => {
   try {
     const { lessonId } = req.body || {};
