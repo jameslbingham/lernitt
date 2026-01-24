@@ -37,7 +37,7 @@ function amountCentsFromLesson(lessonDoc) {
 }
 
 /* -------------------------------------------
-   Get PayPal Access Token (Real API)
+   ✅ NEW: Get PayPal Access Token (Real API)
 ------------------------------------------- */
 async function getPayPalAccessToken() {
   const authHeader = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`).toString('base64');
@@ -116,7 +116,7 @@ router.post('/stripe/create', auth, async (req, res) => {
 });
 
 /* ============================================
-   Create REAL PayPal Order
+   ✅ UPDATED: Create REAL PayPal Order
    POST /api/payments/paypal/create
    ============================================ */
 router.post('/paypal/create', auth, async (req, res) => {
@@ -344,15 +344,14 @@ router.patch('/:id/status', auth, async (req, res) => {
       await lesson.save();
 
       // ✅ NEW: Grant credits to the student if it was a package purchase
+      // Credits represent lessons PAID but not yet scheduled or taught
       if (lesson.isPackage) {
         const creditCount = (lesson.packageSize || 5) - 1; // 1 used for current lesson
         
-        // Find existing credit entry or create one
         await User.updateOne(
           { _id: lesson.student, "packageCredits.tutorId": lesson.tutor },
           { $inc: { "packageCredits.$.count": creditCount } }
         ).then(async (result) => {
-          // If no existing tutor entry found, push a new one
           if (result.matchedCount === 0) {
             await User.updateOne(
               { _id: lesson.student },
