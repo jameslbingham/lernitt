@@ -54,6 +54,7 @@ import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
 import BookingConfirmation from "./pages/BookingConfirmation.jsx";
 import Settings from "./pages/Settings.jsx";
 import TutorDashboard from "./pages/TutorDashboard.jsx";
+import StudentReceipt from "./pages/StudentReceipt"; // ✅ NEW: Transaction Receipt
 
 // PUBLIC INFO PAGES
 const About = lazy(() => import("./pages/About.jsx"));
@@ -140,6 +141,10 @@ export default function App() {
                 path="/confirm/:lessonId"
                 element={<BookingConfirmation />}
               />
+              <Route
+                path="/receipt/:lessonId"
+                element={<StudentReceipt />}
+              /> {/* ✅ NEW: Package Receipt Route */}
               <Route path="/students" element={<Students />} />
 
               {/* Legal */}
