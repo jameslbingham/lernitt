@@ -26,7 +26,80 @@ async function isAdmin(req, res, next) {
   }
 }
 
-// -------------------- Existing routes (kept) ----------------------
+// =====================================================================
+// NEW: TUTOR-SPECIFIC FINANCE ROUTES (ESCROW & EARNED)
+// =====================================================================
+
+/**
+ * GET /api/finance/tutor-summary
+ * Provides Bob with a split view of his money:
+ * 1. totalEarned: 85% net of lessons marked 'completed'.
+ * 2. packageEscrow: Value of pre-paid credits sitting in student accounts.
+ * 3. pendingPayout: Money earned but not yet sent to Bob.
+ */
+router.get("/tutor-summary", auth, async (req, res) => {
+  try {
+    const tutorId = req.user.id;
+
+    // 1. Calculate TOTAL EARNED (Released)
+    // Only lessons Bob has actually given (status: completed)
+    const completedLessons = await Lesson.find({
+      tutor: tutorId,
+      status: 'completed',
+      isTrial: false
+    });
+
+    const totalEarned = completedLessons.reduce((acc, l) => {
+      const amount = l.price || 0;
+      return acc + (amount * (1 - COMMISSION_PCT)); // released after 15% commission
+    }, 0);
+
+    // 2. Calculate PACKAGE ESCROW (Unearned)
+    // We look for all students who have a packageCredit balance for Bob
+    const studentsWithCredits = await User.find({
+      "packageCredits.tutorId": tutorId,
+      "packageCredits.count": { $gt: 0 }
+    });
+
+    let packageEscrow = 0;
+    studentsWithCredits.forEach(student => {
+      const creditObj = student.packageCredits.find(c => String(c.tutorId) === String(tutorId));
+      if (creditObj) {
+        // Use Bob's default single lesson price to estimate escrow value
+        const bobPrice = req.user.price || 30;
+        packageEscrow += (creditObj.count * bobPrice * (1 - COMMISSION_PCT));
+      }
+    });
+
+    // 3. Calculate REFUNDED
+    const refundedLessons = await Lesson.find({
+      tutor: tutorId,
+      status: 'cancelled',
+      cancelReason: 'legal_required_refund'
+    });
+    const totalRefunded = refundedLessons.reduce((acc, l) => acc + (l.price || 0), 0);
+
+    // 4. Calculate Pending Payout (Earned money not yet sent to Bob's PayPal/Stripe)
+    const pendingAgg = await Payout.aggregate([
+      { $match: { tutor: tutorId, status: { $in: ["queued", "pending"] } } },
+      { $group: { _id: null, total: { $sum: "$amountCents" } } }
+    ]);
+    const pendingPayout = (pendingAgg[0]?.total || 0) / 100;
+
+    return res.json({
+      totalEarned: Math.round(totalEarned * 100) / 100,
+      packageEscrow: Math.round(packageEscrow * 100) / 100,
+      pendingPayout: Math.round(pendingPayout * 100) / 100,
+      refunded: totalRefunded
+    });
+
+  } catch (err) {
+    console.error('[FINANCE] tutor summary error:', err);
+    return res.status(500).json({ error: "Failed to compute tutor earnings" });
+  }
+});
+
+// -------------------- Existing Admin routes (kept) ----------------------
 
 // --- Approve payout (stub) ---
 router.post("/payouts/:id/approve", auth, isAdmin, (req, res) => {
@@ -42,23 +115,23 @@ router.post("/refunds/:id/deny", auth, isAdmin, (req, res) => {
   res.json({ success: true, id, status: "denied" });
 });
 
-// ------------------ Finance Summary route --------------------
+// ------------------ Finance FX rates (very simple for now) ------------------
+router.get("/rates", auth, isAdmin, async (req, res) => {
+  try {
+    return res.json({
+      base: "USD",
+      ts: new Date().toISOString(),
+      rates: { USD: 1 }, // extend later if you add real FX
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message || "Failed to load FX rates" });
+  }
+});
+
+// ------------------ Admin Finance Summary route --------------------
 /**
  * GET /api/finance/summary
- * Optional query:
- *   - from: ISO date (inclusive)
- *   - to:   ISO date (inclusive)
- *   - period: "today" | "week" | "month" | "all"  (used only if from/to not provided)
- *
- * Returns a backward-compatible shape:
- * {
- *   totals: { earnings, payouts, refunds, gmv, revenue, tutorNet },
- *   totalsByCurrency: [{ currency, gmv, revenue, tutorNet, refunds, payouts }],
- *   tutors: [{ id, name, earnings, lessons, currency }],
- *   trends: [{ month: "YYYY-MM", earnings, gmv, revenue, tutorNet, currency }],
- *   totalRefunds, approvedRefunds, deniedRefunds, pendingRefunds,
- *   refundTrends: [{ date: "YYYY-MM-DD", amount, currency }]
- * }
+ * Returns a backward-compatible shape for Admin Dashboards
  */
 router.get("/summary", auth, isAdmin, async (req, res) => {
   const { from, to, period } = req.query || {};
@@ -94,7 +167,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
   }
   const createdAtMatch = Object.keys(dateMatch).length ? { createdAt: dateMatch } : {};
 
-  // If mocking or key models unavailable, return a safe empty shape (no randoms)
+  // If mocking or key models unavailable, return a safe empty shape
   if (isMock || !Payment || !Payout || !Refund || !Lesson) {
     return res.json({
       totals: { earnings: 0, payouts: 0, refunds: 0, gmv: 0, revenue: 0, tutorNet: 0 },
@@ -110,9 +183,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
   }
 
   try {
-    // -----------------------------
     // 1) GMV from successful payments
-    // -----------------------------
     const paymentsMatch = { ...createdAtMatch, status: "succeeded" };
 
     const gmvByCurrency = await Payment.aggregate([
@@ -126,9 +197,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // -----------------------------
     // 2) Refunds (approved) by currency
-    // -----------------------------
     const refundsMatch = { ...createdAtMatch, status: "approved" };
 
     const refundAmtByCurrency = await Refund.aggregate([
@@ -142,9 +211,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // -----------------------------
     // 3) Payout totals (paid/succeeded) by currency
-    // -----------------------------
     const payoutMatch = {
       ...createdAtMatch,
       status: { $in: ["paid", "succeeded"] },
@@ -161,9 +228,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // -----------------------------
     // 4) Merge currency totals
-    // -----------------------------
     const currencySet = new Set([
       ...gmvByCurrency.map((x) => String(x._id || "")),
       ...refundAmtByCurrency.map((x) => String(x._id || "")),
@@ -200,7 +265,6 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       { gmv: 0, revenue: 0, tutorNet: 0, refunds: 0, payouts: 0 }
     );
 
-    // Back-compat: keep "earnings" key (use platform revenue)
     const totalsOut = {
       earnings: totals.revenue,
       payouts: totals.payouts,
@@ -210,9 +274,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       tutorNet: totals.tutorNet,
     };
 
-    // -----------------------------
     // 5) Tutor leaderboard from payments (join lesson -> tutor)
-    // -----------------------------
     const tutorRows = await Payment.aggregate([
       { $match: paymentsMatch },
       {
@@ -255,15 +317,13 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       tutors.push({
         id: String(tutorId || "unknown"),
         name,
-        earnings: tutorNet, // back-compat: "earnings" here means tutor net
+        earnings: tutorNet, 
         lessons: Number(r.lessons || 0),
         currency,
       });
     }
 
-    // -----------------------------
-    // 6) Monthly trends (GMV/revenue/tutorNet) from payments
-    // -----------------------------
+    // 6) Monthly trends (GMV/revenue/tutorNet)
     const trends = await Payment.aggregate([
       { $match: paymentsMatch },
       {
@@ -287,7 +347,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
         return {
           month,
           currency,
-          earnings: revenue, // back-compat: "earnings" trend = platform revenue
+          earnings: revenue,
           gmv,
           revenue,
           tutorNet,
@@ -295,9 +355,7 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
       })
     );
 
-    // -----------------------------
-    // 7) Refund counts + daily refund trends (approved)
-    // -----------------------------
+    // 7) Refund counts + daily trends
     const refundCountMatch = { ...createdAtMatch };
 
     const since30 = new Date();
@@ -359,19 +417,6 @@ router.get("/summary", auth, isAdmin, async (req, res) => {
     });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Failed to compute finance summary" });
-  }
-});
-
-// ------------------ Finance FX rates (very simple for now) ------------------
-router.get("/rates", auth, isAdmin, async (req, res) => {
-  try {
-    return res.json({
-      base: "USD",
-      ts: new Date().toISOString(),
-      rates: { USD: 1 }, // extend later if you add real FX
-    });
-  } catch (e) {
-    return res.status(500).json({ error: e.message || "Failed to load FX rates" });
   }
 });
 
