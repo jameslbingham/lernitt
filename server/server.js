@@ -14,7 +14,7 @@ const app = express();
    TASK 5: PRODUCTION CORS CONFIGURATION
    ============================================================================ */
 const allowedOrigins = [
-  'http://localhost:5173',           // Local Development
+  'http://localhost:5173',            // Local Development
   'https://lernitt.onrender.com',     // Production Render Domain
 ];
 
@@ -66,6 +66,7 @@ app.use("/api/notifications", auth, require("./routes/notifications"));
 app.use("/api/payments", auth, require("./routes/payments"));
 app.use("/api/profile", auth, require("./routes/profile"));
 app.use("/api/support", auth, require("./routes/support"));
+app.use("/api/assessment", auth, require("./routes/assessment")); // ✅ Added Assessment Logic
 
 /* --- Admin Only Routes (Strictly Bob Only) --- */
 app.use("/api/admin", auth, isAdmin, require("./routes/admin"));
