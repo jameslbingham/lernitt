@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
+// ✅ A. Import the component at the top
+import LessonSummary from '../components/lessons/LessonSummary';
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -93,6 +95,9 @@ function normalize(raw) {
     subject: raw.subject || "",
     notes: raw.notes || "",
     createdAt: raw.createdAt,
+    // ✅ Ensure AI fields are normalized
+    aiSummary: raw.aiSummary || null,
+    recordingUrl: raw.recordingUrl || null,
   };
 }
 
@@ -596,6 +601,33 @@ END:VCALENDAR`;
           Tip: You can reschedule or cancel from here. (Policies may
           apply.)
         </p>
+      </div>
+
+      {/* ✅ B. Add the component to the page layout */}
+      <div className="container mx-auto">
+
+        {/* Recording Display */}
+        {lesson.recordingUrl && (
+          <div className="recording-section mt-6 mb-6">
+            <h2 className="text-xl font-semibold mb-3">Lesson Recording</h2>
+            <video 
+              src={lesson.recordingUrl} 
+              controls 
+              className="w-full max-w-3xl rounded shadow"
+            />
+          </div>
+        )}
+
+        {/* AI Academic Secretary Dashboard */}
+        {status === 'completed' && lesson.aiSummary && (
+          <div className="ai-summary-section mt-10">
+            <LessonSummary 
+              aiSummary={lesson.aiSummary} 
+              recordingUrl={lesson.recordingUrl} 
+            />
+          </div>
+        )}
+
       </div>
     </div>
   );
