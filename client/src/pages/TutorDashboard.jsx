@@ -4,6 +4,148 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
+// ================= NEW: Lesson Type Editor Modal =================
+function LessonTypeModal({ template, onSave, onClose }) {
+  const [formData, setFormData] = useState(template || {
+    title: "",
+    description: "",
+    priceSingle: 0,
+    packageFiveDiscount: 0,
+    isActive: true
+  });
+
+  const totalPackagePrice = (formData.priceSingle * 5) - formData.packageFiveDiscount;
+  const avgPrice = totalPackagePrice / 5;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-2xl bg-white p-8 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-slate-900">Edit this Lesson</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>&times;</button>
+        </div>
+
+        <div className="space-y-5">
+          <label className="block">
+            <span className="text-sm font-bold text-slate-700 uppercase tracking-tight">Title</span>
+            <input 
+              className="mt-1 w-full rounded-xl border border-slate-200 p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+              value={formData.title}
+              placeholder="e.g. Business English"
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-bold text-slate-700 uppercase tracking-tight">Description</span>
+            <textarea 
+              className="mt-1 w-full rounded-xl border border-slate-200 p-3 h-24 focus:ring-2 focus:ring-indigo-500 outline-none"
+              value={formData.description}
+              placeholder="Explain what the student will learn..."
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-4 border-t pt-5">
+            <label>
+              <span className="text-sm font-bold text-slate-700">Single Lesson ($)</span>
+              <input 
+                type="number"
+                className="mt-1 w-full rounded-xl border border-slate-200 p-3"
+                value={formData.priceSingle}
+                onChange={(e) => setFormData({...formData, priceSingle: Number(e.target.value)})}
+              />
+            </label>
+            <label>
+              <span className="text-sm font-bold text-indigo-600">5-Lesson Disc. ($)</span>
+              <input 
+                type="number"
+                className="mt-1 w-full rounded-xl border border-slate-200 p-3 bg-indigo-50 font-bold text-indigo-700"
+                value={formData.packageFiveDiscount}
+                onChange={(e) => setFormData({...formData, packageFiveDiscount: Number(e.target.value)})}
+              />
+            </label>
+          </div>
+
+          <div className="rounded-xl bg-slate-50 p-4 text-sm flex justify-between items-center border border-slate-100">
+            <div>
+              <span className="text-slate-500">Package Price:</span>
+              <span className="ml-2 font-black text-slate-900">${totalPackagePrice.toFixed(2)}</span>
+            </div>
+            <div className="text-indigo-600 font-bold">
+              Avg: ${avgPrice.toFixed(2)} / lesson
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex gap-3">
+          <button 
+            onClick={() => onSave(formData)}
+            style={{ background: '#4f46e5', color: 'white', border: 'none', cursor: 'pointer' }}
+            className="flex-1 rounded-xl py-3 font-bold hover:bg-indigo-700 transition"
+          >
+            Save Lesson Type
+          </button>
+          <button onClick={onClose} style={{ cursor: 'pointer' }} className="flex-1 rounded-xl border border-slate-200 py-3 font-bold text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================= NEW: Lesson Types Manager (Slots 1-8) =================
+function LessonTypesManager({ currentTemplates, onUpdate }) {
+  const [editingIndex, setEditingIndex] = useState(null);
+  const slots = Array.from({ length: 8 }, (_, i) => currentTemplates[i] || null);
+
+  const handleSave = (updatedData) => {
+    const newTemplates = [...slots];
+    newTemplates[editingIndex] = updatedData;
+    onUpdate(newTemplates.filter(t => t && t.title)); 
+    setEditingIndex(null);
+  };
+
+  return (
+    <section style={{ marginTop: 24, borderRadius: 16, border: "1px solid #e5e7eb", background: "white", overflow: "hidden" }}>
+      <div style={{ padding: 16, background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Manage Lesson Types (Up to 8)</h2>
+        <p style={{ fontSize: 14, opacity: 0.7 }}>Define your lesson descriptions and dollar discounts for packages.</p>
+      </div>
+      
+      <div style={{ padding: 16 }} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {slots.map((template, idx) => (
+          <div key={idx} style={{ padding: 12, borderRadius: 12, border: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#94a3b8" }}>Slot {idx + 1}</span>
+              {template ? (
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{template.title}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>${template.priceSingle} / session</div>
+                </div>
+              ) : (
+                <span style={{ color: "#cbd5e1", fontSize: 13, fontStyle: "italic" }}>Empty Slot</span>
+              )}
+            </div>
+            <button onClick={() => setEditingIndex(idx)} style={{ fontSize: 12, fontWeight: 700, color: "#4f46e5", border: "1px solid #e0e7ff", borderRadius: 8, padding: "4px 10px", cursor: 'pointer', background: 'white' }}>
+              {template ? "Edit" : "Set Up"}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {editingIndex !== null && (
+        <LessonTypeModal 
+          template={slots[editingIndex]} 
+          onSave={handleSave} 
+          onClose={() => setEditingIndex(null)} 
+        />
+      )}
+    </section>
+  );
+}
+
 // ================= Availability Panel =================
 function AvailabilityPanel() {
   const { token } = useAuth();
@@ -505,14 +647,28 @@ function TutorOnboardingPanel() {
 
 // ================= Main Tutor Dashboard =================
 export default function TutorDashboard() {
-  const { getToken, user } = useAuth();
+  const { getToken, user, login } = useAuth();
   const [upcoming, setUpcoming] = useState(null);
   const [unread, setUnread] = useState(null);
   const [err, setErr] = useState("");
 
-  // derive tutorStatus for banner logic
   const tutorStatus = user?.tutorStatus || user?.status || null;
   const isRejectedTutor = user?.role === "tutor" && tutorStatus === "rejected";
+
+  const handleTemplatesUpdate = async (newTemplates) => {
+    try {
+      const token = getToken();
+      const updatedUser = await apiFetch(`/api/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ lessonTemplates: newTemplates })
+      });
+      login(token, updatedUser); 
+      alert("✅ Lesson types saved!");
+    } catch (err) {
+      alert("❌ Failed to save.");
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -580,10 +736,8 @@ export default function TutorDashboard() {
         </Link>
       </div>
 
-      {/* Onboarding checklist */}
       <TutorOnboardingPanel />
 
-      {/* Rejected tutor message */}
       {isRejectedTutor && (
         <section className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 space-y-2">
           <h2 className="text-base font-semibold">
@@ -610,7 +764,12 @@ export default function TutorDashboard() {
         </section>
       )}
 
-      {/* Primary availability CTA */}
+      {/* SURGICAL INSERTION OF LESSON TYPES MANAGER */}
+      <LessonTypesManager 
+        currentTemplates={user?.lessonTemplates || []} 
+        onUpdate={handleTemplatesUpdate} 
+      />
+
       <div
         style={{
           marginTop: 16,
