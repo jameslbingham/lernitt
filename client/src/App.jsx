@@ -39,6 +39,7 @@ const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
 const LessonRecordings = lazy(
   () => import("./pages/LessonRecordings.jsx")
 );
+const PlacementTest = lazy(() => import("./pages/PlacementTest.jsx")); // ✅ Added PlacementTest
 
 // Signup + setup pages
 const Signup = lazy(() => import("./pages/Signup.jsx"));
@@ -208,6 +209,9 @@ export default function App() {
                   path="/lesson-recordings"
                   element={<LessonRecordings />}
                 />
+
+                {/* ✅ New: Assessment / Placement Test Route */}
+                <Route path="/placement-test" element={<PlacementTest />} />
               </Route>
 
               {/* 404 fallback */}
