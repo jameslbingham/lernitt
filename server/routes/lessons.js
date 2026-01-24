@@ -79,7 +79,7 @@ router.get('/tutor', auth, async (req, res) => {
 /* ============================================
    Create a lesson (student booking)
    status: 'booked' (student booked; payment required)
-   ✅ UPDATED WITH TRANSACTION GUARD
+   ✅ UPDATED WITH CREDIT DEDUCTION LOGIC
    ============================================ */
 router.post('/', auth, async (req, res) => {
   const session = await mongoose.startSession();
@@ -88,7 +88,7 @@ router.post('/', auth, async (req, res) => {
   try {
     console.log('[BOOK] body:', req.body);
 
-    const { tutor, subject, startTime, endTime, price, currency, notes } = req.body;
+    const { tutor, subject, startTime, endTime, price, currency, notes, isPackage } = req.body;
 
     // ✅ Guard: only approved tutors can be booked
     const tutorUser = await User.findById(tutor).select('role tutorStatus').session(session);
@@ -126,7 +126,16 @@ router.post('/', auth, async (req, res) => {
         return res.status(400).json({ message: "You used all 3 free trials" });
       }
     }
-    const finalPrice = isTrial ? 0 : price;
+
+    // ✅ NEW: Check for existing package credits
+    const studentUser = await User.findById(req.user.id).session(session);
+    const creditEntry = studentUser.packageCredits?.find(
+      c => String(c.tutorId) === String(tutor) && c.count > 0
+    );
+
+    const usingCredit = !isTrial && !isPackage && creditEntry;
+    const finalPrice = (isTrial || usingCredit) ? 0 : price;
+    const finalStatus = usingCredit ? 'confirmed' : 'booked';
 
     // validate slot
     const durMins = Math.max(15, Math.round((new Date(endTime) - new Date(startTime)) / 60000));
@@ -164,8 +173,20 @@ router.post('/', auth, async (req, res) => {
       currency,
       notes,
       isTrial,
-      status: 'booked', // student booked; payment required
+      isPackage: !!isPackage,
+      status: finalStatus,
+      isPaid: usingCredit, // Mark as paid if using a pre-paid credit
+      paidAt: usingCredit ? new Date() : undefined
     });
+
+    // ✅ NEW: Decrement credit if used
+    if (usingCredit) {
+      await User.updateOne(
+        { _id: req.user.id, "packageCredits.tutorId": tutor },
+        { $inc: { "packageCredits.$.count": -1 } },
+        { session }
+      );
+    }
 
     await lesson.save({ session });
     await session.commitTransaction();
@@ -173,12 +194,12 @@ router.post('/', auth, async (req, res) => {
     await notify(
       lesson.tutor,
       'booking',
-      'New lesson booked',
-      'A student booked a lesson with you.',
+      usingCredit ? 'Lesson scheduled (Pre-paid)' : 'New lesson booked',
+      usingCredit ? 'A student used a package credit to book a session.' : 'A student booked a lesson with you.',
       { lesson: lesson._id }
     );
 
-    res.status(201).json({ _id: lesson._id });
+    res.status(201).json({ _id: lesson._id, usingCredit });
   } catch (err) {
     await session.abortTransaction();
     console.error('[BOOK] error:', err);
@@ -200,7 +221,6 @@ router.get('/mine', auth, async (req, res) => {
     const out = lessons.map((l) => ({
       ...l.toObject(),
       status: normalizeStatus(l.status),
-      // aiSummary is automatically included via toObject()
     }));
 
     res.json(out);
@@ -223,7 +243,6 @@ router.get('/:id', auth, async (req, res) => {
 
     const out = l.toObject();
     out.status = normalizeStatus(out.status);
-    // aiSummary is automatically included via toObject()
 
     res.json(out);
   } catch (err) {
@@ -377,7 +396,6 @@ router.patch('/:id/cancel', auth, async (req, res) => {
 
 /* ============================================
    Complete → completed
-   ✅ FIXED: Added 15% commission + dynamic Payout provider
    ============================================ */
 router.patch('/:id/complete', auth, async (req, res) => {
   try {
@@ -404,7 +422,6 @@ router.patch('/:id/complete', auth, async (req, res) => {
     const tutorTakeHomeCents = Math.floor(rawAmountCents * 0.85);
 
     if (! lesson.isTrial && tutorTakeHomeCents > 0) {
-      // 🏦 Find tutor to check their preferred payout method
       const tutorUser = await User.findById(lesson.tutor);
       const provider = tutorUser?.paypalEmail ? 'paypal' : 'stripe';
 
@@ -435,7 +452,6 @@ router.patch('/:id/complete', auth, async (req, res) => {
 
 /* ============================================
    Request reschedule
-   → reschedule_requested
    ============================================ */
 router.patch('/:id/reschedule', auth, async (req, res) => {
   try {
@@ -459,7 +475,6 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
       return res.status(400).json({ message: `Cannot reschedule a ${lesson.status} lesson` });
     }
 
-    // validate slot
     const durMins = Math.max(
       15,
       Math.round((new Date(newEndTime) - new Date(newStartTime)) / 60000)
@@ -513,7 +528,6 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
 
 /* ============================================
    Approve reschedule
-   reschedule_requested → confirmed
    ============================================ */
 router.patch('/:id/reschedule-approve', auth, async (req, res) => {
   try {
@@ -561,7 +575,6 @@ router.patch('/:id/reschedule-approve', auth, async (req, res) => {
 
 /* ============================================
    Reject reschedule
-   reschedule_requested → confirmed (original time)
    ============================================ */
 router.patch('/:id/reschedule-reject', auth, async (req, res) => {
   try {
