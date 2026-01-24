@@ -6,11 +6,12 @@ const { Schema } = mongoose;
 /**
  * MERGED User schema
  * - Preserves ALL of your existing fields (name, email, password, bio, subjects, price, avatar,
- *   stripeAccountId, payoutsEnabled, paypalEmail, isAdmin).
+ * stripeAccountId, payoutsEnabled, paypalEmail, isAdmin).
  * - Adds optional fields used by dashboards & payouts (role, isTutor, hourlyRate, languages,
- *   country, timezone, totals, lastLogin, verified).
+ * country, timezone, totals, lastLogin, verified).
  * - Adds tutorStatus for tutor approval flow.
  * - Adds password hashing + compare helper (safe: only hashes when password is modified).
+ * - NEW: Adds proficiencyLevel for AI "Level Aware" summaries.
  */
 
 const UserSchema = new Schema(
@@ -55,6 +56,13 @@ const UserSchema = new Schema(
       enum: ["none", "pending", "approved", "rejected"],
       default: "none",
       index: true,
+    },
+
+    // 👇 NEW: AI Proficiency Level (A1-C2)
+    proficiencyLevel: {
+      type: String,
+      enum: ["A1", "A2", "B1", "B2", "C1", "C2", "none"],
+      default: "none",
     },
 
     hourlyRate: { type: Number, min: 0 }, // complements your existing "price"
@@ -110,8 +118,8 @@ UserSchema.methods.summary = function () {
     timezone: this.timezone,
     totalLessons: this.totalLessons,
     totalEarnings: this.totalEarnings,
-    // 👇 NEW: surface tutorStatus in summaries if needed
     tutorStatus: this.tutorStatus || "none",
+    proficiencyLevel: this.proficiencyLevel || "none", // ✅ Surfaced for AI trigger
   };
 };
 
