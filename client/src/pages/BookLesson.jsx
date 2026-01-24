@@ -126,6 +126,10 @@ export default function BookLesson() {
   const tutorObj = passedTutor || {};
   const tutorName = tutorObj?.name || tutor?.name || "Tutor";
 
+  // NEW: State for Lesson Type and Package Quantity
+  const [selectedTypeIndex, setSelectedTypeIndex] = useState(0);
+  const [packageMode, setPackageMode] = useState("single"); // "single" or "package"
+
   const prefsKey = tutorId ? `bookPrefs:${tutorId}` : null;
   const [duration, setDuration] = useState(60);
   const [trial, setTrial] = useState(false);
@@ -170,12 +174,29 @@ export default function BookLesson() {
     }
   }, [weekStart, selectedDay]);
 
+  // NEW: Logic to find Bob's Pricing Templates
+  const templates = tutor?.lessonTemplates || [];
+  const currentTemplate = templates[selectedTypeIndex] || null;
+
   const hourlyPrice = tutorObj?.price ?? tutor?.price ?? null;
+
   const priceForDuration = useMemo(() => {
     if (trial) return 0;
+    
+    // If Bob has customized Lesson Types, use those prices
+    if (currentTemplate) {
+      if (packageMode === "package") {
+        // LOCK IN: (Total Price - Dollar Discount) / 5
+        const total = (currentTemplate.priceSingle * 5) - currentTemplate.packageFiveDiscount;
+        return total / 5;
+      }
+      return currentTemplate.priceSingle;
+    }
+
+    // Original Fallback
     if (hourlyPrice == null) return null;
     return Math.round(hourlyPrice * (duration / 60) * 100) / 100;
-  }, [trial, duration, hourlyPrice]);
+  }, [trial, duration, hourlyPrice, currentTemplate, packageMode]);
 
   const loggedIn = !!localStorage.getItem("token");
 
@@ -249,13 +270,11 @@ export default function BookLesson() {
         }
       } catch (e) {
         console.warn("Trial summary load failed (using defaults):", e);
-        // Keep defaults (3 total, 1 per tutor, 0 used)
       }
     };
 
     load();
   }, [tutorId]);
-  // ---------- END trial summary ----------
 
   const [weekSlots, setWeekSlots] = useState({});
   const [loadingWeek, setLoadingWeek] = useState(false);
@@ -348,7 +367,6 @@ export default function BookLesson() {
           `/api/availability/${encodeURIComponent(tutorId)}/slots?${qs.toString()}`
         );
 
-        // backend returns an array of ISO strings or { slots: [...] }
         const list = Array.isArray(data?.slots)
           ? data.slots
           : Array.isArray(data)
@@ -362,7 +380,6 @@ export default function BookLesson() {
           grouped[key].push(iso);
         }
 
-        // Ensure all visible days exist as keys
         for (const d of days) {
           const key = d.toISOString().slice(0, 10);
           grouped[key] = grouped[key] || [];
@@ -420,13 +437,17 @@ export default function BookLesson() {
 
       const body = {
         tutor: tutorId,
-        subject: "",
+        subject: currentTemplate?.title || "",
         startTime: startDate.toISOString(),
         endTime: endDate.toISOString(),
         price: !trial && priceForDuration != null ? priceForDuration : 0,
         currency: "EUR",
         notes: notes.trim(),
         isTrial: !!trial,
+        // NEW italki metadata
+        lessonTypeTitle: currentTemplate?.title || "General Lesson",
+        isPackage: packageMode === "package",
+        packageSize: packageMode === "package" ? 5 : 1
       };
 
       const data = await apiFetch(`${API}/api/lessons`, {
@@ -462,7 +483,7 @@ export default function BookLesson() {
     weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: 16, fontFamily: 'Inter, sans-serif' }}>
       {/* Back to tutors */}
       <div style={{ marginBottom: 8 }}>
         <Link to={backTo} className="text-sm underline">
@@ -470,21 +491,76 @@ export default function BookLesson() {
         </Link>
       </div>
 
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>
         Book a lesson with {tutorName}
       </h1>
 
+      {/* italki Step 1: Lesson Type Selection */}
+      {templates.length > 0 && (
+        <section style={{ marginBottom: 24, padding: 20, background: "#f8fafc", borderRadius: 20, border: "1px solid #e2e8f0" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: "#475569", textTransform: 'uppercase', letterSpacing: '0.05em' }}>1. Select Lesson Category</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+            {templates.map((t, idx) => (
+              <button
+                key={idx}
+                onClick={() => { setSelectedTypeIndex(idx); setTrial(false); }}
+                style={{
+                  padding: 16, textAlign: "left", borderRadius: 16, border: "2px solid", 
+                  borderColor: selectedTypeIndex === idx ? "#4f46e5" : "#fff",
+                  background: selectedTypeIndex === idx ? "#eef2ff" : "#fff",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.05)", cursor: "pointer", transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#1e293b' }}>{t.title}</div>
+                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6, height: 36, overflow: "hidden", lineHeight: '1.4' }}>{t.description}</div>
+                <div style={{ marginTop: 10, fontWeight: 900, color: "#4f46e5", fontSize: 16 }}>${t.priceSingle}</div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* italki Step 2: Package Toggle */}
+      {!trial && currentTemplate && (
+        <section style={{ marginBottom: 24, padding: 20, background: "#fff", borderRadius: 20, border: "1px solid #e2e8f0" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: "#475569", textTransform: 'uppercase', letterSpacing: '0.05em' }}>2. Choose Quantity</h2>
+          <div style={{ display: "flex", gap: 16 }}>
+            <button 
+              onClick={() => setPackageMode("single")}
+              style={{ flex: 1, padding: 16, borderRadius: 16, border: "2px solid", borderColor: packageMode === "single" ? "#4f46e5" : "#f1f5f9", background: packageMode === "single" ? "#eef2ff" : "#fff", cursor: "pointer" }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 15 }}>Single Lesson</div>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>${currentTemplate.priceSingle} total</div>
+            </button>
+            <button 
+              onClick={() => setPackageMode("package")}
+              style={{ flex: 1, padding: 16, borderRadius: 16, border: "2px solid", borderColor: packageMode === "package" ? "#4f46e5" : "#f1f5f9", background: packageMode === "package" ? "#eef2ff" : "#fff", cursor: "pointer", position: "relative" }}
+            >
+              {currentTemplate.packageFiveDiscount > 0 && (
+                <span style={{ position: "absolute", top: -10, right: 10, background: "#10b981", color: "#fff", fontSize: 10, padding: "4px 10px", borderRadius: 20, fontWeight: 900, boxShadow: '0 2px 4px rgba(16,185,129,0.3)' }}>
+                  SAVE ${currentTemplate.packageFiveDiscount}
+                </span>
+              )}
+              <div style={{ fontWeight: 800, fontSize: 15 }}>5-Lesson Package</div>
+              <div style={{ fontSize: 13, opacity: 0.7 }}>${(((currentTemplate.priceSingle * 5) - currentTemplate.packageFiveDiscount) / 5).toFixed(2)} / lesson</div>
+            </button>
+          </div>
+        </section>
+      )}
+
       <div
         style={{
-          padding: "6px 8px",
-          fontSize: 12,
+          padding: "10px 14px",
+          fontSize: 13,
           border: "1px solid #e5e7eb",
-          borderRadius: 8,
+          borderRadius: 12,
           background: "#eff6ff",
-          marginBottom: 8,
+          marginBottom: 16,
+          fontWeight: 500,
+          color: '#1d4ed8'
         }}
       >
-        Times are shown in your timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}.
+        Times are shown in your local timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}.
       </div>
 
       {/* Controls */}
@@ -494,61 +570,55 @@ export default function BookLesson() {
           gap: 12,
           flexWrap: "wrap",
           alignItems: "center",
-          marginBottom: 14,
+          marginBottom: 20,
         }}
       >
-        <label>
-          Duration:&nbsp;
-          <select
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            disabled={trial}
-          >
-            <option value={30}>30 min</option>
-            <option value={45}>45 min</option>
-            <option value={60}>60 min</option>
-            <option value={90}>90 min</option>
-          </select>
-        </label>
+        {!currentTemplate && (
+          <label style={{ fontWeight: 600, fontSize: 14 }}>
+            Duration:&nbsp;
+            <select
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              disabled={trial}
+              style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+            >
+              <option value={30}>30 min</option>
+              <option value={45}>45 min</option>
+              <option value={60}>60 min</option>
+              <option value={90}>90 min</option>
+            </select>
+          </label>
+        )}
 
-        {/* ✅ UPDATED: Added Trial checkbox guard for quota limits */}
         {trialAllowed ? (
-          <label title="Trials are 30 minutes and free. Limits: max 3 total, 1 per tutor.">
+          <label style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
             <input
               type="checkbox"
               checked={trial}
-              onChange={(e) => setTrial(e.target.checked)}
+              onChange={(e) => { 
+                setTrial(e.target.checked); 
+                if(e.target.checked) setPackageMode("single"); 
+              }}
             />{" "}
             Trial lesson (30 min, free)
           </label>
         ) : (
           <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 500 }}>
-            Trial limit reached for this account.
+            Trial limit reached.
           </div>
         )}
 
-        <div style={{ fontSize: 12, opacity: 0.85 }}>
-          Trials used: {trialInfo.totalUsed}/{trialInfo.limitTotal} {"  •  "}
+        <div style={{ fontSize: 12, opacity: 0.7 }}>
+          Used: {trialInfo.totalUsed}/{trialInfo.limitTotal} {"  •  "}
           This tutor: {trialInfo.usedWithTutor}/{trialInfo.limitPerTutor}
         </div>
 
-        <div style={{ fontSize: 12, opacity: 0.8 }}>
-          Your time: {tz}
-          {tutorTz ? `  •  Tutor time: ${tutorTz}` : ""}
-        </div>
-
         {hourlyPrice != null && (
-          <div style={{ fontSize: 14, fontWeight: 600 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
             Price:{" "}
             {trial
               ? "€ 0.00 (trial)"
-              : `€ ${priceForDuration?.toFixed(2)} (${duration} min)`}
-          </div>
-        )}
-
-        {!loggedIn && (
-          <div style={{ fontSize: 12, opacity: 0.8 }}>
-            You’ll be asked to log in when you pick a time.
+              : `€ ${priceForDuration?.toFixed(2)} ${packageMode === 'package' ? 'per lesson (locked)' : ''}`}
           </div>
         )}
 
@@ -557,15 +627,17 @@ export default function BookLesson() {
             setDuration(60);
             setTrial(false);
             setNotes("");
+            setPackageMode("single");
             if (prefsKey) localStorage.removeItem(prefsKey);
           }}
-          title="Reset duration, trial, and notes for this tutor"
           style={{
-            padding: "6px 10px",
-            border: "1px solid #e5e7eb",
+            padding: "6px 12px",
+            border: "1px solid #e2e8f0",
             borderRadius: 10,
             background: "#fff",
             cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 700
           }}
         >
           Reset
@@ -577,49 +649,50 @@ export default function BookLesson() {
         style={{
           position: "sticky",
           top: 0,
-          background: "#fff",
+          background: "rgba(255,255,255,0.9)",
+          backdropFilter: 'blur(8px)',
           zIndex: 10,
           borderBottom: "1px solid #e5e7eb",
-          padding: 8,
-          marginBottom: 8,
+          padding: '12px 0',
+          marginBottom: 16,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             onClick={() => !prevDisabled && setWeekStart(addDays(weekStart, -7))}
             disabled={prevDisabled}
             style={{
-              padding: "8px 10px",
+              padding: "10px 14px",
               border: "1px solid #e5e7eb",
-              borderRadius: 10,
+              borderRadius: 12,
               background: prevDisabled ? "#f3f4f6" : "#fff",
               cursor: prevDisabled ? "not-allowed" : "pointer",
+              fontWeight: 700
             }}
           >
-            ← Prev week
+            ← Prev
           </button>
-          <div style={{ fontWeight: 700, flex: 1, textAlign: "center" }}>
+          <div style={{ fontWeight: 800, flex: 1, textAlign: "center", fontSize: 16 }}>
             {weekLabel}
           </div>
           <button
-            onClick={() => !nextDisabled && setWeekStart(addDays(weekStart, 7))}
-            disabled={nextDisabled}
+            onClick={() => setWeekStart(addDays(weekStart, 7))}
             style={{
-              padding: "8px 10px",
+              padding: "10px 14px",
               border: "1px solid #e5e7eb",
-              borderRadius: 10,
-              background: nextDisabled ? "#f3f4f6" : "#fff",
-              cursor: nextDisabled ? "not-allowed" : "pointer",
+              borderRadius: 12,
+              background: "#fff",
+              cursor: "pointer",
+              fontWeight: 700
             }}
           >
-            Next week →
+            Next →
           </button>
         </div>
       </div>
 
-      {/* Mini 7-day calendar */}
-      <div style={{ marginBottom: 8, fontWeight: 600 }}>Pick a day</div>
-      <div style={{ display: "flex", flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 12, fontWeight: 700, fontSize: 15 }}>3. Pick a date & time</div>
+      <div style={{ display: "flex", flexWrap: "wrap", marginBottom: 12 }}>
         {days.map((d) => (
           <DayPill
             key={d.toISOString()}
@@ -631,84 +704,41 @@ export default function BookLesson() {
         ))}
       </div>
 
-      {/* Weekly preview bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          overflowX: "auto",
-          padding: 8,
-          fontSize: 12,
-          border: "1px solid #e5e7eb",
-          borderRadius: 10,
-          background: "#fafafa",
-          marginBottom: 8,
-        }}
-      >
-        {days.map((d) => {
-          const count = countSlotsFor(d);
-          const isSel = sameDay(d, selectedDay);
-          const bg = isSel ? "#3b82f6" : count > 0 ? "#ecfdf5" : "#f3f4f6";
-          const color = isSel ? "#fff" : "#111827";
-          return (
-            <button
-              key={d.toISOString()}
-              onClick={() => setSelectedDay(d)}
-              title={d.toDateString()}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 12,
-                border: "1px solid #e5e7eb",
-                background: bg,
-                color,
-                whiteSpace: "nowrap",
-                cursor: "pointer",
-              }}
-            >
-              {d.toLocaleDateString([], { weekday: "short" })} ({count})
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Weekly preview grid */}
       <WeeklyGrid
         days={days}
         selectedDay={selectedDay}
         onSelect={setSelectedDay}
         countSlotsFor={countSlotsFor}
       />
-      <div style={{ marginTop: 6, marginBottom: 16, fontSize: 12, opacity: 0.8 }}>
-        Green = available, Grey = not available. Click a day to view times.
-      </div>
 
       {/* Notes */}
-      <div style={{ marginTop: 8, marginBottom: 12 }}>
-        <label>Notes (optional)</label>
+      <div style={{ marginTop: 24, marginBottom: 20 }}>
+        <label style={{ fontWeight: 700, fontSize: 14, color: '#475569' }}>Notes for {tutorName} (optional)</label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value.slice(0, NOTES_MAX))}
           rows={3}
-          placeholder="Add lesson goals, topics, level, preferences…"
+          placeholder="What would you like to focus on?"
           style={{
             display: "block",
             width: "100%",
             maxWidth: 700,
-            padding: 8,
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid #cbd5e1",
+            marginTop: 8,
+            fontSize: 14
           }}
         />
-        <div style={{ fontSize: 12, opacity: 0.8 }}>
-          {notes.length}/{NOTES_MAX}
+        <div style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
+          {notes.length}/{NOTES_MAX} characters
         </div>
       </div>
 
-      {error && <div style={{ color: "#b91c1c", marginBottom: 12 }}>{error}</div>}
-      {loadingWeek && <div style={{ marginBottom: 12 }}>Loading availability…</div>}
+      {error && <div style={{ color: "#b91c1c", marginBottom: 12, fontWeight: 600 }}>{error}</div>}
+      {loadingWeek && <div style={{ marginBottom: 12, color: '#6366f1', fontWeight: 600 }}>Syncing availability…</div>}
 
-      {/* Slots grid */}
-      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12 }}>
         {selectedDay.toLocaleDateString(undefined, {
           weekday: "long",
           month: "short",
@@ -717,35 +747,32 @@ export default function BookLesson() {
       </h2>
 
       {daySlots.length === 0 ? (
-        <div style={{ padding: 12, background: "#fef9c3", borderRadius: 8 }}>
-          <div>No slots for this day and duration.</div>
+        <div style={{ padding: 20, background: "#fffbeb", borderRadius: 16, border: '1px solid #fef3c7', color: '#92400e' }}>
+          <div style={{ fontWeight: 700 }}>No slots for this date.</div>
           {!trial ? (
-            <div style={{ marginTop: 8 }}>
-              Try:{" "}
+            <div style={{ marginTop: 8, fontSize: 13 }}>
+              Try another duration:&nbsp;
               {DURATIONS.filter((d) => d !== duration).map((d) => (
                 <button
                   key={d}
                   onClick={() => setDuration(d)}
                   style={{
                     marginRight: 6,
-                    padding: "6px 10px",
+                    padding: "4px 10px",
                     borderRadius: 8,
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid #fcd34d",
+                    background: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer'
                   }}
                 >
-                  {d} min
+                  {d}m
                 </button>
               ))}
             </div>
           ) : (
-            <div style={{ marginTop: 8, opacity: 0.8 }}>
+            <div style={{ marginTop: 8, opacity: 0.8, fontSize: 13 }}>
               Trials are fixed at 30 minutes.
-            </div>
-          )}
-          {weekTotal === 0 && (
-            <div style={{ marginTop: 8, opacity: 0.8 }}>
-              No slots this week for the selected duration. Try a different duration or
-              week.
             </div>
           )}
         </div>
@@ -753,8 +780,8 @@ export default function BookLesson() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
-            gap: 8,
+            gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+            gap: 12,
           }}
         >
           {daySlots.map((s) => (
@@ -762,54 +789,47 @@ export default function BookLesson() {
               key={s.iso}
               onClick={() => handleBook(s.iso)}
               style={{
-                padding: "16px",
-                borderRadius: 14,
-                border: "1px solid #e5e7eb",
+                padding: "18px",
+                borderRadius: 16,
+                border: "1px solid #e2e8f0",
                 cursor: "pointer",
                 background: "#ffffff",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-                minHeight: 56,
+                boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
+                minHeight: 64,
                 fontSize: 16,
-                touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent",
+                fontWeight: 800,
+                transition: 'all 0.2s'
               }}
               title={new Date(s.iso).toString()}
             >
               {s.label}
-              <div style={{ fontSize: 12, opacity: 0.75 }}>
-                {tutorTz
-                  ? new Date(s.iso).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      timeZone: tutorTz,
-                    })
-                  : ""}
+              <div style={{ fontSize: 11, opacity: 0.5, fontWeight: 500, marginTop: 2 }}>
+                {tutorTz ? `Tutor: ${new Date(s.iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: tutorTz })}` : ""}
               </div>
             </button>
           ))}
         </div>
       )}
 
-      {/* Next available day */}
-      <div style={{ marginTop: 12 }}>
+      {/* Next available day logic preserved */}
+      <div style={{ marginTop: 20 }}>
         <button
           onClick={() => {
-            const idx = days.findIndex(
-              (d) => d.toDateString() === selectedDay.toDateString()
-            );
+            const idx = days.findIndex((d) => d.toDateString() === selectedDay.toDateString());
             const next = days.slice(idx + 1).find((d) => countSlotsFor(d) > 0);
             if (next) setSelectedDay(next);
           }}
           style={{
-            padding: "8px 12px",
-            border: "1px solid #e5e7eb",
-            borderRadius: 10,
+            padding: "10px 16px",
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
             background: "#fff",
             cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 13
           }}
-          title="Jump to next day with slots"
         >
-          Next available day →
+          Skip to next available day →
         </button>
       </div>
     </div>
