@@ -4,12 +4,11 @@ const router = express.Router();
 const { auth } = require("../middleware/auth");
 const Payment = require('../models/Payment');
 const Lesson = require('../models/Lesson');
-const User = require('../models/User'); // ✅ NEW: added to update credits
+const User = require('../models/User'); 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const fetch = require('node-fetch'); // Required for real PayPal API calls
+const fetch = require('node-fetch');
 
-// ✅ NEW: Import Email Utilities for Receipt Generation
-// These are required for the automated package receipt trigger
+// Ensure these two imports match your file names exactly
 const { sendEmail } = require('../utils/sendEmail'); 
 const { generatePackageReceiptEmail } = require('../utils/emailTemplates');
 
