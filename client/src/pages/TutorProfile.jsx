@@ -1,9 +1,10 @@
 // client/src/pages/TutorProfile.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useLocation, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { copyToClipboard } from "../lib/copy.js";
 import { useToast } from "../hooks/useToast.js";
+import { useAuth } from "../hooks/useAuth.jsx"; // ✅ NEW: Added for credit check
 import ReviewForm from "../components/ReviewForm.jsx";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
@@ -107,11 +108,10 @@ function ReviewsPanel({ tutorId, tutorName }) {
           reviewsCount: Number.isFinite(count) ? count : 0,
         });
       } catch (e) {
-        // NEW: fail safely, no scary "server_error" text
         console.error("Failed to load reviews", e);
         setItems([]);
         setSummary({ avgRating: 0, reviewsCount: 0 });
-        setErr(""); // keep empty so we show the "no reviews" message instead
+        setErr(""); 
       } finally {
         setLoading(false);
       }
@@ -176,7 +176,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
         });
         closeForm();
       } catch {
-        // ignore, keep current list
+        // ignore
       }
     })();
   }
@@ -198,7 +198,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
         {canReview && (
           <button
             onClick={openForm}
-            className="ml-auto text-sm border px-3 py-1 rounded-2xl"
+            className="ml-auto text-sm border px-3 py-1 rounded-2xl transition hover:bg-slate-50"
           >
             Write a review
           </button>
@@ -206,7 +206,7 @@ function ReviewsPanel({ tutorId, tutorName }) {
       </div>
 
       {showForm && (
-        <div className="border rounded-2xl p-3">
+        <div className="border rounded-2xl p-3 bg-slate-50/50">
           <ReviewForm
             tutorId={tutorId}
             tutorName={tutorName}
@@ -216,29 +216,29 @@ function ReviewsPanel({ tutorId, tutorName }) {
         </div>
       )}
 
-      {loading && <div>Loading reviews…</div>}
+      {loading && <div className="animate-pulse">Loading reviews…</div>}
       {err && <div className="text-red-600">{err}</div>}
 
       {!loading && !err && items.length === 0 && (
-        <div className="opacity-70">Tutor has no reviews yet.</div>
+        <div className="opacity-70 italic text-sm">Tutor has no reviews yet.</div>
       )}
 
       {!loading && !err && items.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {items.map((r) => (
-            <li key={r._id || r.id} className="border rounded-2xl p-3">
+            <li key={r._id || r.id} className="border rounded-2xl p-4 bg-white shadow-sm">
               <div className="flex items-center gap-2">
-                <div className="font-medium">{r.student || "Student"}</div>
-                <div className="text-xs opacity-70">
+                <div className="font-bold text-slate-900">{r.student || "Student"}</div>
+                <div className="text-[10px] uppercase font-black tracking-widest opacity-40">
                   {r.createdAt
-                    ? new Date(r.createdAt).toLocaleString()
+                    ? new Date(r.createdAt).toLocaleDateString()
                     : ""}
                 </div>
-                <div className="ml-auto text-sm">
-                  ★ {Number(r.rating || 0).toFixed(1)}/5
+                <div className="ml-auto text-xs font-black text-amber-500">
+                  ★ {Number(r.rating || 0).toFixed(1)}
                 </div>
               </div>
-              {r.text && <div className="text-sm mt-1">{r.text}</div>}
+              {r.text && <div className="text-sm mt-2 text-slate-600 leading-relaxed">{r.text}</div>}
             </li>
           ))}
         </ul>
@@ -254,6 +254,7 @@ export default function TutorProfile() {
   const loc = useLocation();
   const backTo = (loc.state && loc.state.from) || "/tutors";
   const toast = useToast();
+  const { user } = useAuth(); // Access user profile for credit check
 
   const [tutor, setTutor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -265,6 +266,13 @@ export default function TutorProfile() {
   const searchParams = new URLSearchParams(loc.search || "");
   const trialParam = searchParams.get("trial");
   const [showTrialBanner, setShowTrialBanner] = useState(trialParam === "1");
+
+  // ✅ AUTHORITATIVE CREDIT CALCULATION
+  const tutorCredits = useMemo(() => {
+    if (!user || !user.packageCredits) return 0;
+    const entry = user.packageCredits.find(c => String(c.tutorId) === String(id));
+    return entry ? entry.count : 0;
+  }, [user, id]);
 
   function toggleFavorite() {
     setFavorites((prev) => {
@@ -306,7 +314,6 @@ export default function TutorProfile() {
     load();
   }, [id]);
 
-  // Document title (safe even if avgRating is a string)
   useEffect(() => {
     if (!tutor) return;
     const ratingNum = Number(tutor.avgRating);
@@ -316,9 +323,9 @@ export default function TutorProfile() {
       : `${tutor.name} — Tutor | Lernitt`;
   }, [tutor]);
 
-  if (loading) return <div className="p-4">Loading…</div>;
-  if (error) return <div className="p-4 text-red-600">{error}</div>;
-  if (!tutor) return <div className="p-4">Tutor not found.</div>;
+  if (loading) return <div className="p-10 text-center animate-pulse">Synchronizing Profile…</div>;
+  if (error) return <div className="p-4 text-red-600 font-bold">{error}</div>;
+  if (!tutor) return <div className="p-4">Tutor data not found.</div>;
 
   const priceNumber = Number(tutor.price);
   const priceValue = Number.isFinite(priceNumber)
@@ -329,7 +336,7 @@ export default function TutorProfile() {
 
   async function onCopyProfileLink() {
     const ok = await copyToClipboard(window.location.href);
-    toast(ok ? "Link copied!" : "Copy failed");
+    toast(ok ? "Profile link copied to clipboard!" : "Copy failed");
   }
 
   const ratingDisplay = Number.isFinite(Number(tutor.avgRating))
@@ -339,107 +346,140 @@ export default function TutorProfile() {
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-6">
       {/* Top back link */}
-      <Link to={backTo} className="text-sm underline block">
-        ← Back to tutors
+      <Link to={backTo} className="text-sm underline font-medium text-slate-500 hover:text-slate-900 block">
+        ← Back to Marketplace
       </Link>
 
       {/* Trial banner */}
       {showTrialBanner && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
-          <div>
-            🎉 <b>Trial booked!</b> Your 30-minute lesson is confirmed.
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 shadow-sm">
+          <div className="text-emerald-800">
+            🎉 <strong>Trial Confirmed!</strong> Your 30-minute session is ready.
           </div>
           <button
             onClick={() => setShowTrialBanner(false)}
-            className="ml-auto text-xs border px-2 py-1 rounded-2xl"
+            className="ml-auto text-[10px] font-black uppercase border border-emerald-200 px-3 py-1 rounded-xl bg-white"
           >
             Dismiss
           </button>
         </div>
       )}
 
+      {/* Authoritative Credit Badge (italki style) */}
+      {tutorCredits > 0 && (
+        <div className="p-4 bg-indigo-600 text-white rounded-[32px] flex items-center gap-4 shadow-xl shadow-indigo-100 border-2 border-indigo-400">
+          <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center text-2xl font-black">
+            {tutorCredits}
+          </div>
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest opacity-80">Pre-paid Balance</div>
+            <div className="text-lg font-bold leading-tight">You have {tutorCredits} lessons ready with {tutor.name}</div>
+          </div>
+          <Link 
+            to={`/book/${tutor._id || id}`} 
+            className="ml-auto bg-white text-indigo-600 px-4 py-2 rounded-2xl font-black text-xs uppercase shadow-lg active:scale-95 transition-transform"
+          >
+            Schedule
+          </Link>
+        </div>
+      )}
+
       {/* Centered header */}
-      <div className="text-center space-y-3">
-        {/* Square / rounded-corner photo */}
+      <div className="text-center space-y-4 pt-4">
         {tutor.avatar ? (
           <img
             src={tutor.avatar}
             alt="Tutor"
-            className="w-40 h-40 object-cover rounded-2xl mx-auto border shadow-sm"
+            className="w-48 h-48 object-cover rounded-[40px] mx-auto border-4 border-white shadow-xl"
           />
         ) : (
-          <div className="w-40 h-40 rounded-2xl mx-auto border shadow-sm flex items-center justify-center text-4xl font-semibold">
+          <div className="w-48 h-48 rounded-[40px] mx-auto border shadow-sm flex items-center justify-center text-5xl font-black bg-slate-50 text-slate-300">
             {tutor.name?.[0] || "?"}
           </div>
         )}
 
-        <h1 className="text-3xl font-bold">{tutor.name}</h1>
-
-        <div className="text-sm opacity-80">
-          {tutor.subjects?.length ? tutor.subjects.join(", ") : "—"}
+        <div className="space-y-1">
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">{tutor.name}</h1>
+          <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+            {tutor.subjects?.length ? tutor.subjects.join(" • ") : "Academic Professional"}
+          </div>
         </div>
 
-        {ratingDisplay && (
-          <div className="text-sm">⭐ {ratingDisplay} / 5</div>
-        )}
-
-        <div className="text-lg font-semibold">
-          {priceValue ? `${priceValue} € / hour` : "—"}
+        <div className="flex items-center justify-center gap-6">
+          {ratingDisplay && (
+            <div className="flex items-center gap-1 font-black text-slate-900">
+              <span className="text-amber-500 text-xl">★</span> {ratingDisplay} <span className="opacity-30 font-bold text-xs uppercase ml-1">/ 5</span>
+            </div>
+          )}
+          <div className="w-px h-4 bg-slate-200"></div>
+          <div className="font-black text-slate-900 text-xl">
+            {priceValue ? `€${priceValue}` : "—"} <span className="opacity-30 font-bold text-xs uppercase">/ HR</span>
+          </div>
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-center flex-wrap gap-2 pt-2">
-          {/* 1️⃣ Emphasised primary Book button */}
+        <div className="flex justify-center flex-wrap gap-3 pt-4">
           <Link
-            to={`/book/${tutor._id || tutor.id || id}`}
+            to={`/book/${tutor._id || id}`}
             state={{
               tutor,
               from: { pathname: loc.pathname, search: loc.search },
             }}
-            className="bg-indigo-600 text-white px-5 py-2 rounded-2xl text-sm font-semibold hover:bg-indigo-700 transition"
+            className={`px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg active:scale-95 ${
+              tutorCredits > 0 
+                ? "bg-emerald-500 text-white shadow-emerald-100 hover:bg-emerald-600" 
+                : "bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700"
+            }`}
           >
-            Book Lesson
+            {tutorCredits > 0 ? "Schedule session" : "Book lesson"}
           </Link>
 
-          {/* 2️⃣ Secondary buttons demoted */}
           <button
             onClick={toggleFavorite}
-            className="border px-4 py-2 rounded-2xl text-sm"
+            className="border-2 border-slate-100 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-colors"
           >
-            {isFav ? "♥ In favourites" : "♡ Add to favourites"}
+            {isFav ? "♥ Favourited" : "♡ Save Profile"}
           </button>
 
           <button
             onClick={onCopyProfileLink}
-            className="border px-4 py-2 rounded-2xl text-sm"
+            className="border-2 border-slate-100 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-colors"
           >
-            Share profile 🔗
+            Share 🔗
           </button>
-
-          <TrialsBadge tutorId={tutor._id || tutor.id || id} />
         </div>
-
-        {/* Bottom back link */}
-        <Link to={backTo} className="text-sm underline block pt-2">
-          ← Back to tutors
-        </Link>
+        
+        <div className="flex justify-center pt-2">
+           <TrialsBadge tutorId={tutor._id || id} />
+        </div>
       </div>
 
       {/* Bio */}
       {tutor.bio && (
-        <div className="p-4 border rounded-2xl whitespace-pre-line text-sm">
-          {tutor.bio}
+        <div className="p-6 border-2 border-slate-50 rounded-[32px] bg-white shadow-sm text-slate-600 leading-relaxed text-sm">
+          <h3 className="text-xs font-black text-slate-300 uppercase tracking-[0.2em] mb-4">Biography</h3>
+          <div className="whitespace-pre-line">{tutor.bio}</div>
         </div>
       )}
 
-      {/* 3️⃣ Visual divider before reviews */}
-      <hr className="my-6 opacity-40" />
+      {/* Visual divider before reviews */}
+      <div className="flex items-center gap-4 py-4">
+        <div className="h-[2px] flex-1 bg-slate-50"></div>
+        <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Feedback</div>
+        <div className="h-[2px] flex-1 bg-slate-50"></div>
+      </div>
 
       {/* Reviews panel */}
       <ReviewsPanel
-        tutorId={tutor._id || tutor.id || id}
+        tutorId={tutor._id || id}
         tutorName={tutor.name}
       />
+
+      {/* Notebook Footer Branding */}
+      <div className="text-center py-10 opacity-20 select-none pointer-events-none">
+        <div className="text-3xl font-black tracking-tighter">LERNITT ACADEMY</div>
+        <div className="text-[10px] font-bold uppercase tracking-[1em] mt-2">Professional Tutor Edition</div>
+      </div>
     </div>
   );
 }
