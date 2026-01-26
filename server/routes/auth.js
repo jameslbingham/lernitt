@@ -7,6 +7,9 @@ const User = require("../models/User");
 // Fix: Destructure the auth function from the middleware object
 const { auth } = require("../middleware/auth");
 
+// ✅ NEW FUNCTIONALITY: Import the notification utility for the Welcome Email trigger
+const { notify } = require("../utils/notify");
+
 // Helper to build token + public user
 function buildAuthResponse(user) {
   const secret = process.env.JWT_SECRET;
@@ -75,6 +78,30 @@ router.post("/signup", async (req, res) => {
     });
 
     await user.save();
+
+    // ✅ NEW FUNCTIONALITY: Trigger Welcome Notification & Email alert
+    try {
+      const welcomeTitle = isTutorSignup 
+        ? "Welcome to Lernitt Academy (Tutor Edition)" 
+        : "Welcome to Lernitt Academy";
+        
+      const welcomeMsg = isTutorSignup
+        ? "Your application is currently being reviewed. Once approved, you will be able to set your schedule and start accepting students."
+        : "Welcome to the Lernitt community! You can now browse our elite marketplace and book your first lesson.";
+
+      // Triggers both MongoDB notification and SendGrid email
+      await notify(
+        user._id, 
+        'welcome', 
+        welcomeTitle, 
+        welcomeMsg
+      );
+      
+      console.log(`[AUTH] Welcome alert triggered for: ${user.email}`);
+    } catch (notifyErr) {
+      // Log notification failure but do not break the signup response
+      console.error("[AUTH] Welcome notification failed:", notifyErr);
+    }
 
     const authPayload = buildAuthResponse(user);
     return res.status(201).json(authPayload);
