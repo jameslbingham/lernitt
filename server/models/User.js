@@ -4,21 +4,27 @@ const bcrypt = require("bcryptjs");
 const { Schema } = mongoose;
 
 /**
- * MERGED User schema
- * - Preserves ALL of your existing fields (name, email, password, bio, subjects, price, avatar,
- * stripeAccountId, payoutsEnabled, paypalEmail, isAdmin).
- * - Adds optional fields used by dashboards & payouts (role, isTutor, hourlyRate, languages,
- * country, timezone, totals, lastLogin, verified).
- * - Adds tutorStatus for tutor approval flow.
- * - Adds password hashing + compare helper (safe: only hashes when password is modified).
- * - NEW: Adds proficiencyLevel and placementTest for AI "Level Aware" assessments.
- * - NEW: Adds lessonTemplates for multi-tiered pricing and package discounts.
+ * LERNITT ACADEMY - ENHANCED USER DATA MODEL v3.2.0
+ * ----------------------------------------------------------------------------
+ * CORE ARCHITECTURE:
+ * - Identity: Fundamental account credentials and unique identification.
+ * - Pedagogy: AI-driven "Level Aware" assessment data and Linguistic DNA.
+ * - Commerce: italki-style multi-tiered pricing, packages, and payout metadata.
+ * - Security: Bcrypt-hashed credentials and temporary reset tokens.
+ * ----------------------------------------------------------------------------
  */
 
 const UserSchema = new Schema(
   {
-    // ---- Existing required fields (kept) ----
-    name: { type: String, required: true, trim: true },
+    /**
+     * ACCOUNT IDENTITY
+     * Basic required fields for user authentication and platform presence.
+     */
+    name: { 
+      type: String, 
+      required: true, 
+      trim: true 
+    },
     email: {
       type: String,
       required: true,
@@ -26,32 +32,77 @@ const UserSchema = new Schema(
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true },
+    password: { 
+      type: String, 
+      required: true 
+    },
 
-    // ---- Existing tutor fields (kept) ----
-    bio: { type: String },
-    subjects: [{ type: String }],
-    price: { type: Number }, // you already had "price" for tutors
-    avatar: { type: String },
+    /**
+     * RECOVERY & SECURITY (✅ NEW FIELDS ADDED)
+     * Temporary tokens used for the secure 'Forgot Password' recovery flow.
+     */
+    resetPasswordToken: { 
+      type: String 
+    },
+    resetPasswordExpires: { 
+      type: Date 
+    },
 
-    // ---- Existing payout fields (kept) ----
-    stripeAccountId: { type: String },
-    payoutsEnabled: { type: Boolean, default: false },
-    paypalEmail: { type: String },
+    /**
+     * TUTOR PROFESSIONAL METADATA
+     * Fields specific to instructors, including bio, subjects, and pricing.
+     */
+    bio: { 
+      type: String 
+    },
+    subjects: [{ 
+      type: String 
+    }],
+    price: { 
+      type: Number 
+    }, 
+    avatar: { 
+      type: String 
+    },
 
-    // ---- Existing admin field (kept) ----
-    isAdmin: { type: Boolean, default: false },
+    /**
+     * FINANCIAL & PAYOUT INTEGRATION
+     * Connects the account to Stripe or PayPal for revenue distribution.
+     */
+    stripeAccountId: { 
+      type: String 
+    },
+    payoutsEnabled: { 
+      type: Boolean, 
+      default: false 
+    },
+    paypalEmail: { 
+      type: String 
+    },
 
-    // ---- New optional fields (added; do not break existing code) ----
+    /**
+     * ACCESS CONTROL & PERMISSIONS
+     * Determines user capabilities within the platform ecosystem.
+     */
+    isAdmin: { 
+      type: Boolean, 
+      default: false 
+    },
     role: {
       type: String,
       enum: ["student", "tutor", "admin"],
       default: "student",
       index: true,
     },
-    isTutor: { type: Boolean, default: false },
+    isTutor: { 
+      type: Boolean, 
+      default: false 
+    },
 
-    // 👇 tutor approval status
+    /**
+     * TUTOR APPROVAL WORKFLOW
+     * Manages the status of new tutor applications.
+     */
     tutorStatus: {
       type: String,
       enum: ["none", "pending", "approved", "rejected"],
@@ -59,14 +110,20 @@ const UserSchema = new Schema(
       index: true,
     },
 
-    // 👇 AI Proficiency Level (A1-C2)
+    /**
+     * AI-DRIVEN LEVEL ASSESSMENT (CEFR)
+     * Tracks student proficiency for "Level Aware" curriculum matching.
+     */
     proficiencyLevel: {
       type: String,
       enum: ["A1", "A2", "B1", "B2", "C1", "C2", "none"],
       default: "none",
     },
 
-    // ✅ NEW: Comprehensive Placement Test Results
+    /**
+     * COMPREHENSIVE PLACEMENT TEST RESULTS
+     * Stores granular score metrics and AI-generated Linguistic DNA insights.
+     */
     placementTest: {
       level: { 
         type: String, 
@@ -78,45 +135,68 @@ const UserSchema = new Schema(
         vocabulary: { type: Number, default: 0 },
         speaking: { type: Number, default: 0 },
       },
-      insights: { type: String }, // Stores the "Linguistic DNA" summary
+      insights: { type: String }, 
       completedAt: { type: Date }
     },
 
-    // ✅ NEW: Multi-Tiered Lesson Types & Package Discounts
+    /**
+     * italki-STYLE PRICING ARCHITECTURE
+     * Multi-tiered lesson templates with automated package discount calculations.
+     */
     lessonTemplates: [
       {
         title: { type: String, required: true },
         description: { type: String },
-        priceSingle: { type: Number, default: 0 }, // Individual lesson price
-        packageFiveDiscount: { type: Number, default: 0 }, // Dollar discount for 5 lessons
+        priceSingle: { type: Number, default: 0 }, 
+        packageFiveDiscount: { type: Number, default: 0 }, 
         isActive: { type: Boolean, default: true }
       }
     ],
 
-    hourlyRate: { type: Number, min: 0 }, // complements your existing "price"
+    /**
+     * REGIONAL & LOGISTICAL SETTINGS
+     */
+    hourlyRate: { type: Number, min: 0 }, 
     languages: [{ type: String, trim: true }],
     country: { type: String, trim: true },
     timezone: { type: String, trim: true },
 
-    // Aggregates for dashboards (optional, can be maintained by jobs/hooks)
+    /**
+     * PLATFORM ANALYTICS & AGGREGATES
+     * Summary data used for performance dashboards and payout history.
+     */
     totalEarnings: { type: Number, default: 0 },
     totalLessons: { type: Number, default: 0 },
 
-    // Account meta
+    /**
+     * ACCOUNT LIFECYCLE TRACKING
+     */
     lastLogin: { type: Date },
     verified: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { 
+    timestamps: true 
+  }
 );
 
-/* ----------------------------- Indexes ----------------------------- */
+/* -------------------------------------------------------------------------- */
+/* DATABASE INDEXES                                                           */
+/* -------------------------------------------------------------------------- */
+
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1 });
 UserSchema.index({ isTutor: 1 });
 UserSchema.index({ tutorStatus: 1 });
 
-/* ------------------------- Password helpers ------------------------ */
-// Only hash if the password field has been modified (safe for existing users)
+/* -------------------------------------------------------------------------- */
+/* MIDDLEWARE & INSTANCE METHODS                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Pre-Save Hook: Password Hashing
+ * Automatically hashes the user password using salt rounds before persistence.
+ * Logic triggers ONLY when the 'password' field is modified.
+ */
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   try {
@@ -128,11 +208,19 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
+/**
+ * Method: comparePassword
+ * Verifies if a raw input password matches the stored bcrypt hash.
+ */
 UserSchema.methods.comparePassword = async function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
 
-/* -------------------------- Public summary -------------------------- */
+/**
+ * Method: summary
+ * Returns a sterilized user object for front-end session consumption.
+ * Removes sensitive fields like hashed passwords and recovery tokens.
+ */
 UserSchema.methods.summary = function () {
   return {
     id: String(this._id),
@@ -147,9 +235,7 @@ UserSchema.methods.summary = function () {
     totalEarnings: this.totalEarnings,
     tutorStatus: this.tutorStatus || "none",
     proficiencyLevel: this.proficiencyLevel || "none",
-    // ✅ Include placement result in user session data
     placementTest: this.placementTest || null, 
-    // ✅ Include pricing templates for booking logic
     lessonTemplates: this.lessonTemplates || []
   };
 };
