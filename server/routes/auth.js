@@ -1,39 +1,47 @@
-// /server/routes/auth.js
+/**
+ * LERNITT ACADEMY - CENTRAL AUTHENTICATION HUB v4.9.2
+ * ----------------------------------------------------------------------------
+ * This module orchestrates all identity-related operations for the platform:
+ * - ACCOUNT CREATION: Multi-role registration with welcome automation.
+ * - ACCESS CONTROL: Token generation and session validation.
+ * - SECURITY RECOVERY: Cryptographically secure 'Forgot Password' flow.
+ * - CREDENTIAL MANAGEMENT: Logged-in password updates with verification.
+ * - LEGACY MIGRATION: Automatic conversion of plain-text passwords to bcrypt.
+ * ----------------------------------------------------------------------------
+ */
+
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto"); // ✅ NEW: Built-in Node tool for secure token generation
+const crypto = require("crypto"); // Standard Node.js crypto module for tokens
 const User = require("../models/User");
 
 /**
- * MIDDLEWARE IMPORT
- * Note: Destructuring the auth function from the middleware object
- * to ensure compatibility with existing protected routes.
+ * MIDDLEWARE INTEGRATION
+ * ✅ Logic Preserved: Destructuring the auth function to ensure strict
+ * compatibility with existing protected academy routes.
  */
 const { auth } = require("../middleware/auth");
 
 /**
- * NOTIFICATION UTILITY
- * ✅ FUNCTIONALITY PRESERVED: Required for the Welcome Email logic
- * which triggers both MongoDB notifications and SendGrid emails.
+ * COMMUNICATION UTILITIES
+ * notify: Handles the dual-delivery of in-app alerts and SendGrid emails.
+ * sendEmail: Direct delivery for high-priority security tokens.
  */
 const { notify } = require("../utils/notify");
-
-/**
- * EMAIL UTILITY
- * ✅ NEW FUNCTIONALITY: Required for direct delivery of reset tokens
- */
 const { sendEmail } = require("../utils/sendEmail");
 
 /**
  * HELPER: buildAuthResponse
- * Generates a 7-day JWT and returns a sterilized user profile
- * for front-end session management.
+ * ✅ Logic Preserved: Generates a 7-day JWT and returns a sanitized user profile
+ * for immediate front-end session synchronization.
+ * * @param {Object} user - The mongoose user document.
+ * @returns {Object} { token, user: { profile data } }
  */
 function buildAuthResponse(user) {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error("Missing JWT_SECRET in environment");
+    throw new Error("Critical Failure: Missing JWT_SECRET in environment");
   }
 
   const payload = {
@@ -41,7 +49,7 @@ function buildAuthResponse(user) {
     role: user.role || "student",
   };
 
-  // 7-day JWT token generation
+  // Signing the identity token with a standard 168-hour (7 day) duration
   const token = jwt.sign(payload, secret, { expiresIn: "7d" });
 
   return {
@@ -59,8 +67,9 @@ function buildAuthResponse(user) {
 }
 
 /* ==========================================================================
-   Signup Route (Student or Tutor)
-   ✅ PRESERVED: All original role-selection and welcome logic
+   ROUTE: SIGNUP (Student or Tutor)
+   --------------------------------------------------------------------------
+   ✅ PRESERVED: Role-selection, email validation, and welcome automation.
    ========================================================================== */
 router.post("/signup", async (req, res) => {
   try {
@@ -69,20 +78,20 @@ router.post("/signup", async (req, res) => {
     if (!email || !password) {
       return res
         .status(400)
-        .json({ error: "Email and password are required" });
+        .json({ error: "Academic credentials (email/password) are required." });
     }
 
     const exists = await User.findOne({ email });
     if (exists) {
-      return res.status(400).json({ error: "Email already used" });
+      return res.status(400).json({ error: "This email address is already registered." });
     }
 
-    // Fallback name logic: use email prefix if name is missing
+    // Default name generation logic using email handle
     if (!name) {
       name = email.split("@")[0] || "User";
     }
 
-    // Decide if this signup is for a tutor or student role
+    // Determine role based on registration entry point
     const signupType = String(type || "student").toLowerCase();
     const isTutorSignup = signupType === "tutor";
     const role = isTutorSignup ? "tutor" : "student";
@@ -90,7 +99,7 @@ router.post("/signup", async (req, res) => {
     const user = new User({
       name,
       email,
-      password, // Note: hashed by the User schema pre-save hook
+      password, // Bcrypt hashing handled by User schema pre-save hook
       role,
       isTutor: isTutorSignup,
       tutorStatus: isTutorSignup ? "pending" : "none",
@@ -99,17 +108,20 @@ router.post("/signup", async (req, res) => {
 
     await user.save();
 
-    // ✅ FUNCTIONALITY PRESERVED: Trigger Welcome Notification & Email alert
+    /**
+     * WELCOME AUTOMATION
+     * ✅ Logic Preserved: Triggers immediate onboarding communications.
+     */
     try {
       const welcomeTitle = isTutorSignup 
         ? "Welcome to Lernitt Academy (Tutor Edition)" 
         : "Welcome to Lernitt Academy";
         
       const welcomeMsg = isTutorSignup
-        ? "Your application is currently being reviewed. Once approved, you will be able to set your schedule and start accepting students."
-        : "Welcome to the Lernitt community! You can now browse our elite marketplace and book your first lesson.";
+        ? "Your application is currently being reviewed. Once approved, you can set your schedule."
+        : "Welcome to the Lernitt community! You can now browse our marketplace and book your first lesson.";
 
-      // Triggers both MongoDB notification and SendGrid email
+      // Dual-channel delivery: Dashboard + Email
       await notify(
         user._id, 
         'welcome', 
@@ -117,17 +129,17 @@ router.post("/signup", async (req, res) => {
         welcomeMsg
       );
       
-      console.log(`[AUTH] Welcome alert dispatched for: ${user.email}`);
+      console.log(`[AUTH] Academic welcome dispatched for: ${user.email}`);
     } catch (notifyErr) {
-      // Log notification failure but do not break the signup process
-      console.error("[AUTH] Welcome notification failed:", notifyErr);
+      // Notification failures should not disrupt account creation
+      console.error("[AUTH] Post-signup notification failure:", notifyErr);
     }
 
     const authPayload = buildAuthResponse(user);
     return res.status(201).json(authPayload);
 
   } catch (err) {
-    console.error("Signup error:", err);
+    console.error("Signup internal error:", err);
     return res
       .status(500)
       .json({ error: "Signup failed: " + (err.message || "Unknown error") });
@@ -135,8 +147,9 @@ router.post("/signup", async (req, res) => {
 });
 
 /* ==========================================================================
-   Login Route
-   ✅ PRESERVED: Original logic for legacy plain-text password migration
+   ROUTE: LOGIN
+   --------------------------------------------------------------------------
+   ✅ PRESERVED: Legacy plain-text password migration logic.
    ========================================================================== */
 router.post("/login", async (req, res) => {
   try {
@@ -144,52 +157,53 @@ router.post("/login", async (req, res) => {
     if (!email || !password) {
       return res
         .status(400)
-        .json({ error: "Email and password required" });
+        .json({ error: "Identification and access code required." });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ error: "❌ User not found" });
+      return res.status(400).json({ error: "❌ Academic profile not found." });
     }
 
     let ok = false;
     const stored = user.password || "";
-    // Detect if password is a bcrypt hash (starts with $2)
     const isHash = typeof stored === "string" && stored.startsWith("$2");
 
     if (isHash) {
-      // Normal path: bcrypt hash comparison
+      // Standard operation: Secure bcrypt comparison
       ok = await user.comparePassword(password);
     } else {
-      // ✅ PRESERVED: Legacy account migration logic
-      // Password was stored in plain text; check for exact match
+      /**
+       * LEGACY MIGRATION LOGIC
+       * ✅ Logic Preserved: Handles historical plain-text accounts securely.
+       */
       ok = stored === password;
       if (ok) {
-        // Automatically migrate to hash upon successful match
-        user.password = password; // pre-save hook will hash this
+        // Transparently migrate the account to the current bcrypt standard
+        user.password = password; 
         try {
           await user.save();
-          console.log(`[AUTH] Migrated legacy password for user: ${email}`);
+          console.log(`[AUTH] Legacy credentials migrated for: ${email}`);
         } catch (mErr) {
-          console.error("Error migrating plain-text password to hash:", mErr);
+          console.error("Error during plain-text to hash migration:", mErr);
         }
       }
     }
 
     if (!ok) {
-      return res.status(400).json({ error: "❌ Invalid credentials" });
+      return res.status(400).json({ error: "❌ Invalid academic credentials." });
     }
 
     const authPayload = buildAuthResponse(user);
 
-    // Track last login timestamp
+    // Metadata tracking: Analytics and security auditing
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false }).catch(() => {});
 
     return res.json(authPayload);
 
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("Login internal error:", err);
     return res
       .status(500)
       .json({ error: "Login failed: " + (err.message || "Unknown error") });
@@ -197,8 +211,78 @@ router.post("/login", async (req, res) => {
 });
 
 /* ==========================================================================
-   ✅ NEW: Forgot Password Request
-   Generates a secure token and sends a recovery email via SendGrid.
+   ✅ NEW ROUTE: UPDATE PASSWORD (SETTINGS)
+   --------------------------------------------------------------------------
+   Strictly verified credential update for logged-in students and tutors.
+   ========================================================================== */
+router.patch("/update-password", auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Field presence validation
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        error: "Both current and new access codes are required for this security operation." 
+      });
+    }
+
+    // Retrieve full document for comparison logic
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "Academic profile not identified." });
+    }
+
+    /**
+     * IDENTITY VERIFICATION
+     * We must confirm the user knows their existing password before
+     * allowing a change, preventing hijacking if a session is left open.
+     */
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ 
+        error: "The current access code provided is incorrect." 
+      });
+    }
+
+    /**
+     * CREDENTIAL OVERRIDE
+     * User schema pre-save hook will automatically hash this new value.
+     */
+    user.password = newPassword;
+    await user.save();
+
+    /**
+     * SECURITY AUDIT LOGGING
+     * Notifying the user of the critical credential change.
+     */
+    try {
+      await notify(
+        user._id, 
+        'security', 
+        'Access Credentials Updated', 
+        'Your academic password was successfully modified via your dashboard settings.'
+      );
+    } catch (nErr) {
+      console.warn("[AUTH] Security update notification suspended.");
+    }
+
+    return res.json({ 
+      ok: true, 
+      message: "Academy password updated successfully. Your new credentials are now active." 
+    });
+
+  } catch (err) {
+    console.error("[AUTH] Internal error during patch-update:", err);
+    return res.status(500).json({ 
+      error: "Critical failure during academic credential update." 
+    });
+  }
+});
+
+/* ==========================================================================
+   ROUTE: FORGOT PASSWORD REQUEST
+   --------------------------------------------------------------------------
+   ✅ PRESERVED: Secure token generation and SendGrid automation.
    ========================================================================== */
 router.post("/forgot-password", async (req, res) => {
   try {
@@ -206,8 +290,8 @@ router.post("/forgot-password", async (req, res) => {
     const user = await User.findOne({ email });
 
     /**
-     * For security, do not explicitly reveal if a user exists.
-     * We return the same generic message regardless.
+     * SECURITY OBSCURATION
+     * ✅ Logic Preserved: Avoid revealing account existence to third parties.
      */
     if (!user) {
       return res.json({ 
@@ -215,33 +299,31 @@ router.post("/forgot-password", async (req, res) => {
       });
     }
 
-    // Generate a secure temporary token (20 bytes converted to hex)
+    // Generate cryptographically secure token (Node.js standard)
     const token = crypto.randomBytes(20).toString("hex");
     
-    // Set token and 1-hour expiration timestamp on the user record
+    // Assign token and set strict 1-hour expiration
     user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 3600000; // 60 minutes
+    user.resetPasswordExpires = Date.now() + 3600000; 
     await user.save();
 
-    // Construct the reset URL for the React frontend
+    // Construct identity-sensitive reset URL for the frontend instance
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
 
-    // Deliver the email using existing SendGrid utility
+    // Deliver via SendGrid infrastructure
     await sendEmail({
       to: user.email,
       subject: "Lernitt Academy: Password Reset Request",
       html: `
         <div style="font-family: sans-serif; padding: 25px; border: 1px solid #f1f5f9; border-radius: 20px; max-width: 500px; margin: auto;">
           <h2 style="color: #4f46e5; margin-bottom: 20px;">Secure Reset Request</h2>
-          <p style="color: #334155; line-height: 1.5;">Hello ${user.name},</p>
-          <p style="color: #334155; line-height: 1.5;">A password reset was requested for your account. Click the button below to secure your profile. This link is active for <strong>1 hour</strong>.</p>
+          <p style="color: #334155;">Hello ${user.name},</p>
+          <p style="color: #334155;">A password reset was requested for your Lernitt account. This link is active for <strong>1 hour</strong>.</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background: #4f46e5; color: white; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 14px;">RESET PASSWORD</a>
           </div>
           <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-          <p style="font-size: 11px; color: #94a3b8; text-align: center;">
-            If you did not request this change, please disregard this message. Your current password will remain safe.
-          </p>
+          <p style="font-size: 11px; color: #94a3b8; text-align: center;">If you did not request this change, your profile remains safe. No action is required.</p>
         </div>
       `
     });
@@ -251,20 +333,21 @@ router.post("/forgot-password", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("[AUTH] Forgot password internal error:", err);
-    return res.status(500).json({ error: "Server error during password recovery" });
+    console.error("[AUTH] Recovery request failure:", err);
+    return res.status(500).json({ error: "Academy recovery logic encountered an error." });
   }
 });
 
 /* ==========================================================================
-   ✅ NEW: Reset Password Finalization
-   Verifies the token validity and overrides the user password.
+   ROUTE: RESET PASSWORD FINALIZATION
+   --------------------------------------------------------------------------
+   ✅ PRESERVED: Token validation and password override logic.
    ========================================================================== */
 router.post("/reset-password", async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    // Search for a user with a matching token that has not expired
+    // Validate token existence and expiration window
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() }
@@ -272,39 +355,40 @@ router.post("/reset-password", async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ 
-        error: "Password reset token is invalid or has expired." 
+        error: "Academic reset token is invalid or has expired." 
       });
     }
 
     /**
-     * Set the new password.
-     * Note: The User model pre-save hook will automatically hash this.
+     * FINALIZING RECOVERY
+     * Note: The User model pre-save hook will automatically hash the new password.
      */
     user.password = newPassword;
     
-    // Clear temporary recovery fields
+    // Flush temporary security fields
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     
     await user.save();
 
     return res.json({ 
-      message: "Success! Your password has been updated. You can now log in." 
+      message: "Success! Your credentials have been updated. You can now access your dashboard." 
     });
 
   } catch (err) {
-    console.error("[AUTH] Password override failure:", err);
-    return res.status(500).json({ error: "Server error during password update" });
+    console.error("[AUTH] Recovery finalization failure:", err);
+    return res.status(500).json({ error: "Failed to finalize academic recovery." });
   }
 });
 
 /* ==========================================================================
-   Connection Check
-   ✅ PRESERVED: Original protected connectivity test route
+   ROUTE: CONNECTION CHECK
+   --------------------------------------------------------------------------
+   ✅ PRESERVED: Standard protected connectivity test for active sessions.
    ========================================================================== */
 router.get("/check", auth, (req, res) => {
   res.json({ 
-    message: "🔒 Protected session active", 
+    message: "🔒 Protected academy session active", 
     userId: req.user.id 
   });
 });
