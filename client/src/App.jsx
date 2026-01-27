@@ -1,4 +1,17 @@
 // client/src/App.jsx
+/**
+ * LERNITT ACADEMY - MAIN APPLICATION ENTRY & ROUTING MAPPED
+ * ----------------------------------------------------------------------------
+ * VERSION: 4.1.2
+ * FEATURES: 
+ * - Lazy-loaded views for optimized performance
+ * - Multi-tiered authentication (Admin, Tutor, Student)
+ * - CEFR Assessment & Placement Logic
+ * - italki-style Transaction & Receipting system
+ * - NEW: Secure Password Recovery Flow
+ * ----------------------------------------------------------------------------
+ */
+
 console.log("App.jsx loaded");
 
 import { lazy, Suspense, useEffect } from "react";
@@ -10,24 +23,40 @@ import {
   useLocation,
 } from "react-router-dom";
 
+/**
+ * AUTHENTICATION HOOKS & PROVIDERS
+ */
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth, AuthProvider } from "./hooks/useAuth.jsx";
 
-// GLOBAL HEADER
+/**
+ * GLOBAL UI COMPONENTS
+ */
 import Header from "./components/Header.jsx";
-// GLOBAL FOOTER
 import Footer from "./components/Footer.jsx";
 
-// STATIC IMPORT
+/**
+ * CORE STATIC IMPORTS
+ * (Kept static for immediate performance on primary lesson paths)
+ */
 import VideoLesson from "./pages/VideoLesson.jsx";
+import TutorLessons from "./pages/TutorLessons.jsx";
+import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
+import BookingConfirmation from "./pages/BookingConfirmation.jsx";
+import Settings from "./pages/Settings.jsx";
+import TutorDashboard from "./pages/TutorDashboard.jsx";
+import StudentReceipt from "./pages/StudentReceipt"; 
 
-// LAZY IMPORTS -------------------------------------------------------
-const Payouts = lazy(() => import("./pages/Payouts.jsx"));
+/**
+ * LAZY-LOADED CORE PAGES
+ * These components are loaded on-demand to reduce initial bundle size.
+ */
+const Home = lazy(() => import("./pages/Home.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
+const Signup = lazy(() => import("./pages/Signup.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
 const Notifications = lazy(() => import("./pages/Notifications.jsx"));
 const Tutors = lazy(() => import("./pages/Tutors.jsx"));
-const Home = lazy(() => import("./pages/Home.jsx"));
 const Students = lazy(() => import("./pages/Students.jsx"));
 const TutorProfile = lazy(() => import("./pages/TutorProfile.jsx"));
 const BookLesson = lazy(() => import("./pages/BookLesson.jsx"));
@@ -35,48 +64,49 @@ const Pay = lazy(() => import("./pages/Pay.jsx"));
 const Availability = lazy(() => import("./pages/Availability.jsx"));
 const MyLessons = lazy(() => import("./pages/MyLessons.jsx"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
+const Payouts = lazy(() => import("./pages/Payouts.jsx"));
 const LessonEnded = lazy(() => import("./pages/LessonEnded.jsx"));
-const LessonRecordings = lazy(
-  () => import("./pages/LessonRecordings.jsx")
-);
-const PlacementTest = lazy(() => import("./pages/PlacementTest.jsx")); // ✅ Added PlacementTest
+const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
+const PlacementTest = lazy(() => import("./pages/PlacementTest.jsx"));
 
-// Signup + setup pages
-const Signup = lazy(() => import("./pages/Signup.jsx"));
+/**
+ * NEW: SECURE RECOVERY PAGES
+ */
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
+
+/**
+ * ONBOARDING & SETUP PAGES
+ */
 const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
-const TutorProfileSetup = lazy(
-  () => import("./pages/TutorProfileSetup.jsx")
-);
+const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
 
-// Tutor & student lesson pages (static imports)
-import TutorLessons from "./pages/TutorLessons.jsx";
-import StudentLessonDetail from "./pages/StudentLessonDetail.jsx";
-import BookingConfirmation from "./pages/BookingConfirmation.jsx";
-import Settings from "./pages/Settings.jsx";
-import TutorDashboard from "./pages/TutorDashboard.jsx";
-import StudentReceipt from "./pages/StudentReceipt"; // ✅ NEW: Transaction Receipt
-
-// PUBLIC INFO PAGES
+/**
+ * PUBLIC INFORMATION & ACADEMY MARKETING
+ */
 const About = lazy(() => import("./pages/About.jsx"));
 const Pricing = lazy(() => import("./pages/Pricing.jsx"));
 const Contact = lazy(() => import("./pages/Contact.jsx"));
 
-// LEGAL PAGES
+/**
+ * LEGAL & COMPLIANCE
+ * Standardized legal documentation for the Lernitt platform.
+ */
 const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
 const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
 const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
-const Complaints = lazy(
-  () => import("./pages/legal/Complaints.jsx")
-);
-const AgeRequirements = lazy(
-  () => import("./pages/legal/AgeRequirements.jsx")
-);
+const Complaints = lazy(() => import("./pages/legal/Complaints.jsx"));
+const AgeRequirements = lazy(() => import("./pages/legal/AgeRequirements.jsx"));
 
-// 404 PAGE
+/**
+ * ERROR HANDLING
+ */
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
-// -------------------------------------------------------------------------
-// Scroll to top on route change
+/**
+ * UTILITY: ScrollToTop
+ * Ensures the window scrolls to the top coordinates on every route change.
+ * Uses 'smooth' behavior for a high-end academic application feel.
+ */
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -85,16 +115,16 @@ function ScrollToTop() {
   return null;
 }
 
-// -------------------------------------------------------------------------
-// Admin guard
+/**
+ * GUARD: AdminGuard
+ * Strictly restricts access to platform metrics and payouts to Bob (Admin).
+ */
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
   const loc = useLocation();
 
   if (!token) {
-    const next = encodeURIComponent(
-      `${loc.pathname}${loc.search || ""}`
-    );
+    const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 
@@ -105,24 +135,56 @@ function AdminGuard({ children }) {
   return children;
 }
 
-// -------------------------------------------------------------------------
+/**
+ * MAIN APP COMPONENT
+ * Handles global state wrappers and the React Router configuration.
+ */
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        {/* Navigation UX Enhancement */}
         <ScrollToTop />
+        
+        {/* Persistent Branding Header */}
         <Header />
-        <main style={{ maxWidth: 960, margin: "0 auto", padding: 16 }}>
+        
+        {/* Content Viewport */}
+        <main style={{ 
+          maxWidth: 960, 
+          margin: "0 auto", 
+          padding: 16, 
+          minHeight: "80vh" 
+        }}>
           <Suspense
-            fallback={<div style={{ padding: 12 }}>Loading…</div>}
+            fallback={
+              <div style={{ 
+                padding: "40px 20px", 
+                textAlign: "center", 
+                fontFamily: "sans-serif", 
+                color: "#64748b" 
+              }}>
+                Initialising Lernitt instance...
+              </div>
+            }
           >
             <Routes>
-              {/* Public routes */}
+              
+              {/* =======================================================
+                  PUBLIC AUTHENTICATION & ACCESS
+                  ======================================================= */}
+              
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              
+              {/* ✅ NEW: REGISTERED FORGOT PASSWORD ROUTE */}
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              {/* Public info pages */}
+              {/* =======================================================
+                  MARKETING & ACADEMY INFO
+                  ======================================================= */}
+              
               <Route path="/about" element={<About />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/contact" element={<Contact />} />
@@ -132,22 +194,33 @@ export default function App() {
                 element={<TutorProfileSetup />}
               />
 
-              {/* Marketplace */}
+              {/* =======================================================
+                  MARKETPLACE & BOOKING ENGINE
+                  ======================================================= */}
+              
               <Route path="/tutors" element={<Tutors />} />
               <Route path="/tutors/:id" element={<TutorProfile />} />
               <Route path="/book/:tutorId" element={<BookLesson />} />
               <Route path="/pay/:lessonId" element={<Pay />} />
+              
+              {/* Post-Payment Landing */}
               <Route
                 path="/confirm/:lessonId"
                 element={<BookingConfirmation />}
               />
+              
+              {/* Package & Individual Receipts */}
               <Route
                 path="/receipt/:lessonId"
                 element={<StudentReceipt />}
-              /> {/* ✅ NEW: Package Receipt Route */}
+              />
+              
               <Route path="/students" element={<Students />} />
 
-              {/* Legal */}
+              {/* =======================================================
+                  LEGAL & COMPLIANCE DOCUMENTS
+                  ======================================================= */}
+              
               <Route path="/legal/terms" element={<Terms />} />
               <Route path="/legal/privacy" element={<Privacy />} />
               <Route path="/legal/cookies" element={<Cookies />} />
@@ -160,7 +233,10 @@ export default function App() {
                 element={<AgeRequirements />}
               />
 
-              {/* Admin */}
+              {/* =======================================================
+                  ADMINISTRATIVE CONTROL CENTER
+                  ======================================================= */}
+              
               <Route
                 path="/admin"
                 element={
@@ -186,8 +262,13 @@ export default function App() {
                 }
               />
 
-              {/* Auth-protected */}
+              {/* =======================================================
+                  PROTECTED USER DASHBOARDS (Student & Tutor)
+                  ======================================================= */}
+              
               <Route element={<ProtectedRoute />}>
+                
+                {/* Logistics & Scheduling */}
                 <Route path="/availability" element={<Availability />} />
                 <Route path="/my-lessons" element={<MyLessons />} />
                 <Route
@@ -198,16 +279,20 @@ export default function App() {
                   path="/student-lesson/:lessonId"
                   element={<StudentLessonDetail />}
                 />
+                
+                {/* Financial Profiles */}
                 <Route path="/payouts" element={<Payouts />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
+                
+                {/* Communication */}
                 <Route
                   path="/notifications"
                   element={<Notifications />}
                 />
                 <Route path="/tutor" element={<TutorDashboard />} />
 
-                {/* Video */}
+                {/* Secure Classroom Environment */}
                 <Route path="/video" element={<VideoLesson />} />
                 <Route path="/lesson-ended" element={<LessonEnded />} />
                 <Route
@@ -215,16 +300,24 @@ export default function App() {
                   element={<LessonRecordings />}
                 />
 
-                {/* ✅ New: Assessment / Placement Test Route */}
+                {/* Pedagogy & Assessment */}
                 <Route path="/placement-test" element={<PlacementTest />} />
+                
               </Route>
 
-              {/* 404 fallback */}
+              {/* =======================================================
+                  ERROR & CATCH-ALL ROUTING
+                  ======================================================= */}
+              
               <Route path="*" element={<NotFound />} />
+              
             </Routes>
           </Suspense>
         </main>
+        
+        {/* Persistent Branding Footer */}
         <Footer />
+        
       </BrowserRouter>
     </AuthProvider>
   );
