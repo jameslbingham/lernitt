@@ -1,17 +1,17 @@
 // /server/server.js  (CommonJS)
 // ============================================================================
-// LERNITT — PRODUCTION SERVER CORE v5.4.1
+// LERNITT — PRODUCTION SERVER CORE v5.5.0
 // ----------------------------------------------------------------------------
-// Includes: Secure API Mapping, Admin Bootstrapping, and Static Frontend Delivery.
+// Includes: Secure API Mapping, Admin Bootstrapping, and Corrected Static UI Delivery.
 // ============================================================================
 
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const path = require("path"); // ✅ REQUIRED: Manages directory paths for Render
+const path = require("path"); // ✅ REQUIRED: Correctly resolves project paths for Render
 require("dotenv").config();
 
-// Import security logic
+// Import security logic (PRESERVED)
 const { auth, isAdmin } = require("./middleware/auth");
 const videoWebhookRouter = require("./routes/videoWebhook");
 
@@ -39,13 +39,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Webhook for high-priority video processing
+// Webhook for high-priority video processing (PRESERVED)
 app.use("/api/video", videoWebhookRouter);
 
-// Standard payload parsing
+// Standard payload parsing (PRESERVED)
 app.use(express.json());
 
-// Establish MongoDB Connection
+// Establish MongoDB Connection (PRESERVED)
 if (process.env.MONGODB_URI) {
   mongoose
     .connect(process.env.MONGODB_URI)
@@ -91,9 +91,9 @@ app.use("/api/seed", require("./routes/seed"));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 /* ============================================================================
-   ✅ NEW FUNCTION: PRODUCTION FRONTEND BRIDGE
+   ✅ CORRECTED: PRODUCTION FRONTEND BRIDGE
    ----------------------------------------------------------------------------
-   This block tells Render to stop sending text and start sending the UI.
+   Standard sibling pathing: Exit 'server', enter 'client/dist'.
    ============================================================================ */
 
 // 1. Serve static assets (CSS, JS, Images) from the Vite 'dist' folder
