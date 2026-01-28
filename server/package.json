@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "commonjs",
   "scripts": {
+    "build": "cd client && npm install && npm run build",
     "start": "node server.js",
     "cleanup:recordings": "node scripts/cleanupRecordings.js"
   },
