@@ -1,12 +1,12 @@
 {
-  "name": "server",
-  "private": true,
+  "name": "lernitt-root",
   "version": "1.0.0",
-  "type": "commonjs",
+  "private": true,
   "scripts": {
-    "build": "cd client && npm install && npm run build",
-    "start": "node server.js",
-    "cleanup:recordings": "node scripts/cleanupRecordings.js"
+    "install-all": "npm install && cd client && npm install",
+    "build": "cd client && npm run build",
+    "start": "node server/server.js",
+    "cleanup:recordings": "node server/scripts/cleanupRecordings.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -23,6 +23,7 @@
     "mongoose": "^7.6.3",
     "node-fetch": "^2.6.7",
     "nodemailer": "^6.9.8",
-    "stripe": "^11.17.0"
+    "stripe": "^11.17.0",
+    "path": "^0.12.7"
   }
 }
