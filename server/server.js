@@ -1,17 +1,24 @@
 // /server/server.js  (CommonJS)
+// ============================================================================
+// LERNITT — PRODUCTION SERVER CORE v5.4.1
+// ----------------------------------------------------------------------------
+// Includes: Secure API Mapping, Admin Bootstrapping, and Static Frontend Delivery.
+// ============================================================================
+
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const path = require("path"); // ✅ REQUIRED: Manages directory paths for Render
 require("dotenv").config();
 
-// Import our security guards
+// Import security logic
 const { auth, isAdmin } = require("./middleware/auth");
 const videoWebhookRouter = require("./routes/videoWebhook");
 
 const app = express();
 
 /* ============================================================================
-   TASK 5: PRODUCTION CORS CONFIGURATION
+   TASK 5: PRODUCTION CORS CONFIGURATION (PRESERVED)
    ============================================================================ */
 const allowedOrigins = [
   'http://localhost:5173',            // Local Development
@@ -20,7 +27,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -28,18 +34,18 @@ app.use(cors({
     }
     return callback(null, true);
   },
-  credentials: true, // Required for secure cookie/session handling
+  credentials: true, 
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Daily webhook MUST come before express.json() so raw body is preserved
+// Webhook for high-priority video processing
 app.use("/api/video", videoWebhookRouter);
 
-// Normal JSON parser for all other routes
+// Standard payload parsing
 app.use(express.json());
 
-// Connect to Mongo only if URI present
+// Establish MongoDB Connection
 if (process.env.MONGODB_URI) {
   mongoose
     .connect(process.env.MONGODB_URI)
@@ -48,15 +54,15 @@ if (process.env.MONGODB_URI) {
 }
 
 /* ----------------------------------------------------------------------------
-   TASK 4: SECURITY ROUTE MAPPING
+   TASK 4: SECURITY ROUTE MAPPING (PRESERVED)
    ---------------------------------------------------------------------------- */
 
-/* --- Open Routes --- */
+/* --- Open Academic Routes --- */
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/tutors", require("./routes/tutors"));
 app.use("/api/reviews", require("./routes/reviews"));
 
-/* --- Authenticated Routes (Tutors and Students) --- */
+/* --- Authenticated Academic Routes --- */
 app.use("/api/lessons", auth, require("./routes/lessons"));
 app.use("/api/tutor-lessons", auth, require("./routes/tutorLessons"));
 app.use("/api/students", auth, require("./routes/students"));
@@ -66,9 +72,9 @@ app.use("/api/notifications", auth, require("./routes/notifications"));
 app.use("/api/payments", auth, require("./routes/payments"));
 app.use("/api/profile", auth, require("./routes/profile"));
 app.use("/api/support", auth, require("./routes/support"));
-app.use("/api/assessment", auth, require("./routes/assessment")); // ✅ Added Assessment Logic
+app.use("/api/assessment", auth, require("./routes/assessment"));
 
-/* --- Admin Only Routes (Strictly Bob Only) --- */
+/* --- Administrative Oversight (Strictly Bob Only) --- */
 app.use("/api/admin", auth, isAdmin, require("./routes/admin"));
 app.use("/api/admin/payments", auth, isAdmin, require("./routes/adminPayments"));
 app.use("/api/payouts", auth, isAdmin, require("./routes/payouts"));
@@ -76,16 +82,34 @@ app.use("/api/refunds", auth, isAdmin, require("./routes/refunds"));
 app.use("/api/finance", auth, isAdmin, require("./routes/finance"));
 app.use("/api/metrics", auth, isAdmin, require("./routes/metrics"));
 
-/* --- Webhooks --- */
+/* --- Financial & Academic Webhooks --- */
 app.use("/api/stripe/webhook", require("./routes/stripeWebhook"));
 app.use("/api/paypal/webhook", require("./routes/paypalWebhook"));
 
-/* --- Utilities --- */
+/* --- System Utilities --- */
 app.use("/api/seed", require("./routes/seed"));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
-app.get("/", (_req, res) => res.json({ ok: true, message: "Lernitt backend running" }));
 
-// ONE-TIME ADMIN BOOTSTRAP (protected by SEED_TOKEN)
+/* ============================================================================
+   ✅ NEW FUNCTION: PRODUCTION FRONTEND BRIDGE
+   ----------------------------------------------------------------------------
+   This block tells Render to stop sending text and start sending the UI.
+   ============================================================================ */
+
+// 1. Serve static assets (CSS, JS, Images) from the Vite 'dist' folder
+app.use(express.static(path.join(__dirname, "../client/dist")));
+
+// 2. Catch-all for non-API routes: Serves the visual homepage index.html
+app.get("*", (req, res) => {
+  // We only serve index.html if the URL does NOT start with /api/
+  if (!req.url.startsWith("/api/")) {
+    res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+  }
+});
+
+/* ----------------------------------------------------------------------------
+   ADMIN BOOTSTRAP (PRESERVED)
+   ---------------------------------------------------------------------------- */
 app.get("/api/admin-bootstrap", async (req, res) => {
   try {
     if (!process.env.SEED_TOKEN || req.query.token !== process.env.SEED_TOKEN) {
