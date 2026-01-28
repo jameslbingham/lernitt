@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
-// --- REQUIRED FOR STORAGE CONNECTION ---
+
+// --- ✅ CORRECTED IMPORT FOR PRODUCTION BUILD ---
 import { supabase } from "../lib/supabaseClient"; 
 
 const API = import.meta.env.VITE_API || "http://localhost:5000";
@@ -77,7 +78,7 @@ export default function TutorProfileSetup() {
     };
   }, [API]);
 
-  // --- NEW: HANDLE AVATAR UPLOAD TO SUPABASE ---
+  // --- HANDLE AVATAR UPLOAD TO SUPABASE ---
   async function handleFileUpload(e) {
     try {
       setUploading(true);
@@ -139,8 +140,6 @@ export default function TutorProfileSetup() {
       });
 
       setInfo("Your tutor profile has been saved.");
-      // Optional: go to tutor dashboard after save
-      // nav("/tutor", { replace: true });
     } catch (e2) {
       setErr(e2?.message || "Could not save your profile.");
     } finally {
@@ -214,7 +213,7 @@ export default function TutorProfileSetup() {
 
       <form onSubmit={onSubmit}>
         
-        {/* --- BULLETPROOF AVATAR UPLOAD SECTION --- */}
+        {/* --- PROFILE PHOTO SECTION --- */}
         <div style={{ 
           marginBottom: 24, 
           padding: 20, 
