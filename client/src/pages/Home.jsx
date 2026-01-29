@@ -303,7 +303,7 @@ function FaqDrawer({ open, onClose, theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// ASSESSMENT PROMO COMPONENT (ADDED FOR PLACEMENT TEST)
+// ASSESSMENT PROMO COMPONENT
 // -----------------------------------------------------------------------------
 function AssessmentPromo({ theme }) {
   const isDark = theme === "dark";
@@ -332,7 +332,7 @@ function AssessmentPromo({ theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// MAIN HOME — ALWAYS SHOW MARKETING HOMEPAGE NOW
+// MAIN HOME
 // -----------------------------------------------------------------------------
 export default function Home() {
   const [theme, setTheme] = useState("light");
@@ -365,9 +365,8 @@ export default function Home() {
     </>
   );
 }
-
 // -----------------------------------------------------------------------------
-// MARKETING HOMEPAGE (FIXED: FULL ORIGINAL VERSION PRESERVED)
+// MARKETING HOMEPAGE (UPDATED: PHOTO BACKGROUND HERO ADDED)
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
   const baseBg =
@@ -379,9 +378,14 @@ function MarketingHomepage({ theme }) {
       style={theme === "dark" ? undefined : { backgroundColor: "#E9F1F7" }}
     >
       <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-4 pb-20">
-        {/* HERO SECTION */}
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-          <div className="absolute inset-0 bg-black/30" />
+        {/* HERO SECTION WITH NEW IMAGE BACKGROUND */}
+        <section 
+          className="relative overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center"
+          style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
+        >
+          {/* Subtle dark overlay for readability */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+          
           <div className="relative flex flex-col items-center justify-center gap-8 px-6 py-12 text-center text-white sm:items-center sm:text-left">
             <div className="max-w-xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
@@ -389,10 +393,10 @@ function MarketingHomepage({ theme }) {
                 <span>Try a free trial lesson</span>
               </div>
 
-              <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">
+              <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl drop-shadow-md">
                 Learn anything with friendly tutors — live, 1-to-1.
               </h1>
-              <p className="max-w-md text-base opacity-90 sm:text-lg">
+              <p className="max-w-md text-base opacity-95 sm:text-lg drop-shadow">
                 Languages, skills, and more. Book your first lesson in minutes.
               </p>
 
@@ -405,20 +409,20 @@ function MarketingHomepage({ theme }) {
                 </Link>
                 <Link
                   to="/signup?type=tutor"
-                  className="inline-flex items-center justify-center rounded-xl border border-white px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
+                  className="inline-flex items-center justify-center rounded-xl border border-white px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
                 >
                   I’m a tutor — Apply
                 </Link>
               </div>
 
-              <p className="text-xs opacity-80">
+              <p className="text-xs opacity-90 font-medium">
                 Only takes a minute. No long forms.
               </p>
             </div>
           </div>
         </section>
 
-        {/* ✅ NEW: ASSESSMENT BANNER INSERTED HERE */}
+        {/* ✅ ASSESSMENT BANNER */}
         <AssessmentPromo theme={theme} />
 
         {/* PRICING TEASER */}
@@ -661,10 +665,8 @@ function MarketingHomepage({ theme }) {
       <Footer theme={theme} />
     </div>
   );
-}
-
-// -----------------------------------------------------------------------------
-// LOGGED-IN HOMEPAGE (FIXED: FULL CHAT 83 VERSION — PRESERVED EXACTLY)
+}// -----------------------------------------------------------------------------
+// LOGGED-IN HOMEPAGE (UPDATED: PHOTO BACKGROUND HERO ADDED)
 // -----------------------------------------------------------------------------
 function LoggedInHomepage({ theme }) {
   const [q, setQ] = useState("");
@@ -815,9 +817,12 @@ function LoggedInHomepage({ theme }) {
   return (
     <div className={`${baseBg} min-h-screen`}>
       <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
-        {/* HERO SECTION */}
-        <section className="relative flex overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-          <div className="absolute inset-0 bg-black/30" />
+        {/* HERO SECTION WITH PHOTO BACKGROUND */}
+        <section 
+          className="relative flex overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center"
+          style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
+        >
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
 
           <div className="relative flex w-full flex-col items-start gap-4 px-6 py-10 text-white sm:max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
@@ -825,11 +830,11 @@ function LoggedInHomepage({ theme }) {
               <span>Try a free trial lesson</span>
             </div>
 
-            <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl drop-shadow-md">
               Book live 1-to-1 lessons with expert tutors
             </h1>
 
-            <p className="text-base opacity-90 sm:text-lg">
+            <p className="text-base opacity-95 sm:text-lg drop-shadow">
               Learn languages, skills, and more — with friendly tutors who teach
               you live.
             </p>
@@ -844,19 +849,19 @@ function LoggedInHomepage({ theme }) {
 
               <Link
                 to="/signup?type=tutor"
-                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
+                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
               >
                 I’m a tutor — Apply to teach
               </Link>
             </div>
 
-            <p className="text-xs opacity-80">
+            <p className="text-xs opacity-90 font-medium">
               Only takes a minute to sign up. No long forms.
             </p>
           </div>
         </section>
 
-        {/* ✅ NEW: ASSESSMENT BANNER INSERTED HERE FOR LOGGED-IN USERS */}
+        {/* ✅ ASSESSMENT BANNER */}
         <AssessmentPromo theme={theme} />
 
         {/* SEARCH + CATEGORIES */}
