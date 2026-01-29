@@ -303,7 +303,7 @@ function FaqDrawer({ open, onClose, theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// ASSESSMENT PROMO COMPONENT
+// ASSESSMENT PROMO COMPONENT (ADDED FOR PLACEMENT TEST)
 // -----------------------------------------------------------------------------
 function AssessmentPromo({ theme }) {
   const isDark = theme === "dark";
@@ -332,7 +332,7 @@ function AssessmentPromo({ theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// MAIN HOME
+// MAIN HOME — ALWAYS SHOW MARKETING HOMEPAGE NOW
 // -----------------------------------------------------------------------------
 export default function Home() {
   const [theme, setTheme] = useState("light");
@@ -365,8 +365,9 @@ export default function Home() {
     </>
   );
 }
+
 // -----------------------------------------------------------------------------
-// MARKETING HOMEPAGE (UPDATED: PHOTO BACKGROUND HERO ADDED)
+// MARKETING HOMEPAGE (UPDATED: TEXT MOVED LOWER)
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
   const baseBg =
@@ -378,15 +379,16 @@ function MarketingHomepage({ theme }) {
       style={theme === "dark" ? undefined : { backgroundColor: "#E9F1F7" }}
     >
       <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-4 pb-20">
-        {/* HERO SECTION WITH NEW IMAGE BACKGROUND */}
+        {/* HERO SECTION WITH IMAGE BACKGROUND */}
         <section 
-          className="relative overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center"
+          className="relative overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center min-h-[500px] flex flex-col"
           style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
         >
           {/* Subtle dark overlay for readability */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
           
-          <div className="relative flex flex-col items-center justify-center gap-8 px-6 py-12 text-center text-white sm:items-center sm:text-left">
+          {/* justify-end pushes text to bottom; pt-32 ensures space from top */}
+          <div className="relative flex flex-1 flex-col items-center justify-end gap-8 px-6 pt-32 pb-12 text-center text-white sm:items-center sm:text-left">
             <div className="max-w-xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
                 <span>✨</span>
@@ -422,7 +424,7 @@ function MarketingHomepage({ theme }) {
           </div>
         </section>
 
-        {/* ✅ ASSESSMENT BANNER */}
+        {/* ASSESSMENT BANNER */}
         <AssessmentPromo theme={theme} />
 
         {/* PRICING TEASER */}
@@ -452,793 +454,796 @@ function MarketingHomepage({ theme }) {
               type="button"
               onClick={() => {
                 window.location.href = "/pricing#tutors";
-              }}
-              className="text-sm font-medium text-sky-700 hover:underline"
-            >
-              See how tutor payouts work →
-            </button>
-          </div>
-        </section>
+                }}
+            className="text-sm font-medium text-sky-700 hover:underline"
+          >
+            See how tutor payouts work →
+          </button>
+        </div>
+      </section>
 
-        {/* WHY LERNITT */}
-        <section className="space-y-6">
-          <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-bold">Why Lernitt?</h2>
-            <p className="mx-auto max-w-2xl text-sm opacity-80">
-              A simple platform that connects learners and tutors worldwide for
-              live, 1-to-1 lessons.
-            </p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                icon: "🎯",
-                title: "Lessons that fit your life",
-                text: "Book tutors across timezones with flexible scheduling.",
-              },
-              {
-                icon: "💬",
-                title: "Real conversation",
-                text: "Learn with real humans in live sessions, not scripts.",
-              },
-              {
-                icon: "🧑‍🏫",
-                title: "Hand-picked tutors",
-                text: "Teachers with profiles, reviews, and clear pricing.",
-              },
-              {
-                icon: "📚",
-                title: "Any subject",
-                text: "Languages, business English, maths, piano, and more.",
-              },
-              {
-                icon: "🌍",
-                title: "Global access",
-                text: "Meet tutors from all over the world, 24/7.",
-              },
-              {
-                icon: "💸",
-                title: "Transparent pricing",
-                text: "You always see the full cost before you book.",
-              },
-            ].map(({ icon, title, text }) => (
-              <div
-                key={title}
-                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                  theme === "dark"
-                    ? "bg-slate-900 border-slate-700"
-                    : "bg-white border-gray-200"
-                }`}
-              >
-                <div className="text-3xl">{icon}</div>
-                <div className="text-lg font-semibold">{title}</div>
-                <p className="text-sm opacity-80">{text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* HOW IT WORKS */}
-        <section className="space-y-6">
-          <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-bold">How Lernitt works</h2>
-            <p className="mx-auto max-w-2xl text-sm opacity-80">
-              Getting started takes just a few minutes.
-            </p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-3">
-            {[
-              {
-                icon: "🔎",
-                title: "1. Find a tutor",
-                text: "Search tutors for languages, skills, and more.",
-              },
-              {
-                icon: "📅",
-                title: "2. Book a time",
-                text: "Choose a slot that fits your schedule.",
-              },
-              {
-                icon: "🎥",
-                title: "3. Learn live",
-                text: "Meet your tutor online and enjoy your lesson.",
-              },
-            ].map(({ icon, title, text }) => (
-              <div
-                key={title}
-                className={`space-y-4 rounded-2xl border p-6 bg-gradient-to-br ${
-                  theme === "dark"
-                    ? "from-slate-900 to-slate-800 border-slate-700"
-                    : "from-white to-gray-50 border-gray-200"
-                } shadow-sm`}
-              >
-                <div className="text-4xl">{icon}</div>
-                <div className="text-lg font-semibold">{title}</div>
-                <p className="text-sm opacity-80">{text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* TESTIMONIALS */}
-        <section className="space-y-6">
-          <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-bold">What learners say</h2>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2">
-            {[
-              {
-                name: "Emma",
-                text: "My English improved faster than I expected. Lessons are fun and relaxed!",
-              },
-              {
-                name: "Diego",
-                text: "Booking was easy. Great tutors and clear pricing.",
-              },
-              {
-                name: "Sofia",
-                text: "I practice speaking every week now — I love the flexibility.",
-              },
-              {
-                name: "Liam",
-                text: "Amazing tutors. Very helpful and patient.",
-              },
-            ].map(({ name, text }) => (
-              <div
-                key={name}
-                className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                  theme === "dark"
-                    ? "bg-slate-900 border-slate-700"
-                    : "bg-white border-gray-200"
-                }`}
-              >
-                <p className="text-sm italic opacity-90">“{text}”</p>
-                <div className="text-xs font-semibold opacity-70">— {name}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* FOUNDER CREDIBILITY STRIP */}
-        <section className="mt-10 rounded-xl border border-slate-200 bg-white/70 px-4 py-4 md:px-6 md:py-5">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
-                Built from real online teaching experience
-              </p>
-              <p className="text-sm font-medium mb-2">
-                Built by a real online tutor, not a faceless tech company.
-              </p>
-              <ul className="list-disc pl-5 space-y-1 text-sm opacity-90">
-                <li>
-                  Over 10 years learning and tutoring online across Europe, Asia
-                  and Australia.
-                </li>
-                <li>
-                  Understands what stressed students and busy tutors actually
-                  need from a lesson.
-                </li>
-                <li>
-                  Lernitt is designed from that experience: fair earnings for
-                  tutors, simple choices for students.
-                </li>
-              </ul>
-            </div>
-            <div className="text-xs md:text-sm text-muted-foreground md:text-right mt-3 md:mt-0">
-              <div className="font-semibold">James, Founder of Lernitt</div>
-              <div>Based in Victoria, Australia</div>
-            </div>
-          </div>
-        </section>
-
-        {/* FINAL CTA */}
-        <section className="space-y-4 text-center">
-          <h2 className="text-3xl font-bold">Ready to start learning?</h2>
-          <p className="mx-auto max-w-md text-sm opacity-80">
-            Find the perfect tutor and book your first lesson in minutes.
+      {/* WHY LERNITT */}
+      <section className="space-y-6">
+        <div className="space-y-3 text-center">
+          <h2 className="text-3xl font-bold">Why Lernitt?</h2>
+          <p className="mx-auto max-w-2xl text-sm opacity-80">
+            A simple platform that connects learners and tutors worldwide for
+            live, 1-to-1 lessons.
           </p>
+        </div>
 
-          <div className="flex justify-center gap-4">
-            <Link
-              to="/signup"
-              className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-lg"
-            >
-              Get Started
-            </Link>
-            <Link
-              to="/tutors"
-              className={`rounded-xl border px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-md ${
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            {
+              icon: "🎯",
+              title: "Lessons that fit your life",
+              text: "Book tutors across timezones with flexible scheduling.",
+            },
+            {
+              icon: "💬",
+              title: "Real conversation",
+              text: "Learn with real humans in live sessions, not scripts.",
+            },
+            {
+              icon: "🧑‍🏫",
+              title: "Hand-picked tutors",
+              text: "Teachers with profiles, reviews, and clear pricing.",
+            },
+            {
+              icon: "📚",
+              title: "Any subject",
+              text: "Languages, business English, maths, piano, and more.",
+            },
+            {
+              icon: "🌍",
+              title: "Global access",
+              text: "Meet tutors from all over the world, 24/7.",
+            },
+            {
+              icon: "💸",
+              title: "Transparent pricing",
+              text: "You always see the full cost before you book.",
+            },
+          ].map(({ icon, title, text }) => (
+            <div
+              key={title}
+              className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                 theme === "dark"
-                  ? "border-slate-600 bg-slate-900"
-                  : "border-gray-300 bg-white"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
               }`}
             >
-              Browse Tutors
-            </Link>
-          </div>
-        </section>
-      </main>
-
-      <Footer theme={theme} />
-    </div>
-  );
-}// -----------------------------------------------------------------------------
-// LOGGED-IN HOMEPAGE (UPDATED: PHOTO BACKGROUND HERO ADDED)
-// -----------------------------------------------------------------------------
-function LoggedInHomepage({ theme }) {
-  const [q, setQ] = useState("");
-  const nav = useNavigate();
-  const { isAuthed } = useAuth();
-
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [upcoming, setUpcoming] = useState(null);
-  const [notifUnread, setNotifUnread] = useState(0);
-  const [favCount, setFavCount] = useState(0);
-  const [tutorPeek, setTutorPeek] = useState([]);
-
-  const categories = ["English", "Spanish", "Maths", "Piano"];
-
-  useEffect(() => {
-    try {
-      const ids = JSON.parse(localStorage.getItem("favTutors") || "[]");
-      setFavCount(Array.isArray(ids) ? ids.length : 0);
-    } catch {
-      setFavCount(0);
-    }
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      setLoading(true);
-      setErr("");
-
-      try {
-        if (isAuthed) {
-          const ns = await apiFetch("/api/notifications", { auth: true });
-          if (alive) {
-            const unread = Array.isArray(ns)
-              ? ns.filter((n) => !n.read).length
-              : 0;
-            setNotifUnread(unread);
-          }
-        } else {
-          setNotifUnread(0);
-        }
-
-        if (isAuthed) {
-          const lessons = await apiFetch("/api/lessons/mine", { auth: true });
-          if (alive) {
-            const rows = (Array.isArray(lessons) ? lessons : []).filter(
-              Boolean
-            );
-            rows.sort(
-              (a, b) =>
-                new Date(a.start || a.startTime || 0) -
-                new Date(b.start || b.startTime || 0)
-            );
-            setUpcoming(
-              rows.find(
-                (l) => new Date(l.start || l.startTime || 0) > new Date()
-              ) || null
-            );
-          }
-        } else {
-          setUpcoming(null);
-        }
-
-        try {
-          const res = await apiFetch("/api/tutors?page=1&limit=6");
-          const list = Array.isArray(res)
-            ? res
-            : res?.data && Array.isArray(res.data)
-            ? res.data
-            : [];
-          if (alive) setTutorPeek(list.slice(0, 6));
-        } catch {
-          if (alive) setTutorPeek([]);
-        }
-      } catch (e) {
-        if (alive) setErr(e?.message || "Failed to load home data.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [isAuthed]);
-
-  const nextLesson = useMemo(() => {
-    if (!upcoming) return null;
-
-    const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
-    const start = startISO ? new Date(startISO) : null;
-
-    return {
-      id: upcoming._id || upcoming.id,
-      tutorName: upcoming.tutorName || upcoming.tutor?.name || "Tutor",
-      tutorId: String(
-        upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
-      ),
-      when: start
-        ? start.toLocaleString([], {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })
-        : "—",
-      duration:
-        Number(
-          upcoming.duration ||
-            (upcoming.endTime
-              ? (new Date(upcoming.endTime) - new Date(startISO)) / 60000
-              : 0)
-        ) || 0,
-      isTrial: !!upcoming.isTrial,
-      price:
-        typeof upcoming.price === "number"
-          ? upcoming.price
-          : Number(upcoming.price) || 0,
-    };
-  }, [upcoming]);
-
-  const baseBg =
-    theme === "dark"
-      ? "bg-slate-950 text-slate-50"
-      : "bg-white text-slate-900";
-  const cardBg =
-    theme === "dark"
-      ? "bg-slate-900 border-slate-700"
-      : "bg-white border-gray-200";
-  const subtleBg =
-    theme === "dark"
-      ? "from-slate-900 to-slate-800 border-slate-700"
-      : "from-white to-blue-50 border-gray-200";
-  const avatarBg =
-    theme === "dark"
-      ? "bg-gradient-to-br from-indigo-500 to-sky-500"
-      : "bg-gradient-to-br from-indigo-100 to-sky-200";
-
-  // Loading
-  if (loading) {
-    return (
-      <div className={`${baseBg} p-4 space-y-4`}>
-        <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`${baseBg} min-h-screen`}>
-      <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
-        {/* HERO SECTION WITH PHOTO BACKGROUND */}
-        <section 
-          className="relative flex overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center"
-          style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
-        >
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
-
-          <div className="relative flex w-full flex-col items-start gap-4 px-6 py-10 text-white sm:max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
-              <span>✨</span>
-              <span>Try a free trial lesson</span>
+              <div className="text-3xl">{icon}</div>
+              <div className="text-lg font-semibold">{title}</div>
+              <p className="text-sm opacity-80">{text}</p>
             </div>
+          ))}
+        </div>
+      </section>
 
-            <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl drop-shadow-md">
-              Book live 1-to-1 lessons with expert tutors
-            </h1>
+      {/* HOW IT WORKS */}
+      <section className="space-y-6">
+        <div className="space-y-3 text-center">
+          <h2 className="text-3xl font-bold">How Lernitt works</h2>
+          <p className="mx-auto max-w-2xl text-sm opacity-80">
+            Getting started takes just a few minutes.
+          </p>
+        </div>
 
-            <p className="text-base opacity-95 sm:text-lg drop-shadow">
-              Learn languages, skills, and more — with friendly tutors who teach
-              you live.
-            </p>
-
-            <div className="mt-2 flex flex-wrap gap-3">
-              <Link
-                to="/signup"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                I’m a student — Get started
-              </Link>
-
-              <Link
-                to="/signup?type=tutor"
-                className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
-              >
-                I’m a tutor — Apply to teach
-              </Link>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {[
+            {
+              icon: "🔎",
+              title: "1. Find a tutor",
+              text: "Search tutors for languages, skills, and more.",
+            },
+            {
+              icon: "📅",
+              title: "2. Book a time",
+              text: "Choose a slot that fits your schedule.",
+            },
+            {
+              icon: "🎥",
+              title: "3. Learn live",
+              text: "Meet your tutor online and enjoy your lesson.",
+            },
+          ].map(({ icon, title, text }) => (
+            <div
+              key={title}
+              className={`space-y-4 rounded-2xl border p-6 bg-gradient-to-br ${
+                theme === "dark"
+                  ? "from-slate-900 to-slate-800 border-slate-700"
+                  : "from-white to-gray-50 border-gray-200"
+              } shadow-sm`}
+            >
+              <div className="text-4xl">{icon}</div>
+              <div className="text-lg font-semibold">{title}</div>
+              <p className="text-sm opacity-80">{text}</p>
             </div>
+          ))}
+        </div>
+      </section>
 
-            <p className="text-xs opacity-90 font-medium">
-              Only takes a minute to sign up. No long forms.
+      {/* TESTIMONIALS */}
+      <section className="space-y-6">
+        <div className="space-y-3 text-center">
+          <h2 className="text-3xl font-bold">What learners say</h2>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          {[
+            {
+              name: "Emma",
+              text: "My English improved faster than I expected. Lessons are fun and relaxed!",
+            },
+            {
+              name: "Diego",
+              text: "Booking was easy. Great tutors and clear pricing.",
+            },
+            {
+              name: "Sofia",
+              text: "I practice speaking every week now — I love the flexibility.",
+            },
+            {
+              name: "Liam",
+              text: "Amazing tutors. Very helpful and patient.",
+            },
+          ].map(({ name, text }) => (
+            <div
+              key={name}
+              className={`space-y-3 rounded-2xl border p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                theme === "dark"
+                  ? "bg-slate-900 border-slate-700"
+                  : "bg-white border-gray-200"
+              }`}
+            >
+              <p className="text-sm italic opacity-90">“{text}”</p>
+              <div className="text-xs font-semibold opacity-70">— {name}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FOUNDER CREDIBILITY STRIP */}
+      <section className="mt-10 rounded-xl border border-slate-200 bg-white/70 px-4 py-4 md:px-6 md:py-5">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+          <div className="flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+              Built from real online teaching experience
             </p>
+            <p className="text-sm font-medium mb-2">
+              Built by a real online tutor, not a faceless tech company.
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-sm opacity-90">
+              <li>
+                Over 10 years learning and tutoring online across Europe, Asia
+                and Australia.
+              </li>
+              <li>
+                Understands what stressed students and busy tutors actually
+                need from a lesson.
+              </li>
+              <li>
+                Lernitt is designed from that experience: fair earnings for
+                tutors, simple choices for students.
+              </li>
+            </ul>
           </div>
-        </section>
+          <div className="text-xs md:text-sm text-muted-foreground md:text-right mt-3 md:mt-0">
+            <div className="font-semibold">James, Founder of Lernitt</div>
+            <div>Based in Victoria, Australia</div>
+          </div>
+        </div>
+      </section>
 
-        {/* ✅ ASSESSMENT BANNER */}
-        <AssessmentPromo theme={theme} />
+      {/* FINAL CTA */}
+      <section className="space-y-4 text-center">
+        <h2 className="text-3xl font-bold">Ready to start learning?</h2>
+        <p className="mx-auto max-w-md text-sm opacity-80">
+          Find the perfect tutor and book your first lesson in minutes.
+        </p>
 
-        {/* SEARCH + CATEGORIES */}
-        <section>
-          <div
-            className={`sticky top-2 z-10 space-y-3 rounded-2xl border p-3 shadow-sm backdrop-blur ${
+        <div className="flex justify-center gap-4">
+          <Link
+            to="/signup"
+            className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            Get Started
+          </Link>
+          <Link
+            to="/tutors"
+            className={`rounded-xl border px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-md ${
               theme === "dark"
-                ? "bg-slate-900/95 border-slate-700"
-                : "bg-white/95 border-gray-200"
+                ? "border-slate-600 bg-slate-900"
+                : "border-gray-300 bg-white"
             }`}
           >
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                nav(`/tutors?q=${encodeURIComponent(q)}`);
-              }}
-              className="flex flex-col items-center gap-2 sm:flex-row"
-            >
-              <input
-                placeholder="Search tutors (e.g., English)"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
-              />
-              <button
-                type="submit"
-                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
-              >
-                Search
-              </button>
-            </form>
+            Browse Tutors
+          </Link>
+        </div>
+      </section>
+    </main>
 
-            <div className="flex flex-wrap gap-2">
-              {categories.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() =>
-                    nav(`/tutors?q=${encodeURIComponent(label)}`)
-                  }
-                  className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+    <Footer theme={theme} />
+  </div>
+);
+}
 
-            {err && <div className="text-xs text-red-500">{err}</div>}
+// -----------------------------------------------------------------------------
+// LOGGED-IN HOMEPAGE (UPDATED: TEXT MOVED LOWER)
+// -----------------------------------------------------------------------------
+function LoggedInHomepage({ theme }) {
+const [q, setQ] = useState("");
+const nav = useNavigate();
+const { isAuthed } = useAuth();
+
+const [loading, setLoading] = useState(true);
+const [err, setErr] = useState("");
+const [upcoming, setUpcoming] = useState(null);
+const [notifUnread, setNotifUnread] = useState(0);
+const [favCount, setFavCount] = useState(0);
+const [tutorPeek, setTutorPeek] = useState([]);
+
+const categories = ["English", "Spanish", "Maths", "Piano"];
+
+useEffect(() => {
+  try {
+    const ids = JSON.parse(localStorage.getItem("favTutors") || "[]");
+    setFavCount(Array.isArray(ids) ? ids.length : 0);
+  } catch {
+    setFavCount(0);
+  }
+}, []);
+
+useEffect(() => {
+  let alive = true;
+
+  (async () => {
+    setLoading(true);
+    setErr("");
+
+    try {
+      if (isAuthed) {
+        const ns = await apiFetch("/api/notifications", { auth: true });
+        if (alive) {
+          const unread = Array.isArray(ns)
+            ? ns.filter((n) => !n.read).length
+            : 0;
+          setNotifUnread(unread);
+        }
+      } else {
+        setNotifUnread(0);
+      }
+
+      if (isAuthed) {
+        const lessons = await apiFetch("/api/lessons/mine", { auth: true });
+        if (alive) {
+          const rows = (Array.isArray(lessons) ? lessons : []).filter(
+            Boolean
+          );
+          rows.sort(
+            (a, b) =>
+              new Date(a.start || a.startTime || 0) -
+              new Date(b.start || b.startTime || 0)
+          );
+          setUpcoming(
+            rows.find(
+              (l) => new Date(l.start || l.startTime || 0) > new Date()
+            ) || null
+          );
+        }
+      } else {
+        setUpcoming(null);
+      }
+
+      try {
+        const res = await apiFetch("/api/tutors?page=1&limit=6");
+        const list = Array.isArray(res)
+          ? res
+          : res?.data && Array.isArray(res.data)
+          ? res.data
+          : [];
+        if (alive) setTutorPeek(list.slice(0, 6));
+      } catch {
+        if (alive) setTutorPeek([]);
+      }
+    } catch (e) {
+      if (alive) setErr(e?.message || "Failed to load home data.");
+    } finally {
+      if (alive) setLoading(false);
+    }
+  })();
+
+  return () => {
+    alive = false;
+  };
+}, [isAuthed]);
+
+const nextLesson = useMemo(() => {
+  if (!upcoming) return null;
+
+  const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
+  const start = startISO ? new Date(startISO) : null;
+
+  return {
+    id: upcoming._id || upcoming.id,
+    tutorName: upcoming.tutorName || upcoming.tutor?.name || "Tutor",
+    tutorId: String(
+      upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
+    ),
+    when: start
+      ? start.toLocaleString([], {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "—",
+    duration:
+      Number(
+        upcoming.duration ||
+          (upcoming.endTime
+            ? (new Date(upcoming.endTime) - new Date(startISO)) / 60000
+            : 0)
+      ) || 0,
+    isTrial: !!upcoming.isTrial,
+    price:
+      typeof upcoming.price === "number"
+        ? upcoming.price
+        : Number(upcoming.price) || 0,
+  };
+}, [upcoming]);
+
+const baseBg =
+  theme === "dark"
+    ? "bg-slate-950 text-slate-50"
+    : "bg-white text-slate-900";
+const cardBg =
+  theme === "dark"
+    ? "bg-slate-900 border-slate-700"
+    : "bg-white border-gray-200";
+const subtleBg =
+  theme === "dark"
+    ? "from-slate-900 to-slate-800 border-slate-700"
+    : "from-white to-blue-50 border-gray-200";
+const avatarBg =
+  theme === "dark"
+    ? "bg-gradient-to-br from-indigo-500 to-sky-500"
+    : "bg-gradient-to-br from-indigo-100 to-sky-200";
+
+// Loading
+if (loading) {
+  return (
+    <div className={`${baseBg} p-4 space-y-4`}>
+      <h1 className="text-2xl font-bold">Welcome to Lernitt</h1>
+    </div>
+  );
+}
+
+return (
+  <div className={`${baseBg} min-h-screen`}>
+    <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
+      {/* HERO SECTION WITH PHOTO BACKGROUND */}
+      <section 
+        className="relative flex overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center min-h-[500px] flex flex-col"
+        style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
+      >
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+
+        {/* justify-end and pt-32 move content lower */}
+        <div className="relative flex flex-1 flex-col items-start justify-end gap-4 px-6 pt-32 pb-12 text-white sm:max-w-xl">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+            <span>✨</span>
+            <span>Try a free trial lesson</span>
           </div>
-        </section>
 
-        {/* TOP CARDS */}
-        <section>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-            <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                cardBg
-              }`}
+          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl drop-shadow-md">
+            Book live 1-to-1 lessons with expert tutors
+          </h1>
+
+          <p className="text-base opacity-95 sm:text-lg drop-shadow">
+            Learn languages, skills, and more — with friendly tutors who teach
+            you live.
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-3">
+            <Link
+              to="/signup"
+              className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <div className="mb-1 font-semibold">Get started</div>
-              <p className="text-sm opacity-80">
-                Browse tutors, book lessons, manage availability.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/tutors"
-                >
-                  Find tutors
-                </Link>
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/favourites"
-                >
-                  Favourites {favCount ? `(${favCount})` : ""}
-                </Link>
-                {isAuthed ? (
-                  <Link
-                    className="rounded-xl border px-3 py-1 text-sm"
-                    to="/my-lessons"
-                  >
-                    My Lessons
-                  </Link>
-                ) : (
-                  <Link
-                    className="rounded-xl border px-3 py-1 text-sm"
-                    to="/login"
-                  >
-                    Log in
-                  </Link>
-                )}
-              </div>
-            </div>
+              I’m a student — Get started
+            </Link>
 
-            {/* Notifications */}
-            <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                cardBg
-              }`}
+            <Link
+              to="/signup?type=tutor"
+              className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
             >
-              <div className="mb-1 font-semibold">Notifications</div>
-              <p className="text-sm opacity-80">Your inbox.</p>
-              <div className="mt-3 flex items-center gap-2">
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/notifications"
-                >
-                  Open inbox
-                </Link>
-                <span className="text-xs opacity-70">
-                  {isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
-                </span>
-              </div>
-            </div>
-
-            {/* Upcoming lesson */}
-            <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                cardBg
-              }`}
-            >
-              <div className="mb-1 font-semibold">Upcoming lesson</div>
-
-              {!isAuthed && (
-                <p className="text-sm opacity-80">
-                  Log in to see your schedule.
-                </p>
-              )}
-
-              {isAuthed && !nextLesson && (
-                <p className="text-sm opacity-80">No upcoming lessons.</p>
-              )}
-
-              {isAuthed && nextLesson && (
-                <>
-                  <div className="text-sm">
-                    <b>{nextLesson.tutorName}</b>{" "}
-                    <span className="opacity-70">({nextLesson.when})</span>
-                    <div className="opacity-80">
-                      {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
-                      {nextLesson.duration} min
-                      {!nextLesson.isTrial && nextLesson.price ? (
-                        <> · € {euros(nextLesson.price)}</>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link
-                      className="rounded-xl border px-3 py-1 text-sm"
-                      to={`/student-lesson/${nextLesson.id}`}
-                    >
-                      View details
-                    </Link>
-                    <Link
-                      className="rounded-xl border px-3 py-1 text-sm"
-                      to={`/tutors/${nextLesson.tutorId}`}
-                    >
-                      Tutor
-                    </Link>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* POPULAR TUTORS */}
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <div className="text-lg font-semibold">Popular tutors</div>
-            <Link to="/tutors" className="text-sm underline">
-              See all
+              I’m a tutor — Apply to teach
             </Link>
           </div>
 
-          {tutorPeek.length === 0 ? (
-            <div className="text-sm opacity-70">No tutors yet.</div>
-          ) : (
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {tutorPeek.map((t) => {
-                const id = t._id || t.id;
-                const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+          <p className="text-xs opacity-90 font-medium">
+            Only takes a minute to sign up. No long forms.
+          </p>
+        </div>
+      </section>
 
-                return (
-                  <li
-                    key={id}
-                    className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-                  >
-                    <Link
-                      to={`/tutors/${encodeURIComponent(id)}`}
-                      className="flex flex-col gap-2"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
-                        >
-                          {t.name?.[0] || "?"}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate font-semibold">
-                            {t.name || "Tutor"}
-                          </div>
-                          <div className="truncate text-xs opacity-80">
-                            {subjects.slice(0, 2).join(" · ") || "—"}
-                          </div>
-                        </div>
-                      </div>
+      {/* ASSESSMENT BANNER */}
+      <AssessmentPromo theme={theme} />
 
-                      {subjects.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {subjects.slice(0, 3).map((s) => (
-                            <span
-                              key={s}
-                              className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
-                            >
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+      {/* SEARCH + CATEGORIES */}
+      <section>
+        <div
+          className={`sticky top-2 z-10 space-y-3 rounded-2xl border p-3 shadow-sm backdrop-blur ${
+            theme === "dark"
+              ? "bg-slate-900/95 border-slate-700"
+              : "bg-white/95 border-gray-200"
+          }`}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              nav(`/tutors?q=${encodeURIComponent(q)}`);
+            }}
+            className="flex flex-col items-center gap-2 sm:flex-row"
+          >
+            <input
+              placeholder="Search tutors (e.g., English)"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
+            />
+            <button
+              type="submit"
+              className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
+            >
+              Search
+            </button>
+          </form>
 
-                      <div className="text-xs text-gray-600">
-                        View profile →
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* POPULAR SUBJECTS */}
-        <section className="space-y-4">
-          <div className="text-lg font-semibold">Popular subjects</div>
-
-          <div className="flex flex-wrap gap-3">
-            {[
-              { name: "English", icon: "🇬🇧" },
-              { name: "Spanish", icon: "🇪🇸" },
-              { name: "Maths", icon: "🧮" },
-              { name: "Piano", icon: "🎹" },
-              { name: "French", icon: "🇫🇷" },
-              { name: "German", icon: "🇩🇪" },
-              { name: "Japanese", icon: "🇯🇵" },
-              { name: "Business English", icon: "💼" },
-            ].map(({ name, icon }) => (
+          <div className="flex flex-wrap gap-2">
+            {categories.map((label) => (
               <button
-                key={name}
+                key={label}
                 type="button"
                 onClick={() =>
-                  nav(`/tutors?q=${encodeURIComponent(name)}`)
+                  nav(`/tutors?q=${encodeURIComponent(label)}`)
                 }
-                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
+                className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
               >
-                <span className="text-lg">{icon}</span>
-                {name}
+                {label}
               </button>
             ))}
           </div>
-        </section>
 
-        {/* HOW LERNITT WORKS — AGAIN */}
-        <section className="space-y-4">
-          <div className="text-lg font-semibold">How Lernitt works</div>
+          {err && <div className="text-xs text-red-500">{err}</div>}
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-            >
-              <div className="text-3xl">🔎</div>
-              <div className="font-semibold">1. Find your tutor</div>
-              <p className="text-sm opacity-80">
-                Search friendly tutors for languages, skills and more.
-              </p>
-            </div>
-
-            <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-            >
-              <div className="text-3xl">📅</div>
-              <div className="font-semibold">2. Book your lesson</div>
-              <p className="text-sm opacity-80">
-                Choose a time that suits you.
-              </p>
-            </div>
-
-            <div
-              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-            >
-              <div className="text-3xl">🎥</div>
-              <div className="font-semibold">3. Learn live</div>
-              <p className="text-sm opacity-80">
-                Meet your tutor online in a fun, interactive lesson.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* BOTTOM CARDS */}
-        <section>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-            <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-            >
-              <div className="mb-1 font-semibold">Tutor tools</div>
-              <div className="flex flex-wrap gap-2">
+      {/* TOP CARDS */}
+      <section>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+          <div
+            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              cardBg
+            }`}
+          >
+            <div className="mb-1 font-semibold">Get started</div>
+            <p className="text-sm opacity-80">
+              Browse tutors, book lessons, manage availability.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/tutors"
+              >
+                Find tutors
+              </Link>
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/favourites"
+              >
+                Favourites {favCount ? `(${favCount})` : ""}
+              </Link>
+              {isAuthed ? (
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
-                  to="/availability"
+                  to="/my-lessons"
                 >
-                  Availability
+                  My Lessons
                 </Link>
+              ) : (
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
-                  to="/tutor-lessons"
+                  to="/login"
                 >
-                  Tutor lessons
+                  Log in
                 </Link>
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/payouts"
-                >
-                  Payouts
-                </Link>
-              </div>
-              {MOCK && (
-                <div className="mt-2 text-xs opacity-60">
-                  Mock mode: simulated data.
-                </div>
               )}
             </div>
+          </div>
 
-            <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-            >
-              <div className="mb-1 font-semibold">Students</div>
-              <p className="text-sm opacity-80">Student list & bookings.</p>
+          {/* Notifications */}
+          <div
+            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              cardBg
+            }`}
+          >
+            <div className="mb-1 font-semibold">Notifications</div>
+            <p className="text-sm opacity-80">Your inbox.</p>
+            <div className="mt-3 flex items-center gap-2">
               <Link
-                className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
-                to="/students"
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/notifications"
               >
-                Open Students
+                Open inbox
               </Link>
-            </div>
-
-            <div
-              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-            >
-              <div className="mb-1 font-semibold">Account</div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/profile"
-                >
-                  Profile
-                </Link>
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/notifications"
-                >
-                  Notifications {notifUnread ? `(${notifUnread})` : ""}
-                </Link>
-                <Link
-                  className="rounded-xl border px-3 py-1 text-sm"
-                  to="/settings"
-                >
-                  Settings
-                </Link>
-              </div>
+              <span className="text-xs opacity-70">
+                {isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
+              </span>
             </div>
           </div>
-        </section>
-      </main>
 
-      <Footer theme={theme} />
-    </div>
-  );
+          {/* Upcoming lesson */}
+          <div
+            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              cardBg
+            }`}
+          >
+            <div className="mb-1 font-semibold">Upcoming lesson</div>
+
+            {!isAuthed && (
+              <p className="text-sm opacity-80">
+                Log in to see your schedule.
+              </p>
+            )}
+
+            {isAuthed && !nextLesson && (
+              <p className="text-sm opacity-80">No upcoming lessons.</p>
+            )}
+
+            {isAuthed && nextLesson && (
+              <>
+                <div className="text-sm">
+                  <b>{nextLesson.tutorName}</b>{" "}
+                  <span className="opacity-70">({nextLesson.when})</span>
+                  <div className="opacity-80">
+                    {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
+                    {nextLesson.duration} min
+                    {!nextLesson.isTrial && nextLesson.price ? (
+                      <> · € {euros(nextLesson.price)}</>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to={`/student-lesson/${nextLesson.id}`}
+                  >
+                    View details
+                  </Link>
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to={`/tutors/${nextLesson.tutorId}`}
+                  >
+                    Tutor
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* POPULAR TUTORS */}
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <div className="text-lg font-semibold">Popular tutors</div>
+          <Link to="/tutors" className="text-sm underline">
+            See all
+          </Link>
+        </div>
+
+        {tutorPeek.length === 0 ? (
+          <div className="text-sm opacity-70">No tutors yet.</div>
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {tutorPeek.map((t) => {
+              const id = t._id || t.id;
+              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+
+              return (
+                <li
+                  key={id}
+                  className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+                >
+                  <Link
+                    to={`/tutors/${encodeURIComponent(id)}`}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
+                      >
+                        {t.name?.[0] || "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold">
+                          {t.name || "Tutor"}
+                        </div>
+                        <div className="truncate text-xs opacity-80">
+                          {subjects.slice(0, 2).join(" · ") || "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {subjects.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {subjects.slice(0, 3).map((s) => (
+                          <span
+                            key={s}
+                            className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-600">
+                      View profile →
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* POPULAR SUBJECTS */}
+      <section className="space-y-4">
+        <div className="text-lg font-semibold">Popular subjects</div>
+
+        <div className="flex flex-wrap gap-3">
+          {[
+            { name: "English", icon: "🇬🇧" },
+            { name: "Spanish", icon: "🇪🇸" },
+            { name: "Maths", icon: "🧮" },
+            { name: "Piano", icon: "🎹" },
+            { name: "French", icon: "🇫🇷" },
+            { name: "German", icon: "🇩🇪" },
+            { name: "Japanese", icon: "🇯🇵" },
+            { name: "Business English", icon: "💼" },
+          ].map(({ name, icon }) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() =>
+                nav(`/tutors?q=${encodeURIComponent(name)}`)
+              }
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
+            >
+              <span className="text-lg">{icon}</span>
+              {name}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* HOW LERNITT WORKS — AGAIN */}
+      <section className="space-y-4">
+        <div className="text-lg font-semibold">How Lernitt works</div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div
+            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+          >
+            <div className="text-3xl">🔎</div>
+            <div className="font-semibold">1. Find your tutor</div>
+            <p className="text-sm opacity-80">
+              Search friendly tutors for languages, skills and more.
+            </p>
+          </div>
+
+          <div
+            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+          >
+            <div className="text-3xl">📅</div>
+            <div className="font-semibold">2. Book your lesson</div>
+            <p className="text-sm opacity-80">
+              Choose a time that suits you.
+            </p>
+          </div>
+
+          <div
+            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+          >
+            <div className="text-3xl">🎥</div>
+            <div className="font-semibold">3. Learn live</div>
+            <p className="text-sm opacity-80">
+              Meet your tutor online in a fun, interactive lesson.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* BOTTOM CARDS */}
+      <section>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <div
+            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+          >
+            <div className="mb-1 font-semibold">Tutor tools</div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/availability"
+              >
+                Availability
+              </Link>
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/tutor-lessons"
+              >
+                Tutor lessons
+              </Link>
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/payouts"
+              >
+                Payouts
+              </Link>
+            </div>
+            {MOCK && (
+              <div className="mt-2 text-xs opacity-60">
+                Mock mode: simulated data.
+              </div>
+            )}
+          </div>
+
+          <div
+            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+          >
+            <div className="mb-1 font-semibold">Students</div>
+            <p className="text-sm opacity-80">Student list & bookings.</p>
+            <Link
+              className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
+              to="/students"
+            >
+              Open Students
+            </Link>
+          </div>
+
+          <div
+            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+          >
+            <div className="mb-1 font-semibold">Account</div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/profile"
+              >
+                Profile
+              </Link>
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/notifications"
+              >
+                Notifications {notifUnread ? `(${notifUnread})` : ""}
+              </Link>
+              <Link
+                className="rounded-xl border px-3 py-1 text-sm"
+                to="/settings"
+              >
+                Settings
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <Footer theme={theme} />
+  </div>
+);
 }
