@@ -1,183 +1,47 @@
-/* NOTE: I have removed the @tailwind lines to stop the errors in your editor. 
-  The website will still use Tailwind classes in your .jsx files.
-*/
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-/* =========================
-   Global Base Styles
-   ========================= */
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
 
-* {
-  box-sizing: border-box;
-}
+    <title>Lernitt — Live 1-to-1 Lessons with Friendly Tutors</title>
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: #fafafa;
-  /* Updated to the professional font stack in your screenshot */
-  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  color: #111;
-  line-height: 1.45;
-}
+    <meta
+      name="description"
+      content="Lernitt is an online marketplace for live 1-to-1 lessons with friendly tutors. Learn languages, business English, maths, piano and more — anywhere in the world."
+    />
 
-/* NEW: Standardized Headings 
-   This ensures consistency across the whole site as requested.
-*/
-h1, h2, h3 {
-  letter-spacing: -0.025em; /* Tight tracking like the screenshot */
-  color: #0f172a;           /* Slate-900 */
-  margin-top: 0;
-}
+    <meta property="og:title" content="Lernitt — Live 1-to-1 Lessons" />
+    <meta
+      property="og:description"
+      content="Book live online lessons with friendly tutors for languages, skills, and more."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://lernitt.com/" />
+    <meta property="og:image" content="https://lernitt.com/og-image.png" />
 
-h1 {
-  font-size: 2.5rem; 
-  font-weight: 800; /* Extra Bold for main titles */
-  margin-bottom: 1.5rem;
-  line-height: 1.2;
-}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Lernitt — Live 1-to-1 Lessons" />
+    <meta
+      name="twitter:description"
+      content="Live online lessons with friendly tutors around the world."
+    />
+    <meta name="twitter:image" content="https://lernitt.com/og-image.png" />
 
-h2 {
-  font-size: 1.8rem; 
-  font-weight: 700; /* Bold for section headings */
-  margin-bottom: 1rem;
-}
+    <link rel="canonical" href="https://lernitt.com/" />
 
-h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8'/%3E%3C/svg%3E"
+    />
+  </head>
 
-/* Wrapper used by most pages */
-main {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-/* =========================
-   Links
-   ========================= */
-
-a {
-  color: #0369a1;
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-}
-
-/* =========================
-   Buttons
-   ========================= */
-
-button {
-  font-family: inherit;
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-button:hover {
-  background: #f3f4f6;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* =========================
-   Inputs / Forms
-   ========================= */
-
-input,
-select,
-textarea {
-  font-family: inherit;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 14px;
-}
-
-/* =========================
-   Utility Classes
-   ========================= */
-
-.text-sm {
-  font-size: 0.875rem;
-}
-
-.text-xs {
-  font-size: 0.75rem;
-  opacity: 0.75;
-}
-
-.text-center {
-  text-align: center;
-}
-
-/* NEW: soft card utility */
-.card-soft {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-/* NEW: small trust text utility */
-.trust-text {
-  font-size: 0.75rem;
-  opacity: 0.75;
-  line-height: 1.4;
-}
-
-/* =========================
-   Legal Pages
-   ========================= */
-
-.legal-page {
-  max-width: 800px;
-  margin: 2rem auto 4rem;
-  padding: 1.5rem;
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-
-.legal-page h1 {
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-  font-weight: 700; /* Standardized to bold */
-}
-
-.legal-page h2 {
-  font-size: 1.2rem;
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.legal-page h3 {
-  font-size: 1rem;
-  margin-top: 1rem;
-  margin-bottom: 0.25rem;
-  font-weight: 700;
-}
-
-.legal-page p {
-  margin-bottom: 0.5rem;
-}
-
-.legal-page ul {
-  margin-left: 1.25rem;
-  margin-bottom: 0.75rem;
-  list-style: disc;
-}
-
-.legal-page li {
-  margin-bottom: 0.25rem;
-}
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
