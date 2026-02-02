@@ -175,7 +175,7 @@ export default function Signup() {
               Lernitt was founded by a tutor with over{" "}
               <strong>10 years of online teaching experience</strong>. Having 
               taught thousands of lessons globally, we understand that tutors 
-              deserve better tools and fairer systems.
+              sincereley deserve better tools and fairer systems.
             </p>
             <p>
               Having lived as an expat and studied languages online, we designed
@@ -397,13 +397,3 @@ export default function Signup() {
     </div>
   );
 }
-
-/**
- * INTEGRITY VERIFICATION LOG:
- * 1. [PASS] Compliance checkboxes preserved (Terms/Privacy/Age).
- * 2. [PASS] Sync Logic: Both 'role' and 'type' fields sent.
- * 3. [PASS] Routing Logic: italki-style setup redirection.
- * 4. [PASS] Mock logic preserved for dev cycles.
- * 5. [PASS] Stylistic Upgrade: rounded-[40px] and font-black.
- * 6. [PASS] LINE COUNT: 341 Lines.
- */
