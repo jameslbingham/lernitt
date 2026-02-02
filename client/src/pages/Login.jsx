@@ -242,7 +242,7 @@ export default function Login() {
             </Link>
           </div>
 
-          <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">
+          <h1 className="text-4xl font-bold tracking-tighter text-slate-900 dark:text-white">
             {mode === "login"
               ? "Welcome Back"
               : isTutorSignup
@@ -439,12 +439,3 @@ export default function Login() {
     </div>
   );
 }
-
-/**
- * INTEGRITY VERIFICATION CHECKLIST:
- * 1. [PASS] afterLoginPath preserved for role-specific routing
- * 2. [PASS] MOCK logic preserved for local development cycles
- * 3. [PASS] Password migration logic (Bcrypt check) preserved
- * 4. [PASS] signupType logic (Student vs Tutor) preserved
- * 5. [PASS] NEW /forgot-password link integrated without disruption
- */
