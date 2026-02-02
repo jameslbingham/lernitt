@@ -10,7 +10,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
-import Footer from "../components/Footer.jsx";
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -663,8 +662,6 @@ function MarketingHomepage({ theme }) {
         </div>
       </section>
     </main>
-
-    <Footer theme={theme} />
   </div>
 );
 }
@@ -1242,8 +1239,6 @@ return (
         </div>
       </section>
     </main>
-
-    <Footer theme={theme} />
   </div>
 );
 }
