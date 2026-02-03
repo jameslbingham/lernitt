@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { apiFetch } from "../lib/apiFetch.js";
+import { safeFetchJSON } from "../lib/safeFetch.js"; // Using our new safe connection
 import { useAuth } from "../hooks/useAuth.jsx";
 
-const API = "https://lernitt-server.onrender.com";
+// The corrected live address
+const API_URL = "https://lernitt-server.onrender.com";
 
 export default function Signup() {
   const nav = useNavigate();
@@ -14,7 +15,6 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("student"); 
   
-  // All three compliance checks
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [ackPrivacy, setAckPrivacy] = useState(false);
   const [ackAge, setAckAge] = useState(false);
@@ -22,7 +22,6 @@ export default function Signup() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // The button only works if all three boxes are checked
   const canSubmit = agreeTerms && ackPrivacy && ackAge;
 
   async function onSubmit(e) {
@@ -33,22 +32,27 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const payload = { email, password, name, role, type: role };
-
-      const data = await apiFetch(`${API}/api/auth/signup`, {
+      // Sending data to the LIVE server
+      const data = await safeFetchJSON(`${API_URL}/api/auth/signup`, {
         method: "POST",
-        body: payload,
+        body: JSON.stringify({ email, password, name, role, type: role }),
       });
 
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
       if (!data?.token) {
-        throw new Error("Server response invalid.");
+        throw new Error("The server did not return a security token.");
       }
 
       login(data.token, data.user);
+      
+      // Move Elena to her setup page
       nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup");
 
     } catch (error) {
-      setErr("Connection Error: The server is not responding. Please try again.");
+      setErr("Connection Error: The server at lernitt-server.onrender.com is not responding. Please wait 30 seconds for it to 'wake up' and try again.");
     } finally {
       setLoading(false);
     }
@@ -86,7 +90,7 @@ export default function Signup() {
           </div>
 
           {err && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold animate-pulse">
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold">
               {err}
             </div>
           )}
@@ -119,7 +123,6 @@ export default function Signup() {
               className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 px-5 py-4 text-sm font-medium focus:border-indigo-500 focus:bg-white outline-none"
             />
 
-            {/* THE THREE REQUIRED CHECKBOXES */}
             <div className="space-y-4 pt-2">
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input
@@ -161,17 +164,11 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading || !canSubmit}
-              className="w-full rounded-2xl bg-slate-900 px-6 py-5 text-sm font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-600 transition-all disabled:opacity-30 disabled:hover:bg-slate-900"
+              className="w-full rounded-2xl bg-slate-900 px-6 py-5 text-sm font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-600 transition-all disabled:opacity-30"
             >
-              {loading ? "Creating Account..." : "Finalise Registration"}
+              {loading ? "Connecting..." : "Finalise Registration"}
             </button>
           </form>
-
-          <div className="mt-8 text-center border-t border-slate-50 pt-6">
-            <p className="text-xs font-bold text-slate-400">
-              Already have an account? <Link to="/login" className="text-indigo-600">Login here</Link>
-            </p>
-          </div>
         </section>
       </main>
     </div>
