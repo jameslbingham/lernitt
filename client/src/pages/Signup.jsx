@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-const API = import.meta.env.VITE_API || "https://lernitt-server.onrender.com";
+const API = "https://lernitt-server.onrender.com";
 
 export default function Signup() {
   const nav = useNavigate();
@@ -14,18 +14,20 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("student"); 
   
+  // All three compliance checks
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [ackPrivacy, setAckPrivacy] = useState(false);
+  const [ackAge, setAckAge] = useState(false);
+
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // The button only works if all three boxes are checked
+  const canSubmit = agreeTerms && ackPrivacy && ackAge;
+
   async function onSubmit(e) {
     e.preventDefault();
-    if (loading) return;
-
-    if (!agreeTerms) {
-      setErr("Please accept the Terms to continue.");
-      return;
-    }
+    if (loading || !canSubmit) return;
 
     setErr("");
     setLoading(true);
@@ -53,7 +55,7 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <main className="mx-auto max-w-xl px-6 py-20">
         
         <div className="mb-10 text-center">
@@ -84,7 +86,7 @@ export default function Signup() {
           </div>
 
           {err && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold">
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold animate-pulse">
               {err}
             </div>
           )}
@@ -117,20 +119,49 @@ export default function Signup() {
               className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 px-5 py-4 text-sm font-medium focus:border-indigo-500 focus:bg-white outline-none"
             />
 
-            <label className="flex items-center gap-3 cursor-pointer pt-2">
-              <input
-                type="checkbox"
-                checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="w-5 h-5 rounded border-slate-300 text-indigo-600"
-              />
-              <span className="text-xs font-bold text-slate-500">I agree to the Terms & Privacy Policy</span>
-            </label>
+            {/* THE THREE REQUIRED CHECKBOXES */}
+            <div className="space-y-4 pt-2">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-slate-300 text-indigo-600"
+                />
+                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700">
+                  I accept the Lernitt <Link to="/legal/terms" className="text-indigo-600 underline">Terms of Service</Link>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={ackPrivacy}
+                  onChange={(e) => setAckPrivacy(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-slate-300 text-indigo-600"
+                />
+                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700">
+                  I have read the academy <Link to="/legal/privacy" className="text-indigo-600 underline">Privacy Protocols</Link>
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={ackAge}
+                  onChange={(e) => setAckAge(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-slate-300 text-indigo-600"
+                />
+                <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700">
+                  I verify that I meet the <Link to="/legal/age-requirements" className="text-indigo-600 underline">Age Requirements</Link>
+                </span>
+              </label>
+            </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full rounded-2xl bg-slate-900 px-6 py-5 text-sm font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-600 transition-all disabled:opacity-50"
+              disabled={loading || !canSubmit}
+              className="w-full rounded-2xl bg-slate-900 px-6 py-5 text-sm font-black uppercase tracking-widest text-white shadow-lg hover:bg-indigo-600 transition-all disabled:opacity-30 disabled:hover:bg-slate-900"
             >
               {loading ? "Creating Account..." : "Finalise Registration"}
             </button>
