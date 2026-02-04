@@ -10,11 +10,10 @@ const videoWebhookRouter = require("./routes/videoWebhook");
 
 const app = express();
 
-/* --- THE MERGED FIX: SIMPLIFIED SECURITY GATE --- */
-app.use(cors({
-  origin: ["https://lernitt.onrender.com", "http://localhost:5173"],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+/* --- THE TOTAL ACCESS FIX: Removing connection barriers --- */
+app.use(require('cors')({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
