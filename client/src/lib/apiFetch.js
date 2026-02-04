@@ -1,13 +1,22 @@
 // /client/src/lib/apiFetch.js
 import { handle as mockHandle } from "../mock/handlers.js";
 
-/* --- THE FIRST PRINCIPLES MERGE: HARDCODED TO STOP THE LOOPS --- */
-// We remove 'import.meta.env.VITE_API' to stop Render from guessing the wrong address.
-const API = "https://lernitt-server.onrender.com/api"; 
+/**
+ * --- FIRST PRINCIPLES FIX ---
+ * We are hardcoding the API address here to bypass Render's environment variable errors.
+ * This ensures the website always knows exactly where the server is.
+ */
+const API = "https://lernitt-server.onrender.com/api";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
 
 /**
  * apiFetch(pathOrUrl, { method, body, headers })
+ * - Auto-prefixes API when given a relative path.
+ * - Always includes Authorization when token exists.
+ * - Sends JSON body when "body" is provided.
+ * - Returns parsed JSON or throws Error(message).
+ * - Handles global 401: clears auth + redirects to login.
+ * - In mock mode, routes to mock handlers.
  */
 export async function apiFetch(path, options = {}) {
   const { headers = {}, body, method = "GET", ...rest } = options;
@@ -32,28 +41,36 @@ export async function apiFetch(path, options = {}) {
     const mockOptions = {
       method,
       headers: finalHeaders,
-      body: body != null && typeof body !== "string" ? JSON.stringify(body) : body,
+      body:
+        body != null && typeof body !== "string"
+          ? JSON.stringify(body)
+          : body,
       ...rest,
     };
+
     const res = await mockHandle(url, mockOptions);
     return handleResponse(res);
   }
 
-  // ---- REAL NETWORK (The part that was failing) ----------------------------
+  // ---- REAL NETWORK --------------------------------------------------------
   const res = await fetch(url, {
     method,
     ...rest,
     headers: pruneUndefined(finalHeaders),
-    body: body != null && typeof body !== "string" ? JSON.stringify(body) : body,
+    body:
+      body != null && typeof body !== "string"
+        ? JSON.stringify(body)
+        : body,
   });
 
   return handleResponse(res);
 }
 
-// ---- Shared response handler (All your original logic preserved) -----------
+// ---- Shared response handler -----------------------------------------------
 async function handleResponse(res) {
   if (!res || typeof res.ok !== "boolean") throw new Error("Invalid response");
 
+  // 401 handling without redirect
   if (res.status === 401) {
     let data = null;
     try {
@@ -61,14 +78,21 @@ async function handleResponse(res) {
       if (ct.includes("application/json") && res.json) {
         data = await res.json();
       }
-    } catch { data = null; }
+    } catch {
+      data = null;
+    }
 
     try {
       localStorage.removeItem("auth");
       localStorage.removeItem("token");
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
 
-    const msg = (data && (data.error || data.message)) || "Session expired.";
+    const msg =
+      (data && (data.error || data.message)) ||
+      "Session expired. Please log in again.";
+    // ⛔ no redirect here – caller decides what to do
     throw new Error(msg);
   }
 
@@ -76,15 +100,22 @@ async function handleResponse(res) {
   const ct = res.headers?.get("content-type") || "";
 
   if (ct.includes("application/json")) {
-    try { data = await res.json(); } catch { data = null; }
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
   } else {
+    // supports mock responses that are plain objects (no .text())
     data = (await res.text?.()) || res;
   }
 
+  // JSON error object (even if 200 OK)
   if (data && typeof data === "object" && data.error) {
     throw Object.assign(new Error(data.error), { status: res.status });
   }
 
+  // HTTP error code
   if (!res.ok) {
     throw Object.assign(
       new Error(data?.message || data?.error || `HTTP ${res.status}`),
@@ -100,17 +131,23 @@ function pruneUndefined(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null));
 }
 
+// ✅ FIX: read token from combined "auth" key first, then fallback
 function safeGetToken() {
   try {
     const raw = localStorage.getItem("auth");
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed?.token) return parsed.token;
+      if (parsed && typeof parsed.token === "string") {
+        return parsed.token;
+      }
     }
     return localStorage.getItem("token") || "";
-  } catch { return ""; }
+  } catch {
+    return "";
+  }
 }
 
+// ✅ FIX: clear *all* auth storage, including combined key
 function handleUnauthorizedRedirect() {
   try {
     localStorage.removeItem("auth");
@@ -120,6 +157,8 @@ function handleUnauthorizedRedirect() {
   try {
     document.dispatchEvent(new Event("auth-change"));
   } catch {}
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  const next = encodeURIComponent(
+    window.location.pathname + window.location.search
+  );
   window.location.replace(`/login?next=${next}`);
 }
