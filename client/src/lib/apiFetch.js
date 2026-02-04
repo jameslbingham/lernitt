@@ -1,12 +1,13 @@
 // /client/src/lib/apiFetch.js
 import { handle as mockHandle } from "../mock/handlers.js";
 
-const API = import.meta.env.VITE_API || "http://localhost:5000";
+/* --- FIRST PRINCIPLES FIX: HARDCODED TO BYPASS RENDER ERRORS --- */
+const API = "https://lernitt-server.onrender.com/api";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
 
 /**
  * apiFetch(pathOrUrl, { method, body, headers })
- * - Auto-prefixes VITE_API when given a relative path.
+ * - Auto-prefixes API when given a relative path.
  * - Always includes Authorization when token exists.
  * - Sends JSON body when "body" is provided.
  * - Returns parsed JSON or throws Error(message).
