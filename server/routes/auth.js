@@ -73,7 +73,9 @@ function buildAuthResponse(user) {
    ========================================================================== */
 router.post("/signup", async (req, res) => {
   try {
-    let { name, email, password, type } = req.body || {};
+    // This allows the server to see 'role' from the new form or 'type' from the old one
+    let { name, email, password, role, type } = req.body || {};
+    const signupType = String(role || type || "student").toLowerCase();
 
     if (!email || !password) {
       return res
@@ -92,15 +94,14 @@ router.post("/signup", async (req, res) => {
     }
 
     // Determine role based on registration entry point
-    const signupType = String(type || "student").toLowerCase();
     const isTutorSignup = signupType === "tutor";
-    const role = isTutorSignup ? "tutor" : "student";
+    const finalRole = isTutorSignup ? "tutor" : "student";
 
     const user = new User({
       name,
       email,
       password, // Bcrypt hashing handled by User schema pre-save hook
-      role,
+      role: finalRole,
       isTutor: isTutorSignup,
       tutorStatus: isTutorSignup ? "pending" : "none",
       isAdmin: false,
