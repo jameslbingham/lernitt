@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { safeFetchJSON } from "../lib/safeFetch.js"; // Using our new safe connection
+import { safeFetchJSON } from "../lib/safeFetch.js"; 
 import { useAuth } from "../hooks/useAuth.jsx";
 
-// The corrected live address
-const API_URL = "https://lernitt-server.onrender.com";
+// FIX: Pointing to the live integrated service instead of the dead 'lernitt-server'
+const API_URL = "https://lernitt.onrender.com";
 
 export default function Signup() {
   const nav = useNavigate();
@@ -32,7 +32,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      // Sending data to the LIVE server
+      // FIX: Communicating with the current live integrated URL
       const data = await safeFetchJSON(`${API_URL}/api/auth/signup`, {
         method: "POST",
         body: JSON.stringify({ email, password, name, role, type: role }),
@@ -48,11 +48,14 @@ export default function Signup() {
 
       login(data.token, data.user);
       
-      // Move Elena to her setup page
+      // Move to correct setup page based on role
       nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup");
 
     } catch (error) {
-      setErr("Connection Error: The server at lernitt-server.onrender.com is not responding. Please wait 30 seconds for it to 'wake up' and try again.");
+      // FIX: Providing a more accurate error message that doesn't reference the dead server
+      setErr(error.message.includes("lernitt-server") 
+        ? "System update in progress. Please refresh and try again." 
+        : error.message || "Connection error. Please try again.");
     } finally {
       setLoading(false);
     }
