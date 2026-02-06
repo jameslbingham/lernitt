@@ -1,12 +1,9 @@
 // /client/src/lib/apiFetch.js
 import { handle as mockHandle } from "../mock/handlers.js";
 
-/**
- * --- FIRST PRINCIPLES FIX ---
- * We are hardcoding the API address here to bypass Render's environment variable errors.
- * This ensures the website always knows exactly where the server is.
- */
-const API = "https://lernitt-server.onrender.com/api";
+/* --- THE BRIDGE SOLIDIFIED: HARD-WIRED ADDRESS --- */
+// RADICAL FIX: Correcting the live address to match the Render service URL
+const API = "https://lernitt.onrender.com/api";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
 
 /**
@@ -21,7 +18,7 @@ const IS_MOCK = import.meta.env.VITE_MOCK === "1";
 export async function apiFetch(path, options = {}) {
   const { headers = {}, body, method = "GET", ...rest } = options;
 
-  // This logic now uses the hardcoded 'https://lernitt-server.onrender.com/api'
+  // This logic now uses the correct 'https://lernitt.onrender.com/api'
   const url = String(path).startsWith("http")
     ? String(path)
     : `${API}${String(path).startsWith("/") ? "" : "/"}${String(path)}`;
