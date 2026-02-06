@@ -7,7 +7,8 @@ import { useAuth } from "../hooks/useAuth.jsx";
 // --- ✅ CORRECTED IMPORT FOR PRODUCTION BUILD ---
 import { supabase } from "../lib/supabaseClient"; 
 
-const API = import.meta.env.VITE_API || "http://localhost:5000";
+// FIXED: Pointing to the live integrated service instead of localhost or the dead server
+const API = "https://lernitt.onrender.com";
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
 export default function TutorProfileSetup() {
@@ -140,8 +141,13 @@ export default function TutorProfileSetup() {
       });
 
       setInfo("Your tutor profile has been saved.");
+      // Success: Optional - move to dashboard or let user see the success message
+      nav("/tutor");
     } catch (e2) {
-      setErr(e2?.message || "Could not save your profile.");
+      // Re-mapped error to handle the dead server message specifically
+      setErr(e2?.message?.includes("lernitt-server") 
+        ? "Connection error. Please refresh and try again." 
+        : e2?.message || "Could not save your profile.");
     } finally {
       setSaving(false);
     }
