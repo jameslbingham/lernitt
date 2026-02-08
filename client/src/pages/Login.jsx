@@ -139,20 +139,20 @@ export default function Login() {
 
       /**
        * SIGNUP FLOW
-       * ✅ Logic preserved: Captures italki-style role definitions and normalization.
+       * ✅ Logic preserved: Corrected relative path to prevent 404 errors.
        */
       if (mode === "signup") {
         const baseName = email.split("@")[0] || "User";
         const signupRole = signupType === "tutor" ? "tutor" : "student";
 
-        const data = await apiFetch("/api/auth/signup", {
+        const data = await apiFetch("/auth/signup", {
           method: "POST",
           body: {
             email,
             password,
             name: baseName,
-            type: signupRole, // Support legacy keys
-            role: signupRole, // Support modern keys
+            type: signupRole,
+            role: signupRole,
           },
         });
 
@@ -160,7 +160,6 @@ export default function Login() {
           throw new Error("Lernitt signup was unsuccessful. Please check credentials.");
         }
 
-        // Normalize the user object across backend versions
         const serverUser = data.user || {};
         const effectiveRole = serverUser.role || serverUser.type || signupRole;
 
@@ -175,9 +174,9 @@ export default function Login() {
 
       /**
        * LOGIN FLOW
-       * ✅ Logic preserved: Includes legacy password migration and admin special-case.
+       * ✅ Logic preserved: Corrected relative path to prevent 404 errors.
        */
-      const data = await apiFetch("/api/auth/login", {
+      const data = await apiFetch("/auth/login", {
         method: "POST",
         body: { email, password },
       });
@@ -186,13 +185,11 @@ export default function Login() {
         throw new Error("Invalid login credentials provided.");
       }
 
-      // Hard-coded admin bypass for legacy transition (James)
       if (data.user.email === "jameslbingham@yahoo.com") {
         data.user.role = "admin";
         data.user.type = "admin";
       }
 
-      // Normalize user role data
       const serverUser = data.user || {};
       const effectiveRole = serverUser.role || serverUser.type || "student";
 
@@ -201,10 +198,7 @@ export default function Login() {
         role: effectiveRole,
       };
 
-      // Execute global auth login
       login(data.token, mergedUser);
-      
-      // Navigate to determined route without adding /login to the history stack
       nav(afterLoginPath(mergedUser), { replace: true });
 
     } catch (e2) {
@@ -378,7 +372,6 @@ export default function Login() {
               </button>
             </div>
 
-            {/* ✅ NEW FUNCTION: SECURE RECOVERY LINK */}
             {mode === "login" && (
               <div className="pt-2 text-center">
                 <Link
