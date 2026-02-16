@@ -159,22 +159,18 @@ export default function Profile() {
         return;
       }
 
-      // Professional Supabase Integration
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("You must be logged in to upload.");
 
-      // 2. Define Flat Path to Match Simplified Policy
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-      // 3. Direct Storage Transfer (No public/ prefix)
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // 4. Retrieve Public URL
       const { data: { publicUrl } } = supabase.storage
         .from('tutor-avatars')
         .getPublicUrl(fileName);
@@ -382,4 +378,35 @@ export default function Profile() {
           </Field>
           <div />
           <Field label="New password">
-            <input type="password" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} className="border rounded-xl px-3 py-2 w-full" autoComplete
+            <input type="password" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} className="border rounded-xl px-3 py-2 w-full" autoComplete="new-password" required minLength={8} />
+          </Field>
+          <Field label="Confirm new password">
+            <input type="password" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} className="border rounded-xl px-3 py-2 w-full" autoComplete="new-password" required minLength={8} />
+          </Field>
+          <div className="md:col-span-2 flex gap-2 mt-1">
+            <button type="submit" disabled={pwdBusy} className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60">
+              {pwdBusy ? "Updating…" : "Update password"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {role === "tutor" && (
+        <div className="border rounded-2xl p-4 shadow-sm">
+          <div className="text-lg font-semibold mb-2">Payouts & identity</div>
+          <div className="text-sm opacity-80 mb-2">
+            Manage payouts and verification in{" "}
+            <Link to="/payouts" className="underline">Payouts</Link>.
+          </div>
+        </div>
+      )}
+
+      <div className="border rounded-2xl p-4 shadow-sm">
+        <div className="text-lg font-semibold mb-2">Danger zone</div>
+        <button onClick={onDeleteAccount} className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition" style={{ borderColor: "#fecaca", color: "#991b1b" }}>
+          Delete account
+        </button>
+      </div>
+    </div>
+  );
+}
