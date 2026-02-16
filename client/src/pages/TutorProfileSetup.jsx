@@ -87,20 +87,19 @@ export default function TutorProfileSetup() {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Create a unique filename for the bucket
+      // Create a unique filename for the bucket (Flat Path) [cite: 2026-02-15]
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-      // Upload to the 'tutor-avatars' bucket
+      // Upload to the 'tutor-avatars' bucket (No folder prefix) [cite: 2026-02-15]
       let { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
-        .upload(filePath, file);
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // Retrieve the public URL based on the SELECT policy
-      const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(filePath);
+      // Retrieve the public URL based on the flat SELECT policy [cite: 2026-02-15]
+      const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(fileName);
       
       setAvatarUrl(data.publicUrl);
       setInfo("Profile photo uploaded successfully!");
