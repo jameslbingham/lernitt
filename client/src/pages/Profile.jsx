@@ -163,19 +163,21 @@ export default function Profile() {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error("You must be logged in to upload.");
 
+      // 2. Define Flat Path to Match Simplified Policy [cite: 2026-02-15]
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
+      // 3. Direct Storage Transfer (No public/ prefix) [cite: 2026-02-15]
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
-        .upload(filePath, file, { upsert: true });
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
+      // 4. Retrieve Public URL [cite: 2026-02-15]
       const { data: { publicUrl } } = supabase.storage
         .from('tutor-avatars')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       setProfile((p) => ({ ...p, photoUrl: publicUrl }));
       setDirty(true);
