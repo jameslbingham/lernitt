@@ -24,11 +24,6 @@ export default function Footer({ theme = "light" }) {
               Learn languages & skills with friendly tutors in live 1-to-1 lessons.
             </p>
 
-            {/* BUSINESS LOCATION (NEW) */}
-            <p className="text-xs opacity-70">
-              Business location: <span className="font-semibold">Victoria, Australia</span>
-            </p>
-
             {/* © LINE LINKS TO TERMS (AMENDED) */}
             <p className="text-xs opacity-70 mt-2">
               © {year} Lernitt Pty Ltd.{" "}
