@@ -79,27 +79,37 @@ export default function TutorProfileSetup() {
     };
   }, [API]);
 
-  // --- HANDLE AVATAR UPLOAD TO SUPABASE ---
+  // --- HANDLE AVATAR UPLOAD TO SUPABASE (FLAT PATH REPAIR) ---
   async function handleFileUpload(e) {
     try {
       setUploading(true);
       setErr("");
+      setInfo("");
       const file = e.target.files[0];
       if (!file) return;
 
-      // Create a unique filename for the bucket (Flat Path) [cite: 2026-02-15]
+      if (!user?.id) {
+        throw new Error("Authentication error: User ID not found.");
+      }
+
+      // 1. Generate Flat Filename (No folder prefixes)
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-      // Upload to the 'tutor-avatars' bucket (No folder prefix) [cite: 2026-02-15]
-      let { error: uploadError } = await supabase.storage
+      // 2. Upload to the root of 'tutor-avatars' bucket
+      const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, file, { 
+          upsert: true,
+          contentType: file.type 
+        });
 
       if (uploadError) throw uploadError;
 
-      // Retrieve the public URL based on the flat SELECT policy [cite: 2026-02-15]
+      // 3. Retrieve the public URL directly from the filename
       const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(fileName);
+      
+      if (!data?.publicUrl) throw new Error("Failed to generate public URL.");
       
       setAvatarUrl(data.publicUrl);
       setInfo("Profile photo uploaded successfully!");
@@ -140,10 +150,8 @@ export default function TutorProfileSetup() {
       });
 
       setInfo("Your tutor profile has been saved.");
-      // Success: Optional - move to dashboard or let user see the success message
       nav("/tutor");
     } catch (e2) {
-      // Re-mapped error to handle the dead server message specifically
       setErr(e2?.message?.includes("lernitt-server") 
         ? "Connection error. Please refresh and try again." 
         : e2?.message || "Could not save your profile.");
