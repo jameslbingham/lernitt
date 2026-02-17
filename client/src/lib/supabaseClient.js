@@ -4,11 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("❌ ERROR: Supabase settings are missing.");
-}
-
-// FIX: Enable session persistence so Storage knows who you are.
+// persistSession MUST be true for Storage RLS to work correctly.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
