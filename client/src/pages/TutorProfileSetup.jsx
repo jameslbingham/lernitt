@@ -79,7 +79,7 @@ export default function TutorProfileSetup() {
     };
   }, [API]);
 
-  // --- HANDLE AVATAR UPLOAD TO SUPABASE (CASE-SENSITIVE FIX) ---
+  // --- HANDLE AVATAR UPLOAD TO SUPABASE (LOWERCASE SYNC) ---
   async function handleFileUpload(e) {
     try {
       setUploading(true);
@@ -96,9 +96,9 @@ export default function TutorProfileSetup() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-      // 2. Upload to the root of 'TUTOR-AVATARS' bucket (EXACT CASE MATCH)
+      // 2. Upload to the root of 'tutor-avatars' bucket (LOWERCASE MATCH)
       const { error: uploadError } = await supabase.storage
-        .from('TUTOR-AVATARS')
+        .from('tutor-avatars')
         .upload(fileName, file, { 
           upsert: true,
           contentType: file.type 
@@ -107,7 +107,7 @@ export default function TutorProfileSetup() {
       if (uploadError) throw uploadError;
 
       // 3. Retrieve the public URL directly from the filename
-      const { data } = supabase.storage.from('TUTOR-AVATARS').getPublicUrl(fileName);
+      const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(fileName);
       
       if (!data?.publicUrl) throw new Error("Failed to generate public URL.");
       
