@@ -2,7 +2,7 @@
 /**
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.2 (Final Correction - Case & Path Alignment)
+ * VERSION: 4.2.2 (Case & Path Alignment)
  * * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
@@ -70,7 +70,7 @@ const Pay = lazy(() => import("./pages/Pay.jsx"));
 
 // 3. Secure Recovery (Forgot/Reset Flow)
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); 
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); // ✅ ADDED
 
 // 4. Student & Tutor Dashboards
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -97,13 +97,13 @@ const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 /**
  * LEGAL DOCUMENTATION ROUTES
- * CORRECTED PATHS: Root of /pages/ with lowercase filenames for Linux stability.
+ * CORRECTED: Using the path documented in version 4.2.0 imports
  */
-const Terms = lazy(() => import("./pages/terms.jsx"));
-const Privacy = lazy(() => import("./pages/privacy.jsx"));
-const Cookies = lazy(() => import("./pages/cookies.jsx"));
-const Complaints = lazy(() => import("./pages/complaints.jsx"));
-const AgeRequirements = lazy(() => import("./pages/age-requirements.jsx"));
+const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
+const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
+const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
+const Complaints = lazy(() => import("./pages/legal/Complaints.jsx"));
+const AgeRequirements = lazy(() => import("./pages/legal/AgeRequirements.jsx"));
 
 /**
  * UTILITY: ScrollToTop
