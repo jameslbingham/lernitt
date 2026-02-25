@@ -6,8 +6,8 @@
     "install-server": "cd server && npm install",
     "install-client": "cd client && npm install",
     "build-client": "cd client && npm run build",
-    "build": "npm run install-server && npm run install-client && npm run build-client",
-    "start": "cd server && node server.js",
+    "build": "npm install && npm run install-server && npm run install-client && npm run build-client",
+    "start": "node server/server.js",
     "cleanup:recordings": "node server/scripts/cleanupRecordings.js",
     "client:dev": "cd client && npm run dev",
     "server:dev": "cd server && node server.js"
