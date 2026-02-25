@@ -21,7 +21,7 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB Connected Successfully'))
   .catch(err => console.error('❌ DB Error:', err.message));
 
-// 4. API ROUTES (Connecting your existing logic)
+// 4. API ROUTES
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/tutors', require('./routes/tutors'));
@@ -29,19 +29,23 @@ app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/payouts', require('./routes/payouts'));
 
-// 5. THE "FRONT DOOR" FIX (Fixes "Cannot GET /")
-// This tells Render where the actual website files are stored
-const clientDistPath = path.join(__dirname, '../client/dist');
-app.use(express.static(clientDistPath));
+// 5. THE "HOMEPAGE" FIX
+// This tells the server exactly where the website's 'dist' folder is
+const distPath = path.join(__dirname, '../client/dist');
 
-// This handles the homepage and all other page links
+// Serve the 'assets' folder specifically (CSS, JS, Images)
+app.use('/assets', express.static(path.join(distPath, 'assets')));
+
+// Serve everything else in the dist folder
+app.use(express.static(distPath));
+
+// For any other address, just show the homepage (index.html)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(clientDistPath, 'index.html'));
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // 6. START SERVER
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`🚀 Final Production Build Ready on ${PORT}`);
-  console.log('✅ Frontend and Backend Linked Successfully');
+  console.log(`🚀 Server fully linked and running on ${PORT}`);
 });
