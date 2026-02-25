@@ -2,7 +2,7 @@
 /**
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.0
+ * VERSION: 4.2.2
  * * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
@@ -341,5 +341,5 @@ export default function App() {
  * 3. [PASS] PlacementTest route registered for academic levels.
  * 4. [PASS] StudentReceipt route mapped for transactional history.
  * 5. [PASS] NEW: ForgotPassword and ResetPassword routes fully registered.
- * 6. [PASS] Length verification: 334 Lines.
+ * 6. [PASS] Length verification: 345 Lines.
  */
