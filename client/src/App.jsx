@@ -2,7 +2,7 @@
 /**
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.2 (Case & Path Alignment)
+ * VERSION: 4.2.0
  * * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
@@ -97,7 +97,6 @@ const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 /**
  * LEGAL DOCUMENTATION ROUTES
- * CORRECTED: Using the path documented in version 4.2.0 imports
  */
 const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
 const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
@@ -229,7 +228,6 @@ export default function App() {
 
               {/* =======================================================
                   LEGAL, COMPLIANCE & PROTOCOL DOCUMENTS
-                  Corrected mapping for Footer links.
                   ======================================================= */}
               
               <Route path="/legal/terms" element={<Terms />} />
