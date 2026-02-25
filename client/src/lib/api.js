@@ -7,26 +7,13 @@
 // - Adds JWT (localStorage.token) automatically
 // ============================================================================
 
-/**
- * ENDPOINT SYNCHRONIZATION
- * Priority 1: VITE_API_URL (Set in Render Dashboard)
- * Priority 2: VITE_API (Fallback from .env files)
- * Priority 3: Localhost (Development fallback)
- */
 const API = import.meta.env.VITE_API_URL || import.meta.env.VITE_API || "http://localhost:10000";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
 
-// Log connection status to console for debugging
 if (import.meta.env.PROD) {
   console.log('🚀 Lernitt Frontend connecting to:', API);
 }
 
-/* --------------------------------- Core --------------------------------- */
-
-/**
- * safeFetchJSON
- * Adds JSON header + Authorization: Bearer <token> (if present).
- */
 export async function safeFetchJSON(url, opts = {}) {
   const token = localStorage.getItem("token");
   const headers = {
@@ -42,7 +29,6 @@ export async function safeFetchJSON(url, opts = {}) {
   } catch (err) {
     if (!IS_MOCK) throw err;
 
-    // ---- Minimal mock fallbacks by endpoint shape ----
     if (url.endsWith("/api/admin/users") && (!opts.method || opts.method === "GET")) {
       return {
         items: [
@@ -123,8 +109,6 @@ export async function safeFetchJSON(url, opts = {}) {
   }
 }
 
-/* ------------------------------ Refunds API ------------------------------ */
-
 export async function approveRefund(id, reason) {
   return safeFetchJSON(`${API}/api/refunds/${encodeURIComponent(id)}/approve`, {
     method: "POST",
@@ -154,8 +138,6 @@ export async function addRefundNote(id, text) {
   });
 }
 
-/* ------------------------------- Users API ------------------------------- */
-
 export async function getAdminUsers() {
   return safeFetchJSON(`${API}/api/admin/users`, { method: "GET" });
 }
@@ -184,8 +166,6 @@ export async function verifyUserApi(userId) {
     method: "POST",
   });
 }
-
-/* ------------------------------ Tutors API ------------------------------ */
 
 export async function getAdminTutors() {
   return safeFetchJSON(`${API}/api/admin/tutors`, { method: "GET" });
@@ -221,8 +201,6 @@ export async function setTutorRate(id, rate, currency) {
   });
 }
 
-/* ------------------------------ Finance API ------------------------------ */
-
 export async function getPayouts() {
   return safeFetchJSON(`${API}/api/payouts`, { method: "GET" });
 }
@@ -238,8 +216,6 @@ export async function approvePayout(payoutId) {
 export async function financeSummary() {
   return safeFetchJSON(`${API}/api/finance/summary`, { method: "GET" });
 }
-
-/* -------------------------------- Utilities ------------------------------ */
 
 export function formatMoney(value, digits = 2) {
   const n = typeof value === "number" ? value : Number(value || 0);
