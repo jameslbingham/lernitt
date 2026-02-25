@@ -2,7 +2,7 @@
 /**
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.2
+ * VERSION: 4.2.2 (Final Case-Sensitivity Correction)
  * * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
@@ -97,13 +97,13 @@ const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 /**
  * LEGAL DOCUMENTATION ROUTES
- * Paths updated to match the initial project tree: root of /pages/
+ * CORRECTED: Using lowercase filenames to match Linux/Render case-sensitivity.
  */
-const Terms = lazy(() => import("./pages/Terms.jsx"));
-const Privacy = lazy(() => import("./pages/Privacy.jsx"));
-const Cookies = lazy(() => import("./pages/Cookies.jsx"));
-const Complaints = lazy(() => import("./pages/Complaints.jsx"));
-const AgeRequirements = lazy(() => import("./pages/AgeRequirements.jsx"));
+const Terms = lazy(() => import("./pages/terms.jsx"));
+const Privacy = lazy(() => import("./pages/privacy.jsx"));
+const Cookies = lazy(() => import("./pages/cookies.jsx"));
+const Complaints = lazy(() => import("./pages/complaints.jsx"));
+const AgeRequirements = lazy(() => import("./pages/age-requirements.jsx"));
 
 /**
  * UTILITY: ScrollToTop
@@ -229,7 +229,7 @@ export default function App() {
 
               {/* =======================================================
                   LEGAL, COMPLIANCE & PROTOCOL DOCUMENTS
-                  Mapped to root /pages/ based on file tree analysis.
+                  Corrected mapping to Root of /pages/ using lowercase.
                   ======================================================= */}
               
               <Route path="/legal/terms" element={<Terms />} />
