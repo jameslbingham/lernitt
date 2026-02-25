@@ -5,37 +5,23 @@ const path = require('path');
 const compression = require('compression');
 const dotenv = require('dotenv');
 
-// LOAD ENVIRONMENT VARIABLES AT THE VERY TOP
+// 1. LOAD ENVIRONMENT VARIABLES
 dotenv.config();
 
 const app = express();
 
-// MIDDLEWARE
+// 2. MIDDLEWARE
 app.use(compression());
 app.use(express.json());
 app.use(cors());
 
-// Log incoming requests for debugging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
-
-// DATABASE CONNECTION
+// 3. DATABASE CONNECTION
 const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  console.error('❌ Error: MONGODB_URI is not defined in the .env file.');
-  process.exit(1);
-}
-
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB Connected Successfully'))
-  .catch(err => {
-    console.error('❌ DB Error:', err.message);
-  });
+  .catch(err => console.error('❌ DB Error:', err.message));
 
-// ROUTES (Standard Lernitt Version 1 endpoints)
+// 4. API ROUTES (Connecting your existing logic)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/tutors', require('./routes/tutors'));
@@ -43,9 +29,19 @@ app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/payouts', require('./routes/payouts'));
 
-// START SERVER
+// 5. THE "FRONT DOOR" FIX (Fixes "Cannot GET /")
+// This tells Render where the actual website files are stored
+const clientDistPath = path.join(__dirname, '../client/dist');
+app.use(express.static(clientDistPath));
+
+// This handles the homepage and all other page links
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'));
+});
+
+// 6. START SERVER
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Final Production Build Ready on ${PORT}`);
-  console.log('✅ Reconnected to Cloud Database');
+  console.log('✅ Frontend and Backend Linked Successfully');
 });
