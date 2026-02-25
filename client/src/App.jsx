@@ -1,9 +1,8 @@
-// client/src/App.jsx
 /**
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.0
- * * CORE ARCHITECTURE:
+ * VERSION: 4.2.1 (Merged & Project Tree Path Correction)
+ * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
  * - Guards: Multi-tier protection (AdminGuard for Bob, ProtectedRoute for Users).
@@ -70,7 +69,7 @@ const Pay = lazy(() => import("./pages/Pay.jsx"));
 
 // 3. Secure Recovery (Forgot/Reset Flow)
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); // ✅ ADDED
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); 
 
 // 4. Student & Tutor Dashboards
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -96,18 +95,17 @@ const LessonRecordings = lazy(() => import("./pages/LessonRecordings.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 /**
- * LEGAL DOCUMENTATION ROUTES
+ * LEGAL DOCUMENTATION ROUTES (Path corrected to match your file tree)
  */
-const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
-const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
-const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
-const Complaints = lazy(() => import("./pages/legal/Complaints.jsx"));
-const AgeRequirements = lazy(() => import("./pages/legal/AgeRequirements.jsx"));
+const Terms = lazy(() => import("./pages/Terms.jsx"));
+const Privacy = lazy(() => import("./pages/Privacy.jsx"));
+const Cookies = lazy(() => import("./pages/Cookies.jsx"));
+const Complaints = lazy(() => import("./pages/Complaints.jsx"));
+const AgeRequirements = lazy(() => import("./pages/AgeRequirements.jsx"));
 
 /**
  * UTILITY: ScrollToTop
  * Functional component that intercepts route changes to reset the scroll position.
- * Prevents the browser from maintaining scroll depth between different pages.
  */
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -120,19 +118,16 @@ function ScrollToTop() {
 /**
  * GUARD: AdminGuard
  * High-security wrapper for administrative routes.
- * Strictly verifies 'admin' role before allowing access to platform finance data.
  */
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
   const loc = useLocation();
 
-  // Redirect to login if unauthenticated
   if (!token) {
     const next = encodeURIComponent(`${loc.pathname}${loc.search || ""}`);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 
-  // Redirect to home if user lacks elevated permissions
   if (!user || user.role !== "admin") {
     return <Navigate to="/" replace />;
   }
@@ -142,7 +137,6 @@ function AdminGuard({ children }) {
 
 /**
  * MAIN APP CONTAINER
- * Orchestrates the global providers and defined routing table.
  */
 export default function App() {
   return (
@@ -157,95 +151,58 @@ export default function App() {
         
         {/* Main Routed Content Area */}
         <main style={{ 
-          maxWidth: 960, 
+          maxWidth: 1200, 
           margin: "0 auto", 
-          padding: 16, 
+          padding: "20px 16px", 
           minHeight: "80vh" 
         }}>
           
           <Suspense
             fallback={
               <div style={{ 
-                padding: "60px 20px", 
+                padding: "100px 20px", 
                 textAlign: "center", 
                 fontFamily: "sans-serif", 
-                color: "#94a3b8",
+                color: "#6366f1",
                 fontWeight: 600
               }}>
-                Optimising Lernitt classroom environment...
+                Optimising Lernitt environment...
               </div>
             }
           >
             <Routes>
               
-              {/* =======================================================
-                  PUBLIC AUTHENTICATION & SECURITY PATHS
-                  ======================================================= */}
-              
+              {/* PUBLIC AUTH & SECURITY */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              
-              {/* Account Recovery Sequence */}
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* =======================================================
-                  ACADEMY MARKETING & ONBOARDING
-                  ======================================================= */}
-              
+              {/* MARKETING & ONBOARDING */}
               <Route path="/about" element={<About />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/welcome-setup" element={<WelcomeSetup />} />
-              <Route
-                path="/tutor-profile-setup"
-                element={<TutorProfileSetup />}
-              />
+              <Route path="/tutor-profile-setup" element={<TutorProfileSetup />} />
 
-              {/* =======================================================
-                  ELITE MARKETPLACE & BOOKING ENGINE
-                  ======================================================= */}
-              
+              {/* MARKETPLACE & BOOKING */}
               <Route path="/tutors" element={<Tutors />} />
               <Route path="/tutors/:id" element={<TutorProfile />} />
               <Route path="/book/:tutorId" element={<BookLesson />} />
               <Route path="/pay/:lessonId" element={<Pay />} />
-              
-              {/* Post-Transaction Verification */}
-              <Route
-                path="/confirm/:lessonId"
-                element={<BookingConfirmation />}
-              />
-              
-              {/* Automated Receipt System */}
-              <Route
-                path="/receipt/:lessonId"
-                element={<StudentReceipt />}
-              />
-              
+              <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
+              <Route path="/receipt/:lessonId" element={<StudentReceipt />} />
               <Route path="/students" element={<Students />} />
 
-              {/* =======================================================
-                  LEGAL, COMPLIANCE & PROTOCOL DOCUMENTS
-                  ======================================================= */}
-              
-              <Route path="/legal/terms" element={<Terms />} />
-              <Route path="/legal/privacy" element={<Privacy />} />
-              <Route path="/legal/cookies" element={<Cookies />} />
-              <Route
-                path="/legal/complaints"
-                element={<Complaints />}
-              />
-              <Route
-                path="/legal/age-requirements"
-                element={<AgeRequirements />}
-              />
+              {/* LEGAL ROUTES (URLs mapped to Footer links) */}
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/cookies" element={<Cookies />} />
+              <Route path="/complaints" element={<Complaints />} />
+              <Route path="/age-requirements" element={<AgeRequirements />} />
 
-              {/* =======================================================
-                  ADMINISTRATIVE & FINANCIAL CONTROL CENTER
-                  ======================================================= */}
-              
+              {/* ADMIN DASHBOARD */}
               <Route
                 path="/admin"
                 element={
@@ -262,82 +219,34 @@ export default function App() {
                   </AdminGuard>
                 }
               />
-              <Route
-                path="/admin/*"
-                element={
-                  <AdminGuard>
-                    <AdminDashboard />
-                  </AdminGuard>
-                }
-              />
 
-              {/* =======================================================
-                  PROTECTED ACADEMIC DASHBOARDS (Auth Required)
-                  ======================================================= */}
-              
+              {/* PROTECTED ROUTES */}
               <Route element={<ProtectedRoute />}>
-                
-                {/* Scheduling & Availability Control */}
                 <Route path="/availability" element={<Availability />} />
                 <Route path="/my-lessons" element={<MyLessons />} />
-                <Route
-                  path="/tutor-lessons"
-                  element={<TutorLessons />}
-                />
-                <Route
-                  path="/student-lesson/:lessonId"
-                  element={<StudentLessonDetail />}
-                />
-                
-                {/* Financial Identity & Settings */}
+                <Route path="/tutor-lessons" element={<TutorLessons />} />
+                <Route path="/student-lesson/:lessonId" element={<StudentLessonDetail />} />
                 <Route path="/payouts" element={<Payouts />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
-                
-                {/* Platform Notifications & Tutor Ops */}
-                <Route
-                  path="/notifications"
-                  element={<Notifications />}
-                />
+                <Route path="/notifications" element={<Notifications />} />
                 <Route path="/tutor" element={<TutorDashboard />} />
-
-                {/* Virtual Classroom Infrastructure */}
                 <Route path="/video" element={<VideoLesson />} />
                 <Route path="/lesson-ended" element={<LessonEnded />} />
-                <Route
-                  path="/lesson-recordings"
-                  element={<LessonRecordings />}
-                />
-
-                {/* AI Assessment & CEFR Pathing */}
+                <Route path="/lesson-recordings" element={<LessonRecordings />} />
                 <Route path="/placement-test" element={<PlacementTest />} />
-                
               </Route>
 
-              {/* =======================================================
-                  SYSTEM ERROR & FALLBACK MAPPING
-                  ======================================================= */}
-              
+              {/* 404 FALLBACK */}
               <Route path="*" element={<NotFound />} />
               
             </Routes>
           </Suspense>
         </main>
-        
-        {/* Global Persistence Footer */}
+
         <Footer />
         
       </BrowserRouter>
     </AuthProvider>
   );
 }
-
-/**
- * PRODUCTION VERIFICATION LOG:
- * 1. [PASS] ScrollToTop logic implemented with smooth behavior.
- * 2. [PASS] AdminGuard verified for role-based security.
- * 3. [PASS] PlacementTest route registered for academic levels.
- * 4. [PASS] StudentReceipt route mapped for transactional history.
- * 5. [PASS] NEW: ForgotPassword and ResetPassword routes fully registered.
- * 6. [PASS] Length verification: 334 Lines.
- */
