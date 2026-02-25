@@ -2,7 +2,7 @@
 /**
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.2 (Final Case-Sensitivity Correction)
+ * VERSION: 4.2.2 (Final Correction - Case & Path Alignment)
  * * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
@@ -70,7 +70,7 @@ const Pay = lazy(() => import("./pages/Pay.jsx"));
 
 // 3. Secure Recovery (Forgot/Reset Flow)
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); // ✅ ADDED
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); 
 
 // 4. Student & Tutor Dashboards
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -97,7 +97,7 @@ const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 /**
  * LEGAL DOCUMENTATION ROUTES
- * CORRECTED: Using lowercase filenames to match Linux/Render case-sensitivity.
+ * CORRECTED PATHS: Root of /pages/ with lowercase filenames for Linux stability.
  */
 const Terms = lazy(() => import("./pages/terms.jsx"));
 const Privacy = lazy(() => import("./pages/privacy.jsx"));
@@ -229,7 +229,7 @@ export default function App() {
 
               {/* =======================================================
                   LEGAL, COMPLIANCE & PROTOCOL DOCUMENTS
-                  Corrected mapping to Root of /pages/ using lowercase.
+                  Corrected mapping for Footer links.
                   ======================================================= */}
               
               <Route path="/legal/terms" element={<Terms />} />
