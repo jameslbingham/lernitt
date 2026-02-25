@@ -24,6 +24,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 1600
+  },
   server: {
     port: 5173,
     open: true,
@@ -31,8 +37,9 @@ export default defineConfig({
       ? undefined
       : {
           '/api': {
-            target: 'http://localhost:5000',
-            changeOrigin: true
+            target: 'http://localhost:10000', 
+            changeOrigin: true,
+            secure: false
           }
         }
   }
