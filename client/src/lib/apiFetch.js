@@ -1,58 +1,161 @@
 // /client/src/lib/apiFetch.js
 import { handle as mockHandle } from "../mock/handlers.js";
 
-/**
- * THE RECONNECTED BRIDGE
- * Priority 1: Render Dashboard setting (VITE_API_URL)
- * Priority 2: Local .env setting (VITE_API)
- * Priority 3: Hard-coded fallback for Lernitt Version 1
- */
-const API = import.meta.env.VITE_API_URL || import.meta.env.VITE_API || "https://lernitt.onrender.com/api";
+/* --- THE BRIDGE SOLIDIFIED: HARD-WIRED ADDRESS --- */
+// RADICAL FIX: Correcting the live address to match the Render service URL
+const API = "https://lernitt.onrender.com/api";
 const IS_MOCK = import.meta.env.VITE_MOCK === "1";
 
+/**
+ * apiFetch(pathOrUrl, { method, body, headers })
+ * - Auto-prefixes API when given a relative path.
+ * - Always includes Authorization when token exists.
+ * - Sends JSON body when "body" is provided.
+ * - Returns parsed JSON or throws Error(message).
+ * - Handles global 401: clears auth + redirects to login.
+ * - In mock mode, routes to mock handlers.
+ */
 export async function apiFetch(path, options = {}) {
   const { headers = {}, body, method = "GET", ...rest } = options;
 
-  // Build the full URL
+  // This logic now uses the correct 'https://lernitt.onrender.com/api'
   const url = String(path).startsWith("http")
     ? String(path)
     : `${API}${String(path).startsWith("/") ? "" : "/"}${String(path)}`;
 
-  // Prepare Security Headers
-  const token = localStorage.getItem("token") || "";
+  // Build headers
+  const token = safeGetToken();
   const finalHeaders = {
     ...headers,
-    ...(body != null && typeof body !== "string" && { "Content-Type": "application/json" }),
-    ...(token && { "Authorization": `Bearer ${token}` }),
+    ...(body != null && typeof body !== "string" && {
+      "Content-Type": "application/json",
+    }),
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 
-  // ---- MOCK MODE (For local testing) ----
+  // ---- MOCK MODE -----------------------------------------------------------
   if (IS_MOCK) {
     const mockOptions = {
       method,
       headers: finalHeaders,
-      body: body != null && typeof body !== "string" ? JSON.stringify(body) : body,
+      body:
+        body != null && typeof body !== "string"
+          ? JSON.stringify(body)
+          : body,
       ...rest,
     };
+
     const res = await mockHandle(url, mockOptions);
     return handleResponse(res);
   }
 
-  // ---- REAL NETWORK (Connecting to Render) ----
+  // ---- REAL NETWORK --------------------------------------------------------
   const res = await fetch(url, {
     method,
     ...rest,
-    headers: finalHeaders,
-    body: body != null && typeof body !== "string" ? JSON.stringify(body) : body,
+    headers: pruneUndefined(finalHeaders),
+    body:
+      body != null && typeof body !== "string"
+        ? JSON.stringify(body)
+        : body,
   });
 
   return handleResponse(res);
 }
 
+// ---- Shared response handler -----------------------------------------------
 async function handleResponse(res) {
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `HTTP Error ${res.status}`);
+  if (!res || typeof res.ok !== "boolean") throw new Error("Invalid response");
+
+  // 401 handling without redirect
+  if (res.status === 401) {
+    let data = null;
+    try {
+      const ct = res.headers?.get?.("content-type") || "";
+      if (ct.includes("application/json") && res.json) {
+        data = await res.json();
+      }
+    } catch {
+      data = null;
+    }
+
+    try {
+      localStorage.removeItem("auth");
+      localStorage.removeItem("token");
+    } catch {
+      // ignore
+    }
+
+    const msg =
+      (data && (data.error || data.message)) ||
+      "Session expired. Please log in again.";
+    // ⛔ no redirect here – caller decides what to do
+    throw new Error(msg);
   }
-  return await res.json();
+
+  let data = null;
+  const ct = res.headers?.get("content-type") || "";
+
+  if (ct.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+  } else {
+    // supports mock responses that are plain objects (no .text())
+    data = (await res.text?.()) || res;
+  }
+
+  // JSON error object (even if 200 OK)
+  if (data && typeof data === "object" && data.error) {
+    throw Object.assign(new Error(data.error), { status: res.status });
+  }
+
+  // HTTP error code
+  if (!res.ok) {
+    throw Object.assign(
+      new Error(data?.message || data?.error || `HTTP ${res.status}`),
+      { status: res.status }
+    );
+  }
+
+  return data;
+}
+
+// ---- helpers ---------------------------------------------------------------
+function pruneUndefined(obj) {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null));
+}
+
+// ✅ FIX: read token from combined "auth" key first, then fallback
+function safeGetToken() {
+  try {
+    const raw = localStorage.getItem("auth");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.token === "string") {
+        return parsed.token;
+      }
+    }
+    return localStorage.getItem("token") || "";
+  } catch {
+    return "";
+  }
+}
+
+// ✅ FIX: clear *all* auth storage, including combined key
+function handleUnauthorizedRedirect() {
+  try {
+    localStorage.removeItem("auth");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  } catch {}
+  try {
+    document.dispatchEvent(new Event("auth-change"));
+  } catch {}
+  const next = encodeURIComponent(
+    window.location.pathname + window.location.search
+  );
+  window.location.replace(`/login?next=${next}`);
 }
