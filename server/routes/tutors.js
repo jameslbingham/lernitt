@@ -23,7 +23,6 @@ const visibleTutorMatch = {
  * GET /api/tutors
  * List tutors ONLY with avgRating and reviewsCount
  */
-// ✅ ADDED: auth middleware
 router.get("/", auth, async (req, res) => {
   try {
     const tutors = await User.aggregate([
@@ -59,7 +58,6 @@ router.get("/", auth, async (req, res) => {
  * GET /api/tutors/:id
  * Single tutor ONLY
  */
-// ✅ ADDED: auth middleware
 router.get("/:id", auth, async (req, res) => {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
@@ -95,6 +93,50 @@ router.get("/:id", auth, async (req, res) => {
     res.json(result[0]);
   } catch (err) {
     res.status(400).json({ error: "Invalid tutor id" });
+  }
+});
+
+/**
+ * PATCH /api/tutors/setup
+ * ✅ NEW: Allows a newly signed-up tutor to save their professional profile
+ * This connects the "Signup" process to the "Payment" logic.
+ */
+router.patch("/setup", auth, async (req, res) => {
+  try {
+    // Check if the user is actually a tutor
+    if (!req.user.role === 'tutor' && !req.user.isTutor) {
+      return res.status(403).json({ error: "Only tutors can access professional setup." });
+    }
+
+    const { bio, subjects, price, paypalEmail, country, timezone } = req.body;
+
+    // Update the tutor's record with the professional details
+    const updatedTutor = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        bio,
+        subjects,
+        price,
+        paypalEmail,
+        country,
+        timezone,
+        tutorStatus: "pending" // Sets them to pending so Admin Bob can review
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedTutor) {
+      return res.status(404).json({ error: "Tutor profile not found." });
+    }
+
+    res.json({
+      message: "Professional profile saved successfully!",
+      user: updatedTutor.summary()
+    });
+
+  } catch (err) {
+    console.error("Tutor Setup Error:", err);
+    res.status(500).json({ error: "Failed to save profile details." });
   }
 });
 
