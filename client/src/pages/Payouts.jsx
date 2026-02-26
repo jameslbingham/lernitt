@@ -203,10 +203,16 @@ export default function Payouts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  
+  // ✅ NEW: Added for Bank Connection visibility
+  const [userProfile, setUserProfile] = useState(null);
 
   // ✅ ADDED: Payout Setup State for PayPal choice
   const [paypalEmail, setPaypalEmail] = useState("");
   const [setupSaving, setSetupSaving] = useState(false);
+  
+  // ✅ NEW: Loading state for the Stripe redirect
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   // UI controls (original)
   const [q, setQ] = useState("");
@@ -256,12 +262,14 @@ export default function Payouts() {
     setErr("");
     try {
       const endpoint = tab === "refunds" ? "refunds" : "payouts";
-      const res = await apiFetch(`${API}/api/${endpoint}`, { auth: true });
+      // ✅ UPDATED: Pre-fetching "me" to check for Stripe connection status
+      const [res, me] = await Promise.all([
+        apiFetch(`${API}/api/${endpoint}`, { auth: true }),
+        apiFetch(`${API}/api/me`, { auth: true })
+      ]);
       const data = Array.isArray(res) ? res : res?.data || [];
       setItems(data);
-
-      // ✅ ADDED: Fetch tutor details to pre-fill PayPal email field
-      const me = await apiFetch(`${API}/api/me`, { auth: true });
+      setUserProfile(me);
       if (me?.paypalEmail) setPaypalEmail(me.paypalEmail);
     } catch (e) {
       setErr(e?.message || "Failed to load items");
@@ -274,6 +282,26 @@ export default function Payouts() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  // ✅ NEW: Logic to securely redirect to Stripe for Bank Account linking
+  async function onConnectStripe() {
+    setStripeLoading(true);
+    try {
+      const res = await apiFetch(`${API}/api/payouts/stripe/onboard`, {
+        method: "POST",
+        auth: true
+      });
+      if (res.url) {
+        window.location.href = res.url;
+      } else {
+        throw new Error("Stripe did not return an onboarding link.");
+      }
+    } catch (e) {
+      alert("Stripe connection failed: " + e.message);
+    } finally {
+      setStripeLoading(false);
+    }
+  }
 
   // ✅ ADDED: Function to save Payout Method settings
   async function onSaveSettings() {
@@ -700,27 +728,66 @@ export default function Payouts() {
         </div>
       </div>
 
-      {/* ✅ ADDED: Payout Setup Card (Targeting dual-track preference) */}
-      <div className="border rounded-2xl p-4 bg-white shadow-sm">
-        <h2 className="text-lg font-semibold mb-2">Payout Method Settings</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium mb-1">PayPal Email Address</label>
-            <input 
-              className="w-full border rounded-xl px-3 py-2 text-sm"
-              placeholder="email@example.com"
-              value={paypalEmail}
-              onChange={(e) => setPaypalEmail(e.target.value)}
-            />
-            <p className="text-xs text-slate-500 mt-1">If empty, payouts will default to your Stripe bank account.</p>
+      {/* ✅ SURGICALLY UPDATED: DUAL-TRACK PAYOUT SELECTION (USER FRIENDLY) */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Stripe Card */}
+        <div className="border-[3px] rounded-[32px] p-6 bg-white shadow-xl border-indigo-50 relative overflow-hidden">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold">🏦</div>
+            <div>
+              <h2 className="font-black text-slate-900">Bank Account</h2>
+              <p className="text-[10px] text-indigo-400 uppercase tracking-widest font-black">via Stripe Connect</p>
+            </div>
           </div>
-          <div className="flex items-end">
+          <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+            Link your local bank account to receive direct deposits. Lernitt partners with <strong>Stripe</strong> for secure, industrial-grade bank processing.
+          </p>
+          
+          {/* Third-Party Transparency Box */}
+          <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex gap-3">
+             <span className="text-lg">ℹ️</span>
+             <p className="text-xs text-slate-500 leading-tight">
+               Clicking connect will securely redirect you to Stripe. After linking your bank details, you will be brought back here.
+             </p>
+          </div>
+
+          <button 
+            onClick={onConnectStripe}
+            disabled={stripeLoading}
+            className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg transition-all active:scale-95 ${
+              userProfile?.stripeAccountId ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-100 cursor-default' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
+          >
+            {stripeLoading ? "Opening Secure Portal..." : userProfile?.stripeAccountId ? "✔️ Connected to Stripe" : "Connect Bank Account"}
+          </button>
+        </div>
+
+        {/* PayPal Card */}
+        <div className="border-[3px] rounded-[32px] p-6 bg-white shadow-xl border-slate-50">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-sky-500 text-white rounded-2xl flex items-center justify-center text-2xl font-bold">💳</div>
+            <div>
+              <h2 className="font-black text-slate-900">PayPal Wallet</h2>
+              <p className="text-[10px] text-sky-400 uppercase tracking-widest font-black">Digital Payouts</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">PayPal Email Address</label>
+              <input 
+                value={paypalEmail} 
+                onChange={e => setPaypalEmail(e.target.value)}
+                placeholder="your-email@paypal.com"
+                className="w-full mt-1 border-2 border-slate-50 bg-slate-50 rounded-xl p-3 text-sm focus:bg-white focus:border-sky-400 outline-none transition-all"
+              />
+              <p className="text-[9px] text-slate-400 mt-2 ml-1 italic">Note: Payouts default to Stripe if this field is left empty.</p>
+            </div>
             <button 
-              className="border px-4 py-2 rounded-2xl text-sm font-medium hover:bg-slate-50 transition disabled:opacity-60"
               onClick={onSaveSettings}
               disabled={setupSaving}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-sky-600 transition-colors shadow-lg"
             >
-              {setupSaving ? "Saving..." : "Save Payout Preference"}
+              {setupSaving ? "Syncing..." : "Update PayPal Settings"}
             </button>
           </div>
         </div>
