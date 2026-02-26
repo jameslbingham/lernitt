@@ -21,6 +21,9 @@ export default function TutorProfileSetup() {
   const [languages, setLanguages] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   
+  // ✅ NEW: Added PayPal Email state for Step 1 Testing
+  const [paypalEmail, setPaypalEmail] = useState("");
+
   // --- NEW STATE FOR AVATAR ---
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -40,7 +43,7 @@ export default function TutorProfileSetup() {
     }
   }, [user, nav]);
 
-  // Try to load existing profile (safe if backend not ready)
+  // Try to load existing profile
   useEffect(() => {
     if (MOCK) return;
 
@@ -50,7 +53,8 @@ export default function TutorProfileSetup() {
       setLoading(true);
       setErr("");
       try {
-        const data = await apiFetch(`${API}/api/profile/tutor`, {
+        // ✅ UPDATED: Calling the new setup bridge
+        const data = await apiFetch(`${API}/api/tutors/setup`, {
           method: "GET",
         });
 
@@ -61,8 +65,9 @@ export default function TutorProfileSetup() {
         if (data.bio) setBio(data.bio);
         if (data.languages) setLanguages(data.languages);
         if (data.hourlyRate != null) setHourlyRate(String(data.hourlyRate));
-        // --- LOAD EXISTING AVATAR FROM DATABASE ---
         if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
+        // ✅ NEW: Load existing PayPal email if available
+        if (data.paypalEmail) setPaypalEmail(data.paypalEmail);
       } catch (e) {
         console.warn(
           "Tutor profile load failed (ok if not implemented yet):",
@@ -77,7 +82,7 @@ export default function TutorProfileSetup() {
     return () => {
       cancelled = true;
     };
-  }, [API]);
+  }, []);
 
   // --- HANDLE AVATAR UPLOAD TO SUPABASE (LOWERCASE SYNC) ---
   async function handleFileUpload(e) {
@@ -97,7 +102,6 @@ export default function TutorProfileSetup() {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
       // 2. Upload to the root of 'tutor-avatars' bucket (LOWERCASE MATCH)
-      // ✅ FIXED: Changed from 'TUTOR-AVATARS' to 'tutor-avatars' to match the database
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
         .upload(fileName, file, { 
@@ -108,7 +112,6 @@ export default function TutorProfileSetup() {
       if (uploadError) throw uploadError;
 
       // 3. Retrieve the public URL directly from the filename
-      // ✅ FIXED: Syncing to lowercase ID here as well
       const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(fileName);
       
       if (!data?.publicUrl) throw new Error("Failed to generate public URL.");
@@ -142,17 +145,19 @@ export default function TutorProfileSetup() {
         bio,
         languages,
         hourlyRate: hourlyRate ? Number(hourlyRate) : null,
-        // --- INCLUDE AVATAR URL IN THE DATABASE UPDATE ---
+        paypalEmail, // ✅ NEW: Sent to backend for Step 1
         avatarUrl, 
       };
 
-      await apiFetch(`${API}/api/profile/tutor`, {
-        method: "PUT",
+      // ✅ FIXED: Changed URL to /setup and Method to PATCH to talk to the new backend bridge
+      await apiFetch(`${API}/api/tutors/setup`, {
+        method: "PATCH",
         body: payload,
       });
 
-      setInfo("Your tutor profile has been saved.");
-      nav("/tutor");
+      setInfo("Your tutor profile and payment details have been saved.");
+      // Small delay to let the user read the success message
+      setTimeout(() => nav("/tutor"), 1500);
     } catch (e2) {
       setErr(e2?.message?.includes("lernitt-server") 
         ? "Connection error. Please refresh and try again." 
@@ -292,6 +297,26 @@ export default function TutorProfileSetup() {
               padding: 10,
               borderRadius: 8,
               border: "1px solid #e5e7eb",
+            }}
+          />
+        </label>
+
+        {/* ✅ NEW: PayPal Email Field */}
+        <label style={{ display: "block", marginBottom: 14 }}>
+          PayPal Email (Where you will receive earnings)
+          <input
+            type="email"
+            value={paypalEmail}
+            onChange={(e) => setPaypalEmail(e.target.value)}
+            required
+            placeholder="e.g. yourname@paypal.com"
+            style={{
+              width: "100%",
+              marginTop: 6,
+              padding: 10,
+              borderRadius: 8,
+              border: "2px solid #4f46e5", // Highlighted for Step 1
+              background: "#f0f7ff"
             }}
           />
         </label>
