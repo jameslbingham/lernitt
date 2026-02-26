@@ -3,8 +3,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
+
+// --- ✅ CORRECTED IMPORT FOR PRODUCTION BUILD ---
 import { supabase } from "../lib/supabaseClient"; 
 
+// FIXED: Pointing to the live integrated service instead of localhost or the dead server
 const API = "https://lernitt.onrender.com";
 const MOCK = import.meta.env.VITE_MOCK === "1";
 
@@ -18,17 +21,22 @@ export default function TutorProfileSetup() {
   const [languages, setLanguages] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   
-  // ✅ ENHANCED: Payout Selection with Stripe Redirect Notice
-  const [payoutMethod, setPayoutMethod] = useState("stripe");
+  // ✅ NEW: Added Payout Selection states for User-Friendly Flow
+  const [payoutMethod, setPayoutMethod] = useState("stripe"); // Default to Stripe/Bank
   const [paypalEmail, setPaypalEmail] = useState("");
 
+  // --- NEW STATE FOR AVATAR ---
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
 
+  const name = user?.name || "Tutor";
+
+  // Guard: only tutors should access this page
   useEffect(() => {
     if (!user) return;
     if (user.role !== "tutor") {
@@ -36,50 +44,87 @@ export default function TutorProfileSetup() {
     }
   }, [user, nav]);
 
+  // Try to load existing profile
   useEffect(() => {
     if (MOCK) return;
+
     let cancelled = false;
+
     async function loadProfile() {
       setLoading(true);
+      setErr("");
       try {
-        const data = await apiFetch(`${API}/api/tutors/setup`, { method: "GET" });
+        // ✅ UPDATED: Calling the new setup bridge we built in server/routes/tutors.js
+        const data = await apiFetch(`${API}/api/tutors/setup`, {
+          method: "GET",
+        });
+
         if (!data || cancelled) return;
+
         if (data.displayName) setDisplayName(data.displayName);
         if (data.headline) setHeadline(data.headline);
         if (data.bio) setBio(data.bio);
         if (data.languages) setLanguages(data.languages);
         if (data.hourlyRate != null) setHourlyRate(String(data.hourlyRate));
         if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
+        
+        // Load existing payout preference if it exists
         if (data.paypalEmail) {
           setPaypalEmail(data.paypalEmail);
           setPayoutMethod("paypal");
         }
       } catch (e) {
-        console.warn("Profile load failed:", e);
+        console.warn(
+          "Tutor profile load failed (ok if not implemented yet):",
+          e
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
+
     loadProfile();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  // --- HANDLE AVATAR UPLOAD TO SUPABASE (LOWERCASE SYNC) ---
   async function handleFileUpload(e) {
     try {
       setUploading(true);
+      setErr("");
+      setInfo("");
       const file = e.target.files[0];
-      if (!file || !user?.id) return;
+      if (!file) return;
+
+      if (!user?.id) {
+        throw new Error("Authentication error: User ID not found.");
+      }
+
+      // 1. Generate Flat Filename (No folder prefixes)
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+
+      // 2. Upload to the root of 'tutor-avatars' bucket (LOWERCASE MATCH)
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
-        .upload(fileName, file, { upsert: true, contentType: file.type });
+        .upload(fileName, file, { 
+          upsert: true,
+          contentType: file.type 
+        });
+
       if (uploadError) throw uploadError;
+
+      // 3. Retrieve the public URL directly from the filename
       const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(fileName);
+      
+      if (!data?.publicUrl) throw new Error("Failed to generate public URL.");
+      
       setAvatarUrl(data.publicUrl);
-      setInfo("Photo uploaded successfully!");
+      setInfo("Profile photo uploaded successfully!");
     } catch (error) {
-      setErr("Photo upload failed.");
+      setErr(error.message || "Failed to upload image.");
     } finally {
       setUploading(false);
     }
@@ -87,44 +132,120 @@ export default function TutorProfileSetup() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (saving) return;
+
+    setErr("");
+    setInfo("");
     setSaving(true);
+
     try {
+      if (MOCK) {
+        setInfo("Profile saved (mock mode).");
+        return;
+      }
+
       const payload = {
         displayName,
         headline,
         bio,
         languages,
         hourlyRate: hourlyRate ? Number(hourlyRate) : null,
-        paypalEmail: payoutMethod === "paypal" ? paypalEmail : "",
+        // Only send PayPal email if that is their selected method
+        paypalEmail: payoutMethod === "paypal" ? paypalEmail : "", 
         avatarUrl, 
       };
 
+      // ✅ FIXED: Using PATCH and the /setup route to connect to our new backend logic
       await apiFetch(`${API}/api/tutors/setup`, {
         method: "PATCH",
         body: payload,
       });
 
-      setInfo("Success! Your professional profile has been created.");
+      setInfo("Your tutor profile and payout preferences have been saved.");
       setTimeout(() => nav("/tutor"), 1500);
     } catch (e2) {
-      setErr(e2?.message || "Could not save your details.");
+      setErr(e2?.message?.includes("lernitt-server") 
+        ? "Connection error. Please refresh and try again." 
+        : e2?.message || "Could not save your profile.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 20px" }}>
-      <header style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900 }}>Tutor Professional Setup</h1>
-        <p style={{ color: "#64748b" }}>Choose your payout preference and finalize your academic profile.</p>
-      </header>
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: 20 }}>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="space-y-1">
+          <div className="text-xs text-slate-500">
+            <Link
+              to="/tutor"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              ← Back to tutor dashboard
+            </Link>
+          </div>
+          <h1 className="text-2xl font-bold">Tutor profile setup</h1>
+          <p className="text-sm text-slate-600">
+            Add your public details, headline, and bio. Choose your preferred payout method below.
+          </p>
+        </div>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 24 }}>
+        <Link
+          to="/availability"
+          className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md"
+        >
+          Next: set availability
+        </Link>
+      </div>
+
+      {loading && (
+        <div style={{ marginBottom: 10, fontSize: 14, opacity: 0.7 }}>
+          Loading your profile…
+        </div>
+      )}
+
+      {err && (
+        <div
+          role="alert"
+          style={{
+            color: "#b91c1c",
+            marginBottom: 12,
+            padding: "8px 12px",
+            background: "#fef2f2",
+            borderRadius: 8,
+            border: "1px solid #fecaca",
+          }}
+        >
+          {err}
+        </div>
+      )}
+
+      {info && (
+        <div
+          style={{
+            color: "#166534",
+            marginBottom: 12,
+            padding: "8px 12px",
+            background: "#ecfdf3",
+            borderRadius: 8,
+            border: "1px solid #bbf7d0",
+          }}
+        >
+          {info}
+        </div>
+      )}
+
+      <form onSubmit={onSubmit}>
         
-        {/* --- PAYOUT METHOD SELECTION --- */}
-        <section style={{ padding: 24, background: "#f8fafc", borderRadius: 24, border: "1px solid #e2e8f0" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>💰 Payout Preferences</h3>
+        {/* ✅ NEW: PAYOUT SELECTION SECTION (USER FRIENDLY) */}
+        <div style={{ 
+          marginBottom: 24, 
+          padding: 20, 
+          background: '#f8fafc', 
+          borderRadius: 20, 
+          border: '1px solid #e2e8f0' 
+        }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>💰 How would you like to be paid?</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <button 
               type="button"
@@ -155,74 +276,204 @@ export default function TutorProfileSetup() {
             </button>
           </div>
 
-          {/* STRIPE CLARITY BOX */}
+          {/* STRIPE CLARITY NOTICE */}
           {payoutMethod === "stripe" && (
-            <div style={{ marginTop: 20, padding: 16, background: "#fff", borderRadius: 16, border: "1px solid #4f46e5", display: "flex", gap: 12 }}>
-              <span style={{ fontSize: 20 }}>ℹ️</span>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#1e1b4b", marginBottom: 4 }}>Third-Party Verification Required</p>
-                <p style={{ fontSize: 12, lineHeight: 1.5, color: "#475569" }}>
-                  To receive payments to your bank account, you will be redirected to **Stripe** (our secure payment partner) from your dashboard to provide your banking details safely.
-                </p>
-              </div>
+            <div style={{ marginTop: 16, padding: 12, background: "#fff", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 13, display: "flex", gap: 10 }}>
+              <span>ℹ️</span>
+              <p>You will be taken to <strong>Stripe</strong> (our secure partner) to connect your bank account once you enter your dashboard.</p>
             </div>
           )}
 
           {payoutMethod === "paypal" && (
-            <div style={{ marginTop: 20 }}>
-              <label style={{ fontSize: 13, fontWeight: 600 }}>Enter your PayPal Email</label>
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>PayPal Email</label>
               <input 
                 type="email" 
                 value={paypalEmail} 
                 onChange={(e) => setPaypalEmail(e.target.value)}
                 required
                 placeholder="email@example.com"
-                style={{ width: "100%", padding: 14, borderRadius: 12, border: "1px solid #cbd5e1", marginTop: 6 }}
+                style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid #cbd5e1", marginTop: 4 }}
               />
             </div>
           )}
-        </section>
-
-        {/* --- PROFILE BASICS --- */}
-        <div style={{ textAlign: "center", padding: 24, background: "#f1f5f9", borderRadius: 24, border: "2px dashed #cbd5e1" }}>
-           <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#cbd5e1", margin: "0 auto 12px", overflow: "hidden", border: "4px solid white", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
-             {avatarUrl && <img src={avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
-           </div>
-           <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} style={{ fontSize: 12 }} />
-           {uploading && <p style={{ color: "#4f46e5", fontSize: 11, fontWeight: "bold", marginTop: 8 }}>Uploading to Academy Servers...</p>}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <label>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Public Display Name</span>
-            <input value={displayName} onChange={e => setDisplayName(e.target.value)} required style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid #cbd5e1", marginTop: 4 }} />
-          </label>
-          <label>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Hourly Rate (USD)</span>
-            <input type="number" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} required style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid #cbd5e1", marginTop: 4 }} />
-          </label>
+        {/* --- PROFILE PHOTO SECTION --- */}
+        <div style={{ 
+          marginBottom: 24, 
+          padding: 20, 
+          background: '#f3f4f6', 
+          borderRadius: 12, 
+          border: '2px solid #e5e7eb',
+          textAlign: 'center' 
+        }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>Profile Photo</h3>
+          
+          <div style={{ 
+            width: 120, 
+            height: 120, 
+            borderRadius: '50%', 
+            background: '#d1d5db', 
+            margin: '0 auto 15px', 
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '3px solid white',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+          }}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: 14, color: '#4b5563' }}>No Image</span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileUpload} 
+              disabled={uploading}
+              style={{ 
+                fontSize: '14px',
+                padding: '8px',
+                background: 'white',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db'
+              }} 
+            />
+            {uploading && <p style={{ color: '#4f46e5', fontWeight: 'bold' }}>Uploading to Supabase...</p>}
+          </div>
         </div>
 
-        <label>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Professional Headline</span>
-          <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="e.g. Certified IELTS Instructor" style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid #cbd5e1", marginTop: 4 }} />
+        {/* Display Name */}
+        <label style={{ display: "block", marginBottom: 14 }}>
+          Display name
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            required
+            placeholder="Your public name (e.g. James B.)"
+            style={{
+              width: "100%",
+              marginTop: 6,
+              padding: 10,
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+            }}
+          />
         </label>
 
-        <label>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Tutor Biography</span>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={5} placeholder="Describe your teaching style..." style={{ width: "100%", padding: 12, borderRadius: 12, border: "1px solid #cbd5e1", marginTop: 4, resize: "none" }} />
+        {/* Headline */}
+        <label style={{ display: "block", marginBottom: 14 }}>
+          Headline
+          <input
+            type="text"
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            placeholder="e.g. Friendly English tutor with 10 years experience"
+            style={{
+              width: "100%",
+              marginTop: 6,
+              padding: 10,
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+            }}
+          />
         </label>
 
-        <button 
-          type="submit" 
+        {/* Languages */}
+        <label style={{ display: "block", marginBottom: 14 }}>
+          Languages / subjects you teach
+          <input
+            type="text"
+            value={languages}
+            onChange={(e) => setLanguages(e.target.value)}
+            placeholder="e.g. English (C2), Spanish (B2)"
+            style={{
+              width: "100%",
+              marginTop: 6,
+              padding: 10,
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+            }}
+          />
+        </label>
+
+        {/* Hourly rate */}
+        <label style={{ display: "block", marginBottom: 14 }}>
+          Hourly rate (USD)
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={hourlyRate}
+            onChange={(e) => setHourlyRate(e.target.value)}
+            placeholder="e.g. 20"
+            style={{
+              width: "100%",
+              marginTop: 6,
+              padding: 10,
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+            }}
+          />
+        </label>
+
+        {/* Bio */}
+        <label style={{ display: "block", marginBottom: 16 }}>
+          About you and your lessons
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={6}
+            placeholder="Introduce yourself, your teaching style, qualifications, and what students can expect."
+            style={{
+              width: "100%",
+              marginTop: 6,
+              padding: 10,
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              resize: "vertical",
+            }}
+          />
+        </label>
+
+        <button
+          type="submit"
           disabled={saving || uploading}
-          style={{ 
-            background: "#4f46e5", color: "white", padding: "20px", borderRadius: "20px", border: "none", 
-            fontWeight: 800, fontSize: 16, cursor: "pointer", transition: "transform 0.1s active",
-            boxShadow: "0 10px 15px -3px rgba(79, 70, 229, 0.4)"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1px solid #e5e7eb",
+            background: "#4f46e5",
+            color: "white",
+            fontWeight: 600,
+            cursor: (saving || uploading) ? "not-allowed" : "pointer",
+            minWidth: 140,
           }}
         >
-          {saving ? "Processing Academy Profile..." : "Save and Go to Dashboard"}
+          {saving ? "Saving…" : "Save profile"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => nav("/tutor")}
+          style={{
+            marginLeft: 10,
+            padding: "10px 16px",
+            borderRadius: 10,
+            border: "1px solid #e5e7eb",
+            background: "white",
+            color: "#374151",
+            cursor: "pointer",
+            minWidth: 140,
+          }}
+        >
+          Go to dashboard
         </button>
       </form>
     </div>
