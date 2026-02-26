@@ -24,17 +24,17 @@ mongoose.connect(MONGODB_URI)
 // 4. API ROUTES
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
-app.use('/api/tutors', require('./routes/tutors'));
+app.use('/api/tutors', require('./require/tutors'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/payouts', require('./routes/payouts'));
+// ✅ SURGICAL FIX: Plugging in the Availability Bridge
+app.use('/api/availability', require('./routes/availability'));
 
 // 5. THE "FRONT DOOR" FIX
-// This tells the server exactly where the website's 'dist' folder is
 const clientDistPath = path.join(__dirname, '../client/dist');
 app.use(express.static(clientDistPath));
 
-// For any other address, just show the homepage (index.html)
 app.get('*', (req, res) => {
   res.sendFile(path.join(clientDistPath, 'index.html'));
 });
