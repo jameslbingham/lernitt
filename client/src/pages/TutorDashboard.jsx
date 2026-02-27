@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-// ================= NEW: Lesson Type Editor Modal =================
+// ================= Lesson Type Editor Modal =================
 function LessonTypeModal({ template, onSave, onClose }) {
   const [formData, setFormData] = useState(template || {
     title: "",
@@ -95,7 +95,7 @@ function LessonTypeModal({ template, onSave, onClose }) {
   );
 }
 
-// ================= NEW: Lesson Types Manager (Slots 1-8) =================
+// ================= Lesson Types Manager (Slots 1-8) =================
 function LessonTypesManager({ currentTemplates, onUpdate }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const slots = Array.from({ length: 8 }, (_, i) => currentTemplates[i] || null);
@@ -538,13 +538,13 @@ function UpcomingBookings() {
   );
 }
 
-// ================= UPDATED: Earnings Summary with Escrow Logic =================
+// ================= Earnings Summary =================
 function EarningsSummary() {
   const { token } = useAuth();
   const [earnings, setEarnings] = useState({
-    totalEarned: 0,   // Money from completed lessons (85%)
-    packageEscrow: 0, // Money paid for packages but lessons not yet given
-    pendingPayout: 0, // Money earned but not yet sent to PayPal/Stripe
+    totalEarned: 0,
+    packageEscrow: 0,
+    pendingPayout: 0,
     refunded: 0,
   });
 
@@ -635,8 +635,8 @@ function TutorOnboardingPanel() {
           Set weekly availability so students can book time slots.
         </li>
         <li style={{ marginBottom: 6 }}>Check your hourly rate and review payouts and earnings.</li>
-        {/* ✅ SURGICAL ADDITION: Step 4 Intro Video */}
-        <li>Upload your promotional video to attract new students.</li>
+        {/* ✅ SURGICAL ADDITION: Pre-recorded Video Step */}
+        <li>Upload your pre-recorded promotional video for students to watch.</li>
       </ol>
 
       <div
@@ -796,7 +796,7 @@ export default function TutorDashboard() {
         </section>
       )}
 
-      {/* SURGICAL INSERTION OF LESSON TYPES MANAGER */}
+      {/* LESSON TYPES MANAGER */}
       <LessonTypesManager 
         currentTemplates={user?.lessonTemplates || []} 
         onUpdate={handleTemplatesUpdate} 
@@ -825,12 +825,12 @@ export default function TutorDashboard() {
           >
             Open availability
           </Link>
-          {/* ✅ SURGICAL ADDITION: Video call to action */}
+          {/* ✅ SURGICAL ADDITION: Video upload call to action */}
           <Link
             to="/tutor-video-setup"
             className="inline-block rounded-lg bg-indigo-400 px-4 py-2 font-semibold text-white hover:bg-indigo-300 transition"
           >
-            Record intro video
+            Upload intro video
           </Link>
         </div>
       </div>
