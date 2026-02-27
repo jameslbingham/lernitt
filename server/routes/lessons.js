@@ -4,6 +4,7 @@ const mongoose = require('mongoose'); // ✅ ADDED FOR TRANSACTIONS
 const Lesson = require('../models/Lesson');
 const Payment = require('../models/Payment');
 const Payout = require('../models/Payout');
+const Availability = require('../models/Availability'); // ✅ NEW: Linked to sophisticated schedule model
 const { notify } = require('../utils/notify');
 const { auth } = require("../middleware/auth");
 const { canReschedule } = require('../utils/policies');
@@ -79,7 +80,7 @@ router.get('/tutor', auth, async (req, res) => {
 /* ============================================
    Create a lesson (student booking)
    status: 'booked' (student booked; payment required)
-   ✅ UPDATED WITH CREDIT DEDUCTION LOGIC
+   ✅ UPDATED WITH CREDIT DEDUCTION & LEAD-TIME GUARD
    ============================================ */
 router.post('/', auth, async (req, res) => {
   const session = await mongoose.startSession();
@@ -89,6 +90,22 @@ router.post('/', auth, async (req, res) => {
     console.log('[BOOK] body:', req.body);
 
     const { tutor, subject, startTime, endTime, price, currency, notes, isPackage } = req.body;
+
+    // --- ✅ NEW SOPHISTICATED GUARD: LEAD-TIME NOTICE ---
+    // This enforces the "Booking Notice" set in the Availability panel
+    const tutorSched = await Availability.findOne({ tutor }).session(session);
+    if (tutorSched) {
+      const start = new Date(startTime);
+      const minNoticeHours = tutorSched.bookingNotice || 12; // Default to 12 if not set
+      const earliestAllowed = new Date(Date.now() + (minNoticeHours * 60 * 60 * 1000));
+      
+      if (start < earliestAllowed) {
+        await session.abortTransaction();
+        return res.status(400).json({ 
+          message: `Booking rejected: This tutor requires at least ${minNoticeHours} hours notice before a lesson begins.` 
+        });
+      }
+    }
 
     // ✅ Guard: only approved tutors can be booked
     const tutorUser = await User.findById(tutor).select('role tutorStatus').session(session);
