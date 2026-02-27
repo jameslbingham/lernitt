@@ -64,6 +64,10 @@ const UserSchema = new Schema(
     avatar: { 
       type: String 
     },
+    // ✅ SURGICAL ADDITION: Store the promotional video link
+    introVideo: {
+      type: String
+    },
 
     /**
      * FINANCIAL & PAYOUT INTEGRATION
@@ -192,11 +196,6 @@ UserSchema.index({ tutorStatus: 1 });
 /* MIDDLEWARE & INSTANCE METHODS                                              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Pre-Save Hook: Password Hashing
- * Automatically hashes the user password using salt rounds before persistence.
- * Logic triggers ONLY when the 'password' field is modified.
- */
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   try {
@@ -208,19 +207,10 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
-/**
- * Method: comparePassword
- * Verifies if a raw input password matches the stored bcrypt hash.
- */
 UserSchema.methods.comparePassword = async function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
 
-/**
- * Method: summary
- * Returns a sterilized user object for front-end session consumption.
- * Removes sensitive fields like hashed passwords and recovery tokens.
- */
 UserSchema.methods.summary = function () {
   return {
     id: String(this._id),
@@ -236,7 +226,9 @@ UserSchema.methods.summary = function () {
     tutorStatus: this.tutorStatus || "none",
     proficiencyLevel: this.proficiencyLevel || "none",
     placementTest: this.placementTest || null, 
-    lessonTemplates: this.lessonTemplates || []
+    lessonTemplates: this.lessonTemplates || [],
+    // ✅ SURGICAL ADDITION: Include video in frontend summary
+    introVideo: this.introVideo || null
   };
 };
 
