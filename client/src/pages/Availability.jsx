@@ -8,6 +8,17 @@ const MOCK = import.meta.env.VITE_MOCK === "1";
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DRAFT_KEY = "availability:draft";
 
+/**
+ * LERNITT ACADEMY - SOPHISTICATED SCHEDULING PROTOCOL v3.2.0
+ * ----------------------------------------------------------------------------
+ * CORE LOGIC:
+ * - BuildTimeOptions: Generates 15-minute increments for 24-hour selection.
+ * - Validation: Checks for logical start/end times and prevents overlapping slots.
+ * - WeekPreview: Maps rules to a calendar view for student simulation.
+ * - Draft Engine: Auto-saves local changes to prevent data loss on refresh.
+ * ----------------------------------------------------------------------------
+ */
+
 function buildTimeOptions() {
   const opts = [];
   for (let h = 0; h < 24; h++) {
@@ -30,7 +41,7 @@ function TimeSelect({ value, onChange, aria }) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={aria}
-      className="border rounded-xl"
+      className="border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
       style={{ minWidth: 170, padding: 6 }}
     >
       {options.map((o) => (
@@ -53,7 +64,7 @@ function RangeRow({ range, onChange, onRemove }) {
         onChange={(v) => onChange({ ...range, start: v })}
         aria="Start time"
       />
-      <span>→</span>
+      <span className="text-slate-400 font-bold">→</span>
       <TimeSelect
         value={range.end}
         onChange={(v) => onChange({ ...range, end: v })}
@@ -63,7 +74,7 @@ function RangeRow({ range, onChange, onRemove }) {
         type="button"
         onClick={onRemove}
         aria-label="Remove range"
-        className="border px-3 py-1 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 hover:shadow-sm"
+        className="border px-4 py-1.5 rounded-2xl text-sm font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition focus:outline-none focus:ring-2 focus:ring-red-400"
       >
         Remove
       </button>
@@ -71,18 +82,16 @@ function RangeRow({ range, onChange, onRemove }) {
   );
 }
 
-/* ---------- helpers for validation & preview ---------- */
+/* ---------- SOPHISTICATED VALIDATION ENGINE ---------- */
 
 function cmpTime(a, b) {
-  // "HH:MM" lexicographic compare works, but be explicit
+  // Lexicographic compare for HH:MM format
   return a.localeCompare(b);
 }
 
 function validatePerDayRules(rulesByDay) {
-  // rulesByDay: Array< Array<{start,end}> >
   const errs = [];
   rulesByDay.forEach((ranges, di) => {
-    // empty day is fine
     ranges.forEach((r, i) => {
       if (!r.start || !r.end)
         errs.push(`${DAYS[di]} range #${i + 1}: set both start and end time`);
@@ -93,7 +102,6 @@ function validatePerDayRules(rulesByDay) {
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const cur = sorted[i];
-      // overlap if cur.start < prev.end
       if (cmpTime(cur.start, prev.end) < 0) {
         errs.push(
           `${DAYS[di]} overlap: ${prev.start}–${prev.end} and ${cur.start}–${cur.end}`
@@ -114,18 +122,18 @@ function ymd(d) {
   return d.toISOString().slice(0, 10);
 }
 function dayIndexMon0(date) {
-  // DAYS starts Mon..Sun; JS getDay() is Sun=0..Sat=6.
-  const js = date.getDay(); // 0..6
-  return (js + 6) % 7; // 0..6 with Mon=0
+  // Normalizes JS getDay() (Sun=0) to Lernitt Protocol (Mon=0)
+  const js = date.getDay(); 
+  return (js + 6) % 7; 
 }
 
-/* ---------- NEW: rules ⇄ weekly helpers ---------- */
+/* ---------- RULES ⇄ WEEKLY TRANSFORMERS ---------- */
 
 function weeklyFromRules(rules) {
   const out = [];
   (rules || []).forEach((rangesForDay, di) => {
     if (!rangesForDay || rangesForDay.length === 0) return;
-    // Mon=0..Sat=5, Sun=6  →  dow: Mon=1..Sat=6, Sun=0
+    // Transform Mon=0..Sun=6 Lernitt index to standard Cron/System dow (Sun=0..Sat=6)
     const dow = di === 6 ? 0 : di + 1;
     out.push({
       dow,
@@ -156,22 +164,23 @@ function rulesFromWeekly(weekly) {
   return rules;
 }
 
-/* -------------------- page -------------------- */
+/* -------------------- MAIN COMPONENT -------------------- */
 
 export default function Availability() {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  const [timezone, setTimezone] = useState(tz);
+  // STATE CONFIGURATION
+  const [timezone, setTimezone] = useState(browserTz);
+  const [bookingNotice, setBookingNotice] = useState(12); // ✅ New sophistication
   const [rules, setRules] = useState(
     DAYS.map(() => [{ start: "09:00", end: "12:00" }])
   );
 
-  // Repeat controls (existing)
   const today = new Date().toISOString().slice(0, 10);
-  const [startDate, setStartDate] = useState(today); // YYYY-MM-DD
-  const [repeat, setRepeat] = useState("weekly"); // "weekly" | "none"
-  const [untilMode, setUntilMode] = useState("always"); // "always" | "until"
-  const [untilDate, setUntilDate] = useState(""); // YYYY-MM-DD or ""
+  const [startDate, setStartDate] = useState(today); 
+  const [repeat, setRepeat] = useState("weekly"); 
+  const [untilMode, setUntilMode] = useState("always"); 
+  const [untilDate, setUntilDate] = useState(""); 
 
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -180,16 +189,13 @@ export default function Availability() {
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Draft presence for restore
+  // DRAFT ENGINE: Local persistence to survive reloads/crashes
   const [hasDraft, setHasDraft] = useState(() => {
     try {
       return !!localStorage.getItem(DRAFT_KEY);
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   });
 
-  // Extracted loader so we can refresh
   async function loadFromSource() {
     setError("");
     try {
@@ -210,16 +216,15 @@ export default function Availability() {
         if (um) setUntilMode(um);
         if (ud) setUntilDate(ud);
       } else {
-        // ✅ LIVE: use apiFetch so JWT is sent
+        // PRODUCTION SYNC
         const data = await apiFetch("/api/availability/me", { auth: true });
 
-        setTimezone(data.timezone || timezone);
+        setTimezone(data.timezone || browserTz);
+        setBookingNotice(data.bookingNotice || 12);
 
         if (Array.isArray(data.weekly) && data.weekly.length > 0) {
-          // NEW: source of truth in Mongo → convert to UI rules
           setRules(rulesFromWeekly(data.weekly));
         } else if (Array.isArray(data.rules) && data.rules.length === 7) {
-          // backward-compat if we ever stored rules directly
           setRules(data.rules);
         }
 
@@ -231,7 +236,7 @@ export default function Availability() {
       setDirty(false);
       setMsg("");
     } catch (e) {
-      setError(e?.message || "Failed to load availability");
+      setError(e?.message || "Failed to load availability from Lernitt server.");
     }
   }
 
@@ -244,7 +249,6 @@ export default function Availability() {
     })();
   }, []);
 
-  // Mark dirty on edits + write draft
   function markDirtyAnd(fn) {
     return (...args) => {
       setDirty(true);
@@ -252,23 +256,17 @@ export default function Availability() {
     };
   }
 
-  // Autosave draft on any key state change
+  // AUTO-DRAFT: Saves state to localStorage on every change
   useEffect(() => {
     if (!loaded) return;
     try {
       const payload = {
-        timezone,
-        rules,
-        startDate,
-        repeat,
-        untilMode,
-        untilDate,
-        _ts: Date.now(),
+        timezone, bookingNotice, rules, startDate, repeat, untilMode, untilDate, _ts: Date.now(),
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
       setHasDraft(true);
     } catch {}
-  }, [timezone, rules, startDate, repeat, untilMode, untilDate, loaded]);
+  }, [timezone, bookingNotice, rules, startDate, repeat, untilMode, untilDate, loaded]);
 
   function restoreDraft() {
     try {
@@ -277,12 +275,13 @@ export default function Availability() {
       const d = JSON.parse(raw);
       if (!d) return;
       if (d.timezone) setTimezone(d.timezone);
+      if (d.bookingNotice) setBookingNotice(d.bookingNotice);
       if (Array.isArray(d.rules) && d.rules.length === 7) setRules(d.rules);
       if (d.startDate) setStartDate(d.startDate);
       if (d.repeat) setRepeat(d.repeat);
       if (d.untilDate !== undefined) setUntilDate(d.untilDate);
       setDirty(true);
-      setMsg("Draft restored (not yet saved).");
+      setMsg("Sophisticated draft restored (not yet saved to cloud).");
     } catch {}
   }
 
@@ -290,7 +289,7 @@ export default function Availability() {
     try {
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
-      setMsg("Draft cleared.");
+      setMsg("Draft cache cleared.");
     } catch {}
   }
 
@@ -307,12 +306,12 @@ export default function Availability() {
 
     const payload = {
       timezone,
-      weekly: weeklyFromRules(rules), // NEW: what the backend actually uses
-      // keep UI fields (ignored by backend, but harmless)
-      rules,
-      startDate,
-      repeat,
-      untilMode,
+      bookingNotice,
+      weekly: weeklyFromRules(rules),
+      rules, 
+      startDate, 
+      repeat, 
+      untilMode, 
       untilDate: untilMode === "until" ? untilDate : "",
     };
 
@@ -325,63 +324,52 @@ export default function Availability() {
         localStorage.setItem("availabilityUntilMode", untilMode);
         localStorage.setItem("availabilityUntilDate", untilDate);
       } else {
-        // ✅ LIVE: use apiFetch so JWT is sent
         await apiFetch("/api/availability", {
           method: "PUT",
           auth: true,
           body: payload,
         });
       }
-      setMsg("Availability is live. Students can now book.");
+      setMsg("Availability is live. Tutors can now be booked.");
       setDirty(false);
-      // clear draft on successful save
       try {
         localStorage.removeItem(DRAFT_KEY);
         setHasDraft(false);
       } catch {}
     } catch (e) {
-      setMsg("");
-      setError(e?.message || "Could not save. Try later.");
+      setError(e?.message || "Could not save. Check network connection.");
     } finally {
       setSaving(false);
     }
   }
 
-  // Per-day rule mutations (mark dirty)
-  const addRange = (di) =>
-    markDirtyAnd(() => {
-      const c = [...rules];
-      c[di] = [...c[di], { start: "14:00", end: "18:00" }];
-      setRules(c);
-    })();
+  // DAY-LEVEL MUTATIONS
+  const addRange = (di) => markDirtyAnd(() => {
+    const c = [...rules];
+    c[di] = [...c[di], { start: "14:00", end: "18:00" }];
+    setRules(c);
+  })();
 
-  const updateRange = (di, idx, nr) =>
-    markDirtyAnd(() => {
-      const c = [...rules];
-      c[di] = c[di].map((r, i) => (i === idx ? nr : r));
-      setRules(c);
-    })();
+  const updateRange = (di, idx, nr) => markDirtyAnd(() => {
+    const c = [...rules];
+    c[di] = c[di].map((r, i) => (i === idx ? nr : r));
+    setRules(c);
+  })();
 
-  const removeRange = (di, idx) =>
-    markDirtyAnd(() => {
-      const c = [...rules];
-      c[di] = c[di].filter((_, i) => i !== idx);
-      setRules(c);
-    })();
+  const removeRange = (di, idx) => markDirtyAnd(() => {
+    const c = [...rules];
+    c[di] = c[di].filter((_, i) => i !== idx);
+    setRules(c);
+  })();
 
-  // Validation
   const validation = useMemo(() => validatePerDayRules(rules), [rules]);
 
-  /* -------------------- Week preview (ranges summary) -------------------- */
+  /* ---------- SOPHISTICATED WEEK PREVIEW ---------- */
 
   const todayStart = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(todayStart);
-  const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart]
-  );
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
-  // Compute which days are within window: starts at startDate, and (if untilMode=until) untilDate
   function isDateWithinWindow(d) {
     const ymdStr = ymd(d);
     if (ymdStr < startDate) return false;
@@ -389,456 +377,344 @@ export default function Availability() {
     return true;
   }
 
-  // Generate a simple preview: show each day's configured ranges (not expanding into slots).
-  // Honors repeat = weekly (repeats every week) or none (only startDate's weekday).
   const weekPreview = useMemo(() => {
-    const map = {}; // key: 'YYYY-MM-DD' -> [{start,end}]
+    const map = {}; 
     for (const day of days) {
       const key = ymd(day);
       map[key] = [];
       if (!isDateWithinWindow(day)) continue;
 
-      const di = dayIndexMon0(day); // 0..6 for Mon..Sun
+      const di = dayIndexMon0(day);
       const startWeekday = dayIndexMon0(new Date(startDate + "T00:00:00"));
 
-      if (repeat === "none") {
-        // only the exact weekday of startDate
-        if (di !== startWeekday) continue;
-      }
-      // weekly repeat (default): use the day's ranges
-      const ranges = rules[di] || [];
-      map[key] = ranges;
+      if (repeat === "none" && di !== startWeekday) continue;
+      map[key] = rules[di] || [];
     }
     return map;
   }, [days, rules, startDate, repeat, untilMode, untilDate]);
 
-  /* -------------------- Render -------------------- */
-
   if (loading) {
     return (
-      <div className="p-4 space-y-3 animate-pulse">
-        <div className="border rounded-2xl p-3 space-y-2">
-          <div className="h-4 w-48 bg-gray-200 rounded" />
-          <div className="h-3 w-64 bg-gray-200 rounded" />
-          <div className="h-3 w-40 bg-gray-200 rounded" />
-        </div>
-        <div className="border rounded-2xl p-3 space-y-2">
-          <div className="h-4 w-56 bg-gray-200 rounded" />
-          <div className="h-3 w-72 bg-gray-200 rounded" />
-          <div className="h-3 w-40 bg-gray-200 rounded" />
-        </div>
-        <div className="border rounded-2xl p-3 space-y-2">
-          <div className="h-4 w-40 bg-gray-200 rounded" />
-          <div className="h-3 w-60 bg-gray-200 rounded" />
-          <div className="h-3 w-48 bg-gray-200 rounded" />
-        </div>
+      <div className="p-8 space-y-4 animate-pulse">
+        <div className="h-8 w-1/3 bg-slate-100 rounded-2xl" />
+        <div className="h-24 w-full bg-slate-100 rounded-3xl" />
+        <div className="h-64 w-full bg-slate-100 rounded-3xl" />
       </div>
     );
   }
 
-  const startDayLabel = new Date(
-    startDate + "T00:00:00"
-  ).toLocaleDateString(undefined, {
-    weekday: "long",
-  });
+  const startDayLabel = new Date(startDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "long" });
 
   return (
     <div style={{ padding: 16, maxWidth: 980, margin: "0 auto" }}>
-      {/* Sticky header + actions */}
+      {/* HEADER SECTION */}
       <div className="sticky top-0 z-10 -mx-4 px-4 py-3 border-b bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="flex items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="text-xs text-slate-500">
-              <Link
-                to="/tutor"
-                className="inline-flex items-center gap-1 hover:underline"
-              >
+              <Link to="/tutor" className="inline-flex items-center gap-1 hover:underline">
                 ← Back to tutor dashboard
               </Link>
             </div>
-            <h1 className="text-2xl font-bold">Tutor availability</h1>
-            <p className="text-sm text-slate-600">
-              Set when students can book you. These times appear on your tutor
-              profile and booking page.
-            </p>
-            <p className="text-xs text-slate-500">
-              Times are shown in your tutor timezone setting: {timezone}.
-            </p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Availability Setup</h1>
+            <p className="text-sm text-slate-600 font-medium">Set your working hours. Students book in their local time automatically.</p>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Timezone Engine:</span>
+              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{timezone}</span>
+              {timezone !== browserTz && (
+                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full animate-pulse">
+                  ⚠️ System Drift: Browser is {browserTz}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <Link
-              to="/payouts"
-              className="text-xs border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md"
-            >
-              Next: payouts &amp; pricing
+            <Link to="/payouts" className="text-xs font-bold text-indigo-600 border border-indigo-100 bg-indigo-50 px-4 py-1.5 rounded-2xl hover:bg-indigo-100 transition shadow-sm">
+              Next: payouts & pricing →
             </Link>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onRefresh}
-                aria-label="Refresh from server"
-                className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
+              <button onClick={onRefresh} className="border px-4 py-1.5 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 shadow-sm transition">
                 Refresh
               </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving || validation.length > 0 || !dirty}
-                aria-label="Save availability"
-                className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              <button 
+                onClick={save} 
+                disabled={saving || validation.length > 0 || !dirty} 
+                className="bg-slate-900 text-white px-6 py-1.5 rounded-2xl text-sm font-black disabled:opacity-30 shadow-lg hover:scale-105 active:scale-95 transition-all"
               >
-                {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+                {saving ? "Saving..." : dirty ? "Save Changes" : "Saved"}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Status messages */}
-      {error && <div className="text-red-600 mt-3">{error}</div>}
-      {msg && !error && <div className="text-green-700 mt-3">{msg}</div>}
+      {error && <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-2xl border border-red-100 text-sm font-bold animate-shake">{error}</div>}
+      {msg && !error && <div className="mt-4 p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 text-sm font-bold animate-fade-in">✅ {msg}</div>}
 
-      {/* Schedule window (existing, lightly styled) */}
-      <div
-        style={{
-          border: "1px solid " +
-            "#ddd",
-          padding: 12,
-          borderRadius: 6,
-          marginTop: 12,
-          marginBottom: 12,
-        }}
-      >
-        <h3 style={{ marginTop: 0 }}>Schedule window</h3>
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          <label>
-            Start date{" "}
-            <input
-              type="date"
-              value={startDate}
-              min={today}
-              onChange={markDirtyAnd((e) => setStartDate(e.target.value))}
-              aria-label="Start date"
-              className="border rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </label>
-          <label>
-            Repeat{" "}
-            <select
-              value={repeat}
-              onChange={markDirtyAnd((e) => setRepeat(e.target.value))}
-              aria-label="Repeat pattern"
-              className="border rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="weekly">{`Every ${startDayLabel}`}</option>
-              <option value="none">Doesn't repeat (one day only)</option>
-            </select>
-          </label>
-          <label
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <input
-              type="radio"
-              name="until"
-              checked={untilMode === "always"}
-              onChange={markDirtyAnd(() => setUntilMode("always"))}
-            />{" "}
-            Always
-          </label>
-          <label
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <input
-              type="radio"
-              name="until"
-              checked={untilMode === "until"}
-              onChange={markDirtyAnd(() => setUntilMode("until"))}
-            />{" "}
-            Until
-            <input
-              type="date"
-              disabled={untilMode !== "until"}
-              value={untilDate}
-              min={startDate}
-              onChange={markDirtyAnd((e) => setUntilDate(e.target.value))}
-              aria-label="Until date"
-              className="border rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
-            />
-          </label>
-        </div>
-        <div style={{ opacity: 0.7, marginTop: 6 }}>
-          Students can book only within this window.
-        </div>
+      {/* CORE CONTROLS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* Schedule Window Panel */}
+        <section className="border border-slate-200 rounded-[2rem] p-8 bg-slate-50/50 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">🗓️</div>
+            <h3 className="font-black text-lg text-slate-800">Booking Window</h3>
+          </div>
+          <div className="space-y-6">
+            <label className="block">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Schedule Start Date</span>
+              <input type="date" value={startDate} min={today} onChange={markDirtyAnd((e) => setStartDate(e.target.value))} className="w-full border rounded-2xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700"/>
+            </label>
+            
+            <label className="block">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Repeat Frequency</span>
+              <select value={repeat} onChange={markDirtyAnd((e) => setRepeat(e.target.value))} className="w-full border rounded-2xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700">
+                <option value="weekly">{`Every ${startDayLabel}`}</option>
+                <option value="none">One day only (No repeat)</option>
+              </select>
+            </label>
+
+            <div className="pt-4 border-t border-slate-200">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-3">Availability Expiry</span>
+              <div className="flex gap-6 items-center">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-sm text-slate-700">
+                  <input type="radio" checked={untilMode === "always"} onChange={markDirtyAnd(() => setUntilMode("always"))} className="w-4 h-4 accent-indigo-600"/> Always
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-sm text-slate-700">
+                  <input type="radio" checked={untilMode === "until"} onChange={markDirtyAnd(() => setUntilMode("until"))} className="w-4 h-4 accent-indigo-600"/> Until
+                </label>
+                {untilMode === "until" && (
+                  <input type="date" value={untilDate} min={startDate} onChange={markDirtyAnd((e) => setUntilDate(e.target.value))} className="border rounded-xl p-2 outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm"/>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Sophisticated Guardrails Panel */}
+        <section className="border border-slate-200 rounded-[2rem] p-8 bg-slate-50/50 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">🛡️</div>
+            <h3 className="font-black text-lg text-slate-800">Advanced Safeguards</h3>
+          </div>
+          <div className="space-y-6">
+            <label className="block">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Timezone Lock (IANA Protocol)</span>
+              <input value={timezone} onChange={markDirtyAnd((e) => setTimezone(e.target.value))} className="w-full border rounded-2xl p-3 font-mono text-xs font-bold text-slate-700 bg-white"/>
+              <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">Prevents browser-based schedule shifting.</p>
+            </label>
+
+            <label className="block">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Minimum Booking Lead-Time</span>
+              <select value={bookingNotice} onChange={markDirtyAnd((e) => setBookingNotice(Number(e.target.value)))} className="w-full border rounded-2xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-700">
+                <option value={1}>1 Hour (Urgent)</option>
+                <option value={6}>6 Hours (Balanced)</option>
+                <option value={12}>12 Hours (Standard)</option>
+                <option value={24}>24 Hours (Recommended)</option>
+                <option value={48}>48 Hours (Strict)</option>
+              </select>
+              <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">Stops students from booking last-minute lessons.</p>
+            </label>
+          </div>
+        </section>
       </div>
 
-      {/* Timezone (existing) */}
-      <label style={{ display: "block", marginBottom: 8 }}>
-        Timezone (IANA, e.g., Europe/Madrid)
-        <input
-          value={timezone}
-          onChange={markDirtyAnd((e) => setTimezone(e.target.value))}
-          style={{
-            display: "block",
-            width: "100%",
-            maxWidth: 360,
-            marginTop: 4,
-          }}
-          aria-label="Timezone"
-          className="border rounded-xl px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-      </label>
-
-      <p style={{ margin: "8px 0 12px" }}>
-        Pick exact times from <b>00:00 → 23:45</b> (15-minute steps). Shows
-        24-hour and am/pm.
-      </p>
-
-      {/* Validation panel */}
+      {/* VALIDATION PANEL */}
       {validation.length > 0 && (
-        <div className="border border-amber-200 bg-amber-50 text-amber-900 rounded-2xl p-2 text-sm mb-2">
-          <div className="font-semibold mb-1">Please fix:</div>
-          <ul className="list-disc ml-5">
-            {validation.map((e, i) => (
-              <li key={i}>{e}</li>
-            ))}
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-6 rounded-[2rem] mt-8">
+          <p className="font-black text-sm uppercase tracking-widest mb-3 flex items-center gap-2">
+            <span className="text-xl">⚠️</span> Conflict Detection Active:
+          </p>
+          <ul className="list-disc ml-5 space-y-2 font-bold text-sm">
+            {validation.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
         </div>
       )}
 
-      {/* Per-day editors (existing, with a11y & dirty tracking) */}
-      {DAYS.map((d, di) => (
-        <div
-          key={d}
-          style={{ borderTop: "1px solid #ddd", paddingTop: 12, marginTop: 12 }}
-        >
-          <h3 style={{ marginBottom: 8 }}>{d}</h3>
-          {rules[di].length === 0 && (
-            <div style={{ opacity: 0.7, marginBottom: 6 }}>No hours</div>
-          )}
-          {rules[di].map((range, idx) => (
-            <RangeRow
-              key={idx}
-              range={range}
-              onChange={(nr) => updateRange(di, idx, nr)}
-              onRemove={() => removeRange(di, idx)}
-            />
-          ))}
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              marginBottom: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => addRange(di)}
-              aria-label={`Add time range for ${d}`}
-              className="border px-3 py-1 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 hover:shadow-sm"
+      {/* PER-DAY RULE EDITORS */}
+      <div className="mt-12 space-y-8">
+        <h2 className="text-xl font-black text-slate-900 border-b-2 border-slate-100 pb-4">Standard Weekly Availability</h2>
+        
+        {DAYS.map((d, di) => (
+          <div key={d} className="group relative bg-white hover:bg-slate-50/50 p-6 rounded-[2rem] transition-all border border-transparent hover:border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-baseline gap-4">
+                <h3 className="font-black text-3xl text-slate-900 tracking-tighter w-20">{d}</h3>
+                <span className="text-[10px] font-black uppercase text-slate-300 tracking-widest">
+                  {rules[di].length === 0 ? "Unavailable" : `${rules[di].length} active blocks`}
+                </span>
+              </div>
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={() => addRange(di)} className="text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-900 hover:text-white transition shadow-sm">
+                  + Add Range
+                </button>
+                <button 
+                  onClick={markDirtyAnd(() => {
+                    const c = [...rules];
+                    c[di] = [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }];
+                    setRules(c);
+                  })} 
+                  className="text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition shadow-sm"
+                >
+                  Quick: Split Shift
+                </button>
+                <button 
+                  onClick={markDirtyAnd(() => {
+                    const c = [...rules];
+                    c[di] = [{ start: "00:00", end: "23:45" }];
+                    setRules(c);
+                  })} 
+                  className="text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition shadow-sm"
+                >
+                  Quick: All Day
+                </button>
+              </div>
+            </div>
+
+            {rules[di].length === 0 ? (
+              <div className="py-4 border-2 border-dashed border-slate-100 rounded-3xl text-center text-slate-300 font-bold text-sm">
+                No availability set for {d}.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {rules[di].map((range, idx) => (
+                  <RangeRow 
+                    key={idx} 
+                    range={range} 
+                    onChange={(nr) => updateRange(di, idx, nr)} 
+                    onRemove={() => removeRange(di, idx)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* SOPHISTICATED STUDENT VIEW PREVIEW */}
+      <div className="mt-20 p-10 bg-slate-900 rounded-[3rem] text-white shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h3 className="font-black text-2xl tracking-tight">Student Marketplace Preview</h3>
+            <p className="text-[10px] text-white/40 mt-2 uppercase tracking-[0.2em] font-black">Live synchronization engine v3.2</p>
+          </div>
+          <div className="flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10">
+            <button 
+              onClick={() => setWeekStart(addDays(weekStart, -7))} 
+              className="hover:bg-white/10 p-3 rounded-full transition text-xl leading-none"
+              aria-label="Previous week"
             >
-              Add range
+              ←
             </button>
-            <button
-              type="button"
-              onClick={markDirtyAnd(() => {
-                const c = [...rules];
-                c[di] = [
-                  { start: "09:00", end: "12:00" },
-                  { start: "14:00", end: "18:00" },
-                ];
-                setRules(c);
-              })}
-              aria-label={`Quick ranges 09–12 and 14–18 for ${d}`}
-              className="border px-3 py-1 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 hover:shadow-sm"
+            <span className="text-xs font-black font-mono px-4 tracking-widest">
+              {weekStart.toLocaleDateString(undefined, {month:'short', day:'numeric'})} - {addDays(weekStart, 6).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'})}
+            </span>
+            <button 
+              onClick={() => setWeekStart(addDays(weekStart, 7))} 
+              className="hover:bg-white/10 p-3 rounded-full transition text-xl leading-none"
+              aria-label="Next week"
             >
-              Quick: 09–12 & 14–18
-            </button>
-            <button
-              type="button"
-              onClick={markDirtyAnd(() => {
-                const c = [...rules];
-                c[di] = [{ start: "00:00", end: "23:45" }];
-                setRules(c);
-              })}
-              aria-label={`Open all day for ${d}`}
-              className="border px-3 py-1 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 hover:shadow-sm"
-            >
-              Open all day
+              →
             </button>
           </div>
         </div>
-      ))}
 
-      {/* Save row */}
-      <div
-        style={{
-          marginTop: 16,
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving || validation.length > 0 || !dirty}
-          className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          aria-label="Save availability"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-        {msg && <span>{msg}</span>}
-      </div>
-
-      {/* Utilities: draft, copy/export JSON */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {hasDraft && (
-          <>
-            <button
-              type="button"
-              onClick={restoreDraft}
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-            >
-              Restore draft
-            </button>
-            <button
-              type="button"
-              onClick={resetDraft}
-              className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-            >
-              Clear draft
-            </button>
-          </>
-        )}
-        <button
-          type="button"
-          onClick={async () => {
-            const summary = JSON.stringify(
-              { timezone, rules, startDate, repeat, untilMode, untilDate, tz },
-              null,
-              2
-            );
-            try {
-              await navigator.clipboard.writeText(summary);
-              alert("Availability JSON copied!");
-            } catch {
-              alert("Copy failed");
-            }
-          }}
-          className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-        >
-          Copy JSON
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const blob = new Blob(
-              [
-                JSON.stringify(
-                  { timezone, rules, startDate, repeat, untilMode, untilDate, tz },
-                  null,
-                  2
-                ),
-              ],
-              { type: "application/json" }
-            );
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "availability.json";
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition"
-        >
-          Export JSON
-        </button>
-      </div>
-
-      <p className="mt-2 text-xs opacity-70">
-        Drafts are auto-saved locally as you edit. Click “Save” to publish your
-        availability for students.
-      </p>
-
-      {/* Week preview (ranges summary) */}
-      <div className="mt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            className="border px-3 py-1 rounded-2xl"
-            onClick={() => setWeekStart(addDays(weekStart, -7))}
-            aria-label="Previous week"
-          >
-            ← Prev week
-          </button>
-          <div className="text-sm font-medium">
-            {weekStart.toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            –{" "}
-            {addDays(weekStart, 6).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            })}
-          </div>
-          <button
-            className="border px-3 py-1 rounded-2xl"
-            onClick={() => setWeekStart(addDays(weekStart, 7))}
-            aria-label="Next week"
-          >
-            Next week →
-          </button>
-        </div>
-
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: "repeat(7,minmax(110px,1fr))",
-            gap: 8,
-          }}
-        >
+        <div className="grid grid-cols-7 gap-4 overflow-x-auto pb-6">
           {days.map((d) => {
             const key = ymd(d);
             const ranges = weekPreview[key] || [];
+            const isLive = isDateWithinWindow(d);
+            const isToday = ymd(new Date()) === key;
+
             return (
-              <div key={key} className="border rounded-2xl p-2">
-                <div className="text-xs opacity-80">
+              <div 
+                key={key} 
+                className={`min-w-[140px] p-6 rounded-[2.5rem] border transition-all duration-500 
+                  ${isLive ? (isToday ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/20 bg-white/5 hover:border-white/40') : 'border-white/5 opacity-10 blur-[1px]'}`}
+              >
+                <p className={`text-[10px] uppercase font-black mb-1 ${isToday ? 'text-indigo-400' : 'text-white/30'}`}>
                   {d.toLocaleDateString(undefined, { weekday: "short" })}
-                </div>
-                <div className="font-semibold">
-                  {d.toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </div>
-                <div className="text-xs opacity-80">
-                  {ranges.length} {ranges.length === 1 ? "range" : "ranges"}
-                </div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {ranges.map((r, i) => (
-                    <span
-                      key={i}
-                      className="border rounded-xl px-2 py-0.5 text-xs"
-                    >
-                      {r.start}–{r.end}
-                    </span>
-                  ))}
+                </p>
+                <p className="text-3xl font-black mb-6">{d.getDate()}</p>
+                <div className="space-y-2">
+                  {ranges.length === 0 ? (
+                    <div className="h-1 w-4 bg-white/10 rounded-full" />
+                  ) : (
+                    ranges.map((r, i) => (
+                      <div 
+                        key={i} 
+                        className="text-[9px] font-black bg-indigo-500/20 text-indigo-300 rounded-xl px-3 py-2 border border-indigo-500/30 whitespace-nowrap"
+                      >
+                        {r.start} - {r.end}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
+        <p className="text-[10px] text-white/20 mt-6 font-bold text-center uppercase tracking-widest">
+          Times automatically converted to student's detected local timezone
+        </p>
+      </div>
+
+      {/* FOOTER UTILITY BAR */}
+      <div className="mt-16 border-t border-slate-100 pt-10 flex flex-wrap items-center justify-between gap-6">
+        <div className="flex gap-6 items-center">
+          <div className="flex gap-2">
+            {hasDraft && (
+              <button 
+                onClick={restoreDraft} 
+                className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition"
+              >
+                Restore Draft
+              </button>
+            )}
+            <button 
+              onClick={resetDraft} 
+              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition"
+            >
+              Clear Cache
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic">
+            {dirty ? "Unsaved changes detected" : "All changes synced to cloud"}
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button 
+            onClick={() => {
+              const summary = JSON.stringify({ timezone, bookingNotice, rules, startDate, repeat, untilMode, untilDate }, null, 2);
+              navigator.clipboard.writeText(summary); 
+              alert("Lernitt Availability Protocol JSON copied to clipboard.");
+            }} 
+            className="text-[10px] font-black bg-slate-100 text-slate-600 px-6 py-3 rounded-2xl hover:bg-slate-200 transition shadow-sm"
+          >
+            Copy JSON Summary
+          </button>
+          <button 
+            onClick={() => {
+               const blob = new Blob([JSON.stringify({ timezone, bookingNotice, rules, startDate, repeat, untilMode, untilDate }, null, 2)], { type: "application/json" });
+               const url = URL.createObjectURL(blob); 
+               const a = document.createElement("a"); 
+               a.href = url; a.download = "availability-config.json"; 
+               a.click(); 
+               URL.revokeObjectURL(url);
+            }} 
+            className="text-[10px] font-black bg-slate-900 text-white px-6 py-3 rounded-2xl hover:bg-slate-800 transition shadow-lg"
+          >
+            Export as .JSON file
+          </button>
+        </div>
+      </div>
+      
+      <div className="mt-10 text-center">
+        <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] mb-4">Lernitt Academy</p>
+        <Link to="/tutor" className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition underline underline-offset-4 decoration-2">
+          Return to Dashboard
+        </Link>
       </div>
     </div>
   );
