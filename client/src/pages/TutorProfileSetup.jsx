@@ -21,11 +21,11 @@ export default function TutorProfileSetup() {
   const [languages, setLanguages] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   
-  // ✅ Payout Selection states for User-Friendly Flow
+  // ✅ NEW: Added Payout Selection states for User-Friendly Flow
   const [payoutMethod, setPayoutMethod] = useState("stripe"); // Default to Stripe/Bank
   const [paypalEmail, setPaypalEmail] = useState("");
 
-  // --- STATE FOR AVATAR ---
+  // --- NEW STATE FOR AVATAR ---
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
@@ -54,6 +54,7 @@ export default function TutorProfileSetup() {
       setLoading(true);
       setErr("");
       try {
+        // ✅ UPDATED: Calling the new setup bridge we built in server/routes/tutors.js
         const data = await apiFetch(`${API}/api/tutors/setup`, {
           method: "GET",
         });
@@ -88,7 +89,7 @@ export default function TutorProfileSetup() {
     };
   }, []);
 
-  // --- 🛠️ HANDSHAKE FIXED: VERSION 3 "GOLDEN" UPLOAD LOGIC ---
+  // --- 🛠️ UPDATED UPLOAD LOGIC: VERSION 3 SYNCED HANDSHAKE ---
   async function handleFileUpload(e) {
     try {
       setUploading(true);
@@ -101,11 +102,13 @@ export default function TutorProfileSetup() {
         throw new Error("Authentication error: User ID not found.");
       }
 
-      // 1. Generate Filename (Using Version 3 Date-Stamp approach for success)
+      // 1. Generate Filename (Safe unique name to avoid ID conflicts)
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const uniqueId = Math.random().toString(36).substring(2, 8);
+      const fileName = `tutor-${user.id}-${uniqueId}.${fileExt}`;
 
       // 2. Upload to the root of 'tutor-avatars' bucket (STRICT LOWERCASE)
+      // Since project is RESTORED, this fetch will now succeed
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
         .upload(fileName, file, { 
@@ -115,15 +118,15 @@ export default function TutorProfileSetup() {
 
       if (uploadError) throw uploadError;
 
-      // 3. Retrieve the public URL (Version 3 logic)
+      // 3. Retrieve the public URL directly
       const { data } = supabase.storage.from('tutor-avatars').getPublicUrl(fileName);
       
       if (!data?.publicUrl) throw new Error("Failed to generate public URL.");
       
       setAvatarUrl(data.publicUrl);
-      setInfo("Media synced to storage successfully.");
+      setInfo("Profile photo uploaded successfully!");
     } catch (error) {
-      setErr("Upload error: Please verify Supabase bucket names are lowercase.");
+      setErr(error.message || "Failed to upload image.");
     } finally {
       setUploading(false);
     }
@@ -149,10 +152,12 @@ export default function TutorProfileSetup() {
         bio,
         languages,
         hourlyRate: hourlyRate ? Number(hourlyRate) : null,
+        // Only send PayPal email if that is their selected method
         paypalEmail: payoutMethod === "paypal" ? paypalEmail : "", 
         avatarUrl, 
       };
 
+      // ✅ FIXED: Using PATCH and the /setup route to connect to our new backend logic
       await apiFetch(`${API}/api/tutors/setup`, {
         method: "PATCH",
         body: payload,
@@ -161,7 +166,9 @@ export default function TutorProfileSetup() {
       setInfo("Your tutor profile and payout preferences have been saved.");
       setTimeout(() => nav("/tutor"), 1500);
     } catch (e2) {
-      setErr(e2?.message || "Could not save your profile.");
+      setErr(e2?.message?.includes("lernitt-server") 
+        ? "Connection error. Please refresh and try again." 
+        : e2?.message || "Could not save your profile.");
     } finally {
       setSaving(false);
     }
@@ -232,7 +239,7 @@ export default function TutorProfileSetup() {
 
       <form onSubmit={onSubmit}>
         
-        {/* PAYOUT SELECTION SECTION */}
+        {/* ✅ NEW: PAYOUT SELECTION SECTION (USER FRIENDLY) */}
         <div style={{ 
           marginBottom: 24, 
           padding: 20, 
@@ -271,10 +278,11 @@ export default function TutorProfileSetup() {
             </button>
           </div>
 
+          {/* STRIPE CLARITY NOTICE */}
           {payoutMethod === "stripe" && (
             <div style={{ marginTop: 16, padding: 12, background: "#fff", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 13, display: "flex", gap: 10 }}>
               <span>ℹ️</span>
-              <p>You will be taken to <strong>Stripe</strong> to connect your bank account once you enter your dashboard.</p>
+              <p>You will be taken to <strong>Stripe</strong> (our secure partner) to connect your bank account once you enter your dashboard.</p>
             </div>
           )}
 
@@ -293,7 +301,7 @@ export default function TutorProfileSetup() {
           )}
         </div>
 
-        {/* PROFILE PHOTO SECTION */}
+        {/* --- PROFILE PHOTO SECTION --- */}
         <div style={{ 
           marginBottom: 24, 
           padding: 20, 
@@ -338,7 +346,7 @@ export default function TutorProfileSetup() {
                 border: '1px solid #d1d5db'
               }} 
             />
-            {uploading && <p style={{ color: '#4f46e5', fontWeight: 'bold' }}>Syncing Media to Storage...</p>}
+            {uploading && <p style={{ color: '#4f46e5', fontWeight: 'bold' }}>Syncing media to storage...</p>}
           </div>
         </div>
 
