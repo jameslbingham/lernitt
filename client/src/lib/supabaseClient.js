@@ -1,8 +1,19 @@
 // client/src/lib/supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
 
-// HARD-CODED FOR TESTING: This removes all "variable" guesswork
-const supabaseUrl = "https://xdpecuenksfsdediokqg.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkcGVjdWVua3Nmc2RlZGlva3FnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MzI1MjMsImV4cCI6MjA3OTIwODUyM30.n_jOk9LdIt0ikPz1A4vMWwYxpNA5aGfRYWkDi-kCKX8";
+// These pull the "keys" from your project settings automatically
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Senior Dev Check: Warn if keys aren't loading properly
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("CRITICAL: Supabase keys missing. Check your .env file or Render settings.");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
