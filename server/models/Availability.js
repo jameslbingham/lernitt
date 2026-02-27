@@ -1,3 +1,4 @@
+// server/models/Availability.js
 const mongoose = require("mongoose");
 
 const RangeSchema = new mongoose.Schema(
@@ -28,6 +29,11 @@ const ExceptionSchema = new mongoose.Schema(
 const AvailabilitySchema = new mongoose.Schema({
   tutor: { type: mongoose.Schema.Types.ObjectId, ref: "User", unique: true, required: true },
   timezone: { type: String, required: true },
+  
+  // ✅ SOPHISTICATION UPGRADE: Lead-Time Guard
+  // Prevents students from booking lessons without enough notice (default 12 hours)
+  bookingNotice: { type: Number, default: 12 }, 
+  
   slotInterval: { type: Number, enum: [15, 30, 45, 60], default: 30 },
   slotStartPolicy: { type: String, enum: ["hourHalf", "any"], default: "hourHalf" },
   weekly: { type: [WeeklyRuleSchema], default: [] },
