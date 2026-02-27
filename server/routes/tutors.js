@@ -1,16 +1,12 @@
 // /server/routes/tutors.js
 const express = require("express");
 const mongoose = require("mongoose");
-const User = require("../models/User"); // User model
+const User = require("../models/User"); 
+const Availability = require("../models/Availability"); // ✅ IMPORTED
 
 const router = express.Router();
-
-// ✅ ADDED: Import auth function using destructuring
 const { auth } = require('../middleware/auth');
 
-// Helper: match only visible tutors
-// - isTutor: true
-// - tutorStatus: "approved" OR field missing (legacy tutors)
 const visibleTutorMatch = {
   isTutor: true,
   $or: [
@@ -21,14 +17,12 @@ const visibleTutorMatch = {
 
 /**
  * GET /api/tutors
- * List tutors ONLY with avgRating and reviewsCount
+ * List tutors with advanced availability signaling
  */
 router.get("/", auth, async (req, res) => {
   try {
     const tutors = await User.aggregate([
-      // ✅ ONLY visible tutors
       { $match: visibleTutorMatch },
-
       {
         $lookup: {
           from: "reviews",
@@ -45,7 +39,21 @@ router.get("/", auth, async (req, res) => {
           reviewsCount: { $size: "$reviews" },
         },
       },
-      { $project: { reviews: 0 } },
+      // ✅ SOPHISTICATION: Signal if tutor has configured a schedule
+      {
+        $lookup: {
+          from: "availabilities",
+          localField: "_id",
+          foreignField: "tutor",
+          as: "availabilityRecord"
+        }
+      },
+      {
+        $addFields: {
+          hasLiveSchedule: { $gt: [{ $size: "$availabilityRecord" }, 0] }
+        }
+      },
+      { $project: { reviews: 0, password: 0, availabilityRecord: 0 } },
     ]);
 
     res.json(tutors);
@@ -56,16 +64,14 @@ router.get("/", auth, async (req, res) => {
 
 /**
  * GET /api/tutors/:id
- * Single tutor ONLY
+ * Single tutor profile
  */
 router.get("/:id", auth, async (req, res) => {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
 
     const result = await User.aggregate([
-      // ✅ MUST be visible tutor
       { $match: { ...visibleTutorMatch, _id: id } },
-
       {
         $lookup: {
           from: "reviews",
@@ -98,19 +104,16 @@ router.get("/:id", auth, async (req, res) => {
 
 /**
  * PATCH /api/tutors/setup
- * ✅ NEW: Allows a newly signed-up tutor to save their professional profile
- * This connects the "Signup" process to the "Payment" logic.
+ * Synchronizes professional onboarding and financial metadata
  */
 router.patch("/setup", auth, async (req, res) => {
   try {
-    // Check if the user is actually a tutor
-    if (!req.user.role === 'tutor' && !req.user.isTutor) {
+    if (req.user.role !== 'tutor' && !req.user.isTutor) {
       return res.status(403).json({ error: "Only tutors can access professional setup." });
     }
 
-    const { bio, subjects, price, paypalEmail, country, timezone } = req.body;
+    const { bio, subjects, price, paypalEmail, country, timezone, introVideo, avatarUrl } = req.body;
 
-    // Update the tutor's record with the professional details
     const updatedTutor = await User.findByIdAndUpdate(
       req.user.id,
       {
@@ -120,7 +123,9 @@ router.patch("/setup", auth, async (req, res) => {
         paypalEmail,
         country,
         timezone,
-        tutorStatus: "pending" // Sets them to pending so Admin Bob can review
+        introVideo,
+        avatar: avatarUrl,
+        tutorStatus: "pending" 
       },
       { new: true, runValidators: true }
     );
