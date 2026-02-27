@@ -634,7 +634,9 @@ function TutorOnboardingPanel() {
         <li style={{ marginBottom: 6 }}>
           Set weekly availability so students can book time slots.
         </li>
-        <li>Check your hourly rate and review payouts and earnings.</li>
+        <li style={{ marginBottom: 6 }}>Check your hourly rate and review payouts and earnings.</li>
+        {/* ✅ SURGICAL ADDITION: Step 4 Intro Video */}
+        <li>Upload your promotional video to attract new students.</li>
       </ol>
 
       <div
@@ -662,6 +664,13 @@ function TutorOnboardingPanel() {
           className="inline-block rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
         >
           3) Payouts & pricing
+        </Link>
+        {/* ✅ SURGICAL ADDITION: Intro Video Link */}
+        <Link
+          to="/tutor-video-setup"
+          className="inline-block rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 font-bold px-3 py-1 text-sm hover:bg-indigo-100"
+        >
+          4) Intro Video
         </Link>
       </div>
     </section>
@@ -809,12 +818,19 @@ export default function TutorDashboard() {
           Students can’t book lessons until you choose your times.
         </div>
 
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
           <Link
             to="/availability"
             className="inline-block rounded-lg bg-white px-4 py-2 font-semibold text-indigo-700 hover:opacity-90"
           >
             Open availability
+          </Link>
+          {/* ✅ SURGICAL ADDITION: Video call to action */}
+          <Link
+            to="/tutor-video-setup"
+            className="inline-block rounded-lg bg-indigo-400 px-4 py-2 font-semibold text-white hover:bg-indigo-300 transition"
+          >
+            Record intro video
           </Link>
         </div>
       </div>
