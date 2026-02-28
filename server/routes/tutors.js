@@ -3,7 +3,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const multer = require("multer"); // Added for video file handling
 const User = require("../models/User"); 
-const Availability = require("../models/Availability");
+const Availability = require("../models/Availability"); // ✅ IMPORTED
 const { supabase } = require("../utils/supabaseClient"); // Added for Supabase storage
 
 const router = express.Router();
@@ -12,6 +12,13 @@ const { auth } = require('../middleware/auth');
 // Configure multer for memory storage (temporary holding for the video)
 const upload = multer({ storage: multer.memoryStorage() });
 
+/**
+ * SOPHISTICATED MARKETPLACE LOGIC
+ * ----------------------------------------------------------------------------
+ * Only tutors marked as 'approved' or those legacy tutors without a status
+ * are visible to students in the public marketplace.
+ * ----------------------------------------------------------------------------
+ */
 const visibleTutorMatch = {
   isTutor: true,
   $or: [
@@ -22,7 +29,8 @@ const visibleTutorMatch = {
 
 /**
  * GET /api/tutors
- * List tutors with advanced availability signaling
+ * List tutors with advanced availability signaling and review aggregation.
+ * Performs a complex multi-stage aggregation to calculate ratings on the fly.
  */
 router.get("/", auth, async (req, res) => {
   try {
@@ -44,6 +52,7 @@ router.get("/", auth, async (req, res) => {
           reviewsCount: { $size: "$reviews" },
         },
       },
+      // ✅ SOPHISTICATION: Signal if tutor has configured a schedule
       {
         $lookup: {
           from: "availabilities",
@@ -62,13 +71,14 @@ router.get("/", auth, async (req, res) => {
 
     res.json(tutors);
   } catch (err) {
+    console.error("MARKETPLACE FETCH ERROR:", err);
     res.status(500).json({ error: "Server error", details: err.message });
   }
 });
 
 /**
  * GET /api/tutors/:id
- * Single tutor profile
+ * Single tutor profile fetch with rating projection.
  */
 router.get("/:id", auth, async (req, res) => {
   try {
@@ -108,7 +118,7 @@ router.get("/:id", auth, async (req, res) => {
 
 /**
  * POST /api/tutors/register
- * Handles the multi-part form including the video upload to Supabase
+ * Handles the multi-part form including the video upload to Supabase.
  * MANDATORY: Uses Flat Path for tutor-videos bucket.
  */
 router.post("/register", auth, upload.single('video'), async (req, res) => {
@@ -149,7 +159,8 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
           price: Number(hourly_rate) || 0,
           introVideo: videoUrl,
           tutorStatus: "pending", // Bob needs to review the video
-          isTutor: true
+          isTutor: true,
+          role: "tutor" // Officially promote them to prevent dashboard entry rejection
         }
       },
       { new: true }
@@ -162,23 +173,26 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Registration Error:", err);
+    console.error("REGISTRATION PLUMBING ERROR:", err);
     res.status(500).json({ error: "Failed to process application", details: err.message });
   }
 });
 
 /**
  * PATCH /api/tutors/setup
- * Synchronizes professional onboarding and financial metadata
+ * Synchronizes professional onboarding and financial metadata.
+ * ----------------------------------------------------------------------------
+ * VITAL FIX: 
+ * 1. Promotes role to 'tutor' so new accounts can pass dashboard auth.
+ * 2. Uses Defensive Guards (|| "") to ensure MongoDB doesn't reject partial saves.
+ * ----------------------------------------------------------------------------
  */
 router.patch("/setup", auth, async (req, res) => {
   try {
-    if (req.user.role !== 'tutor' && !req.user.isTutor) {
-      return res.status(403).json({ error: "Only tutors can access professional setup." });
-    }
-
+    // Extract fields from the incoming payload
     const { bio, subjects, price, paypalEmail, country, timezone, introVideo, avatarUrl } = req.body;
 
+    // Build the update object with Defensive Logic
     const updateData = {
       bio: bio || "",
       subjects: Array.isArray(subjects) ? subjects : [],
@@ -186,9 +200,12 @@ router.patch("/setup", auth, async (req, res) => {
       paypalEmail: paypalEmail || "",
       country: country || "",
       timezone: timezone || "UTC",
-      tutorStatus: "pending" 
+      tutorStatus: "pending", // Queues for Bob's review
+      isTutor: true,
+      role: "tutor" // MANDATORY: Promote user so they can immediately access the Tutor Dashboard
     };
 
+    // Surgical Media Handling: Only add if URLs are provided
     if (introVideo) updateData.introVideo = introVideo;
     if (avatarUrl) updateData.avatar = avatarUrl;
 
@@ -199,16 +216,17 @@ router.patch("/setup", auth, async (req, res) => {
     );
 
     if (!updatedTutor) {
-      return res.status(404).json({ error: "Tutor profile not found." });
+      return res.status(404).json({ error: "Tutor profile not found in database." });
     }
 
+    // Return the cleaned summary so the dashboard can load without crashing
     res.json({
       message: "Professional profile saved successfully!",
       user: updatedTutor.summary()
     });
 
   } catch (err) {
-    console.error("Tutor Setup Error:", err);
+    console.error("TUTOR SETUP CRITICAL ERROR:", err);
     res.status(500).json({ error: "Failed to save profile details. Ensure price is a number." });
   }
 });
