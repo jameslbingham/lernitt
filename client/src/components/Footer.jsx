@@ -24,10 +24,10 @@ export default function Footer({ theme = "light" }) {
               Learn languages & skills with friendly tutors in live 1-to-1 lessons.
             </p>
 
-            {/* © LINE LINKS TO TERMS (AMENDED) */}
+            {/* © LINE LINKS TO TERMS (FIXED: Added /legal/ prefix) */}
             <p className="text-xs opacity-70 mt-2">
               © {year} Lernitt Pty Ltd.{" "}
-              <Link to="/terms" className="underline hover:opacity-80">
+              <Link to="/legal/terms" className="underline hover:opacity-80">
                 All rights reserved.
               </Link>
             </p>
@@ -73,23 +73,23 @@ export default function Footer({ theme = "light" }) {
             </nav>
           </div>
 
-          {/* Column 4 — Legal */}
+          {/* Column 4 — Legal (FIXED: Added /legal/ prefix to all links) */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold tracking-wide">Legal</h3>
             <nav className="flex flex-col gap-2 text-xs">
-              <Link to="/terms" className="hover:underline">
+              <Link to="/legal/terms" className="hover:underline">
                 Terms & Conditions
               </Link>
-              <Link to="/privacy" className="hover:underline">
+              <Link to="/legal/privacy" className="hover:underline">
                 Privacy Policy
               </Link>
-              <Link to="/cookies" className="hover:underline">
+              <Link to="/legal/cookies" className="hover:underline">
                 Cookie Policy
               </Link>
-              <Link to="/complaints" className="hover:underline">
+              <Link to="/legal/complaints" className="hover:underline">
                 Complaints Policy
               </Link>
-              <Link to="/age-requirements" className="hover:underline">
+              <Link to="/legal/age-requirements" className="hover:underline">
                 Age Requirements
               </Link>
             </nav>
