@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
-// ================= Lesson Type Editor Modal =================
+// ================= NEW: Lesson Type Editor Modal =================
 function LessonTypeModal({ template, onSave, onClose }) {
   const [formData, setFormData] = useState(template || {
     title: "",
@@ -95,10 +95,13 @@ function LessonTypeModal({ template, onSave, onClose }) {
   );
 }
 
-// ================= Lesson Types Manager (Slots 1-8) =================
+// ================= NEW: Lesson Types Manager (Slots 1-8) =================
 function LessonTypesManager({ currentTemplates, onUpdate }) {
   const [editingIndex, setEditingIndex] = useState(null);
-  const slots = Array.from({ length: 8 }, (_, i) => currentTemplates[i] || null);
+  
+  // Sophisticated Guard: Ensure currentTemplates is always an array to prevent dashboard crash
+  const safeTemplates = Array.isArray(currentTemplates) ? currentTemplates : [];
+  const slots = Array.from({ length: 8 }, (_, i) => safeTemplates[i] || null);
 
   const handleSave = (updatedData) => {
     const newTemplates = [...slots];
@@ -162,7 +165,7 @@ function AvailabilityPanel() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAvailability(data);
-      setTimezone(data.timezone || "UTC");
+      setTimezone(data?.timezone || "UTC");
     } catch {
       setAvailability(null);
     } finally {
@@ -204,8 +207,9 @@ function AvailabilityPanel() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (token) load();
+    else setLoading(false);
+  }, [token]);
 
   if (loading) return <p>Loading availability…</p>;
 
@@ -400,8 +404,8 @@ function TutorLessonSummary() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (token) load();
+  }, [token]);
 
   const today = new Date().toISOString().slice(0, 10);
   const todaysLessons = lessons.filter(
@@ -456,8 +460,8 @@ function WeeklyStats() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (token) load();
+  }, [token]);
 
   return (
     <div
@@ -505,8 +509,8 @@ function UpcomingBookings() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (token) load();
+  }, [token]);
 
   return (
     <div
@@ -560,8 +564,8 @@ function EarningsSummary() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    if (token) load();
+  }, [token]);
 
   return (
     <div
@@ -635,7 +639,7 @@ function TutorOnboardingPanel() {
           Set weekly availability so students can book time slots.
         </li>
         <li style={{ marginBottom: 6 }}>Check your hourly rate and review payouts and earnings.</li>
-        {/* ✅ SURGICAL ADDITION: Pre-recorded Video Step */}
+        {/* ✅ SURGICAL ADDITION: Step 4 Intro Video */}
         <li>Upload your pre-recorded promotional video for students to watch.</li>
       </ol>
 
@@ -665,7 +669,7 @@ function TutorOnboardingPanel() {
         >
           3) Payouts & pricing
         </Link>
-        {/* ✅ SURGICAL ADDITION: Intro Video Link */}
+        {/* ✅ SURGICAL ADDITION: Step 4 Link */}
         <Link
           to="/tutor-video-setup"
           className="inline-block rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 font-bold px-3 py-1 text-sm hover:bg-indigo-100"
@@ -684,7 +688,10 @@ export default function TutorDashboard() {
   const [unread, setUnread] = useState(null);
   const [err, setErr] = useState("");
 
-  const tutorStatus = user?.tutorStatus || user?.status || null;
+  // CRITICAL FIX: Add a high-level loading state to prevent crash during session init
+  if (!user) return <div style={{ padding: "50px", textAlign: "center", fontSize: "18px", color: "#64748b" }}>Initializing your tutor dashboard...</div>;
+
+  const tutorStatus = user?.tutorStatus || user?.status || "none";
   const isRejectedTutor = user?.role === "tutor" && tutorStatus === "rejected";
 
   const handleTemplatesUpdate = async (newTemplates) => {
@@ -796,7 +803,7 @@ export default function TutorDashboard() {
         </section>
       )}
 
-      {/* LESSON TYPES MANAGER */}
+      {/* SURGICAL INSERTION OF LESSON TYPES MANAGER */}
       <LessonTypesManager 
         currentTemplates={user?.lessonTemplates || []} 
         onUpdate={handleTemplatesUpdate} 
@@ -825,7 +832,7 @@ export default function TutorDashboard() {
           >
             Open availability
           </Link>
-          {/* ✅ SURGICAL ADDITION: Video upload call to action */}
+          {/* ✅ SURGICAL ADDITION: Video call to action */}
           <Link
             to="/tutor-video-setup"
             className="inline-block rounded-lg bg-indigo-400 px-4 py-2 font-semibold text-white hover:bg-indigo-300 transition"
@@ -849,7 +856,7 @@ export default function TutorDashboard() {
       {err && <div style={{ background: "#fee2e2", padding: 8 }}>{err}</div>}
 
       <section style={{ marginTop: 24 }}>
-        <h2>Today</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Today</h2>
         <ul>
           <li>Upcoming lessons: {upcoming === null ? "…" : upcoming}</li>
           <li>Unread messages: {unread === null ? "…" : unread}</li>
