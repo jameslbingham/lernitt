@@ -29,6 +29,10 @@ export default function TutorProfileSetup() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  // --- ✅ NEW STATE FOR VIDEO ---
+  const [videoUrl, setVideoUrl] = useState("");
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -67,6 +71,7 @@ export default function TutorProfileSetup() {
         if (data.languages) setLanguages(data.languages);
         if (data.hourlyRate != null) setHourlyRate(String(data.hourlyRate));
         if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
+        if (data.videoUrl) setVideoUrl(data.videoUrl);
         
         // Load existing payout preference if it exists
         if (data.paypalEmail) {
@@ -108,7 +113,6 @@ export default function TutorProfileSetup() {
       const fileName = `avatar-${Date.now()}-${uniqueSuffix}.${fileExt}`;
 
       // 2. Upload to the root of 'tutor-avatars' bucket
-      // This will now pass because we are using the 'restored' project address
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
         .upload(fileName, file, { 
@@ -126,10 +130,48 @@ export default function TutorProfileSetup() {
       setAvatarUrl(data.publicUrl);
       setInfo("Profile photo uploaded successfully!");
     } catch (error) {
-      // Direct peer correction: If the SQL was run, this error won't show anymore
       setErr(error.message || "Failed to upload image.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  // --- ✅ NEW: VIDEO UPLOAD HANDLER ---
+  async function handleVideoUpload(e) {
+    try {
+      setUploadingVideo(true);
+      setErr("");
+      setInfo("");
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!user?.id) {
+        throw new Error("Authentication error: User ID not found.");
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const uniqueSuffix = Math.random().toString(36).substring(2, 8);
+      const fileName = `intro-${Date.now()}-${uniqueSuffix}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('tutor-videos')
+        .upload(fileName, file, { 
+          upsert: true,
+          contentType: file.type 
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('tutor-videos').getPublicUrl(fileName);
+      
+      if (!data?.publicUrl) throw new Error("Failed to generate video URL.");
+      
+      setVideoUrl(data.publicUrl);
+      setInfo("Introduction video uploaded successfully!");
+    } catch (error) {
+      setErr(error.message || "Failed to upload video.");
+    } finally {
+      setUploadingVideo(false);
     }
   }
 
@@ -156,6 +198,7 @@ export default function TutorProfileSetup() {
         // Only send PayPal email if that is their selected method
         paypalEmail: payoutMethod === "paypal" ? paypalEmail : "", 
         avatarUrl, 
+        videoUrl, // ✅ Added videoUrl to payload
       };
 
       // ✅ FIXED: Using PATCH and the /setup route to connect to our new backend logic
@@ -351,6 +394,43 @@ export default function TutorProfileSetup() {
           </div>
         </div>
 
+        {/* --- ✅ NEW: INTRODUCTION VIDEO SECTION --- */}
+        <div style={{ 
+          marginBottom: 24, 
+          padding: 20, 
+          background: '#eff6ff', 
+          borderRadius: 12, 
+          border: '2px dashed #3b82f6',
+          textAlign: 'center' 
+        }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>Introduction Video</h3>
+          <p style={{ fontSize: 12, color: '#1e40af', marginBottom: 15 }}>
+            Upload a short video (max 1 min) introducing yourself to students.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            {videoUrl && (
+              <div style={{ marginBottom: 10, color: '#166534', fontSize: 13, fontWeight: 600 }}>
+                ✅ Video ready for submission
+              </div>
+            )}
+            <input 
+              type="file" 
+              accept="video/*" 
+              onChange={handleVideoUpload} 
+              disabled={uploadingVideo}
+              style={{ 
+                fontSize: '14px',
+                padding: '8px',
+                background: 'white',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db'
+              }} 
+            />
+            {uploadingVideo && <p style={{ color: '#3b82f6', fontWeight: 'bold' }}>Uploading video to storage...</p>}
+          </div>
+        </div>
+
         {/* Display Name */}
         <label style={{ display: "block", marginBottom: 14 }}>
           Display name
@@ -447,7 +527,7 @@ export default function TutorProfileSetup() {
 
         <button
           type="submit"
-          disabled={saving || uploading}
+          disabled={saving || uploading || uploadingVideo}
           style={{
             padding: "10px 16px",
             borderRadius: 10,
@@ -455,7 +535,7 @@ export default function TutorProfileSetup() {
             background: "#4f46e5",
             color: "white",
             fontWeight: 600,
-            cursor: (saving || uploading) ? "not-allowed" : "pointer",
+            cursor: (saving || uploading || uploadingVideo) ? "not-allowed" : "pointer",
             minWidth: 140,
           }}
         >
