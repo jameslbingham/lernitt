@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { safeFetchJSON } from "../lib/safeFetch.js"; 
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -12,6 +12,7 @@ export default function Signup() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState("student"); 
   
@@ -22,7 +23,25 @@ export default function Signup() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const canSubmit = agreeTerms && ackPrivacy && ackAge;
+  /**
+   * SOPHISTICATED PASSWORD STRENGTH ENGINE
+   * Evaluates entropy based on length, casing, and symbol diversity.
+   */
+  const passwordStrength = useMemo(() => {
+    if (!password) return { score: 0, label: "", color: "bg-slate-100" };
+    let s = 0;
+    if (password.length > 6) s++;
+    if (password.length > 10) s++;
+    if (/[A-Z]/.test(password)) s++;
+    if (/[0-9]/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password)) s++;
+
+    if (s <= 2) return { score: 1, label: "Weak", color: "bg-red-400" };
+    if (s <= 4) return { score: 2, label: "Medium", color: "bg-amber-400" };
+    return { score: 3, label: "Strong", color: "bg-emerald-500" };
+  }, [password]);
+
+  const canSubmit = agreeTerms && ackPrivacy && ackAge && passwordStrength.score > 0;
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -32,7 +51,6 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      // FIX: Communicating with the current live integrated URL
       const data = await safeFetchJSON(`${API_URL}/api/auth/signup`, {
         method: "POST",
         body: JSON.stringify({ email, password, name, role, type: role }),
@@ -48,11 +66,9 @@ export default function Signup() {
 
       login(data.token, data.user);
       
-      // Move to correct setup page based on role
       nav(role === "tutor" ? "/tutor-profile-setup" : "/welcome-setup");
 
     } catch (error) {
-      // FIX: Providing a more accurate error message that doesn't reference the dead server
       setErr(error.message.includes("lernitt-server") 
         ? "System update in progress. Please refresh and try again." 
         : error.message || "Connection error. Please try again.");
@@ -117,14 +133,41 @@ export default function Signup() {
               className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 px-5 py-4 text-sm font-medium focus:border-indigo-500 focus:bg-white outline-none"
             />
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 px-5 py-4 text-sm font-medium focus:border-indigo-500 focus:bg-white outline-none"
-            />
+            {/* ✅ UPDATED: Password field with Toggle Logic & Strength Meter */}
+            <div className="space-y-2">
+              <div className="relative">
+                <input
+                  type={showPw ? "text" : "password"}
+                  placeholder="Proposed Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 px-5 py-4 text-sm font-medium focus:border-indigo-500 focus:bg-white outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 hover:border-indigo-600 transition-all"
+                >
+                  {showPw ? "Hide" : "Show"}
+                </button>
+              </div>
+
+              {/* Password Strength Visualizer */}
+              {password && (
+                <div className="px-2 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Security Strength</span>
+                    <span className={`text-[10px] font-black uppercase ${passwordStrength.color.replace('bg-', 'text-')}`}>{passwordStrength.label}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex gap-1">
+                    <div className={`h-full flex-1 transition-all ${passwordStrength.score >= 1 ? passwordStrength.color : 'bg-transparent'}`} />
+                    <div className={`h-full flex-1 transition-all ${passwordStrength.score >= 2 ? passwordStrength.color : 'bg-transparent'}`} />
+                    <div className={`h-full flex-1 transition-all ${passwordStrength.score >= 3 ? passwordStrength.color : 'bg-transparent'}`} />
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="space-y-4 pt-2">
               <label className="flex items-start gap-3 cursor-pointer group">
