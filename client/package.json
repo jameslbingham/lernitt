@@ -15,6 +15,7 @@
     "@daily-co/daily-js": "^0.59.0",
     "@supabase/supabase-js": "^2.39.0",
     "autoprefixer": "^10.4.22",
+    "axios": "^1.6.0",
     "lightningcss": "^1.30.2",
     "node-fetch": "^3.3.2",
     "postcss": "^8.5.6",
