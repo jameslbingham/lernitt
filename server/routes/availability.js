@@ -52,7 +52,8 @@ function sliceDaySlots(day, ranges, durMins, policy, interval) {
 function rulesToWeekly(rules) {
   if (!Array.isArray(rules) || rules.length !== 7) return null;
 
-  // Mon..Sun indexes → DB dow (0 = Sun, 1 = Mon, … 6 = Sat)
+  // UI Mon=0..Sun=6 -> DB Sun=0..Sat=6 
+  // This ensures Monday in the UI maps to DOW 1 in MongoDB consistently
   const dowMap = [1, 2, 3, 4, 5, 6, 0];
   const weekly = [];
 
@@ -89,7 +90,7 @@ router.get("/me", auth, async (req, res) => { // ✅ PROTECTED
 });
 
 // DELETE /api/availability/all  (admin only)
-router.delete("/all", async (req, res) => {
+router.delete("/all", auth, async (req, res) => { // ✅ Added Auth for Bob's safety
   try {
     if (!req.user || req.user.role !== "admin") {
       return res.status(403).json({ error: "Forbidden" });
@@ -204,7 +205,7 @@ router.get("/:tutorId/slots", async (req, res) => {
       if (ex) {
         ranges = ex.open ? (ex.ranges || []) : [];
       } else {
-        // ✅ Correct weekly DOW mapping (Luxon Sunday=7 → DB Sunday=0)
+        // FIXED: Uniform Sunday mapping (Luxon 7 -> DB 0) to prevent calendar drift
         const dowIndex = day.weekday === 7 ? 0 : day.weekday;
         const dayWeekly = (avail.weekly || []).filter((w) => w.dow === dowIndex);
         ranges = dayWeekly.flatMap((w) => w.ranges || []);
@@ -290,11 +291,11 @@ router.put("/", auth, async (req, res) => { // ✅ PROTECTED
     const tutor = req.user.id;
     const {
       timezone,
+      bookingNotice, // ✅ Part of sophisticated server handshake
       weekly = [],
       exceptions = [],
       slotInterval = 30,
       slotStartPolicy = "hourHalf",
-      // new fields from Availability.jsx UI:
       rules,
       startDate,
       repeat,
@@ -308,14 +309,15 @@ router.put("/", auth, async (req, res) => { // ✅ PROTECTED
       doc = new Availability({
         tutor,
         timezone: timezone || "UTC",
+        bookingNotice: bookingNotice || 12,
         weekly: [],
         exceptions: [],
       });
     }
 
-    if (timezone) {
-      doc.timezone = timezone;
-    }
+    if (timezone) doc.timezone = timezone;
+    // Surgically update bookingNotice if provided by the UI Safeguards panel
+    if (bookingNotice !== undefined) doc.bookingNotice = Number(bookingNotice);
 
     // Prefer UI "rules" if present, otherwise accept raw weekly from body
     const weeklyFromRules = rulesToWeekly(rules);
