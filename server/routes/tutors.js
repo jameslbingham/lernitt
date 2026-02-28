@@ -1,11 +1,16 @@
 // /server/routes/tutors.js
 const express = require("express");
 const mongoose = require("mongoose");
+const multer = require("multer"); // Added for video file handling
 const User = require("../models/User"); 
-const Availability = require("../models/Availability"); // ✅ IMPORTED
+const Availability = require("../models/Availability");
+const { supabase } = require("../utils/supabaseClient"); // Added for Supabase storage
 
 const router = express.Router();
 const { auth } = require('../middleware/auth');
+
+// Configure multer for memory storage (temporary holding for the video)
+const upload = multer({ storage: multer.memoryStorage() });
 
 const visibleTutorMatch = {
   isTutor: true,
@@ -39,7 +44,6 @@ router.get("/", auth, async (req, res) => {
           reviewsCount: { $size: "$reviews" },
         },
       },
-      // ✅ SOPHISTICATION: Signal if tutor has configured a schedule
       {
         $lookup: {
           from: "availabilities",
@@ -103,20 +107,78 @@ router.get("/:id", auth, async (req, res) => {
 });
 
 /**
+ * POST /api/tutors/register
+ * Handles the multi-part form including the video upload to Supabase
+ * MANDATORY: Uses Flat Path for tutor-videos bucket.
+ */
+router.post("/register", auth, upload.single('video'), async (req, res) => {
+  try {
+    const { full_name, bio, subjects, hourly_rate } = req.body;
+    let videoUrl = "";
+
+    // 1. Handle Video Upload to Supabase if file exists
+    if (req.file) {
+      // Create a clean filename: tutorID-timestamp-originalName
+      const fileName = `${req.user.id}-${Date.now()}-${req.file.originalname.replace(/\s/g, '_')}`;
+      
+      const { data, error: uploadError } = await supabase.storage
+        .from('tutor-videos')
+        .upload(fileName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Generate the Public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('tutor-videos')
+        .getPublicUrl(fileName);
+        
+      videoUrl = publicUrlData.publicUrl;
+    }
+
+    // 2. Update the User profile in MongoDB
+    const updatedTutor = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $set: {
+          name: full_name,
+          bio: bio,
+          subjects: subjects ? subjects.split(',').map(s => s.trim()) : [],
+          price: Number(hourly_rate) || 0,
+          introVideo: videoUrl,
+          tutorStatus: "pending", // Bob needs to review the video
+          isTutor: true
+        }
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: "Application submitted successfully!",
+      videoUrl: videoUrl,
+      user: updatedTutor.summary()
+    });
+
+  } catch (err) {
+    console.error("Registration Error:", err);
+    res.status(500).json({ error: "Failed to process application", details: err.message });
+  }
+});
+
+/**
  * PATCH /api/tutors/setup
  * Synchronizes professional onboarding and financial metadata
- * MERGED: Added defensive guards for new accounts to prevent "White Screen" crashes.
  */
 router.patch("/setup", auth, async (req, res) => {
   try {
-    // Permission check: Ensuring role consistency
     if (req.user.role !== 'tutor' && !req.user.isTutor) {
       return res.status(403).json({ error: "Only tutors can access professional setup." });
     }
 
     const { bio, subjects, price, paypalEmail, country, timezone, introVideo, avatarUrl } = req.body;
 
-    // Build the update object dynamically to prevent overwriting existing data with 'undefined'
     const updateData = {
       bio: bio || "",
       subjects: Array.isArray(subjects) ? subjects : [],
@@ -127,7 +189,6 @@ router.patch("/setup", auth, async (req, res) => {
       tutorStatus: "pending" 
     };
 
-    // Only include media URLs if they were provided in the request
     if (introVideo) updateData.introVideo = introVideo;
     if (avatarUrl) updateData.avatar = avatarUrl;
 
@@ -141,7 +202,6 @@ router.patch("/setup", auth, async (req, res) => {
       return res.status(404).json({ error: "Tutor profile not found." });
     }
 
-    // Proactive Success: Returns the sanitized user summary to the dashboard
     res.json({
       message: "Professional profile saved successfully!",
       user: updatedTutor.summary()
