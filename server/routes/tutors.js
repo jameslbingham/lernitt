@@ -105,28 +105,35 @@ router.get("/:id", auth, async (req, res) => {
 /**
  * PATCH /api/tutors/setup
  * Synchronizes professional onboarding and financial metadata
+ * MERGED: Added defensive guards for new accounts to prevent "White Screen" crashes.
  */
 router.patch("/setup", auth, async (req, res) => {
   try {
+    // Permission check: Ensuring role consistency
     if (req.user.role !== 'tutor' && !req.user.isTutor) {
       return res.status(403).json({ error: "Only tutors can access professional setup." });
     }
 
     const { bio, subjects, price, paypalEmail, country, timezone, introVideo, avatarUrl } = req.body;
 
+    // Build the update object dynamically to prevent overwriting existing data with 'undefined'
+    const updateData = {
+      bio: bio || "",
+      subjects: Array.isArray(subjects) ? subjects : [],
+      price: Number(price) || 0,
+      paypalEmail: paypalEmail || "",
+      country: country || "",
+      timezone: timezone || "UTC",
+      tutorStatus: "pending" 
+    };
+
+    // Only include media URLs if they were provided in the request
+    if (introVideo) updateData.introVideo = introVideo;
+    if (avatarUrl) updateData.avatar = avatarUrl;
+
     const updatedTutor = await User.findByIdAndUpdate(
       req.user.id,
-      {
-        bio,
-        subjects,
-        price,
-        paypalEmail,
-        country,
-        timezone,
-        introVideo,
-        avatar: avatarUrl,
-        tutorStatus: "pending" 
-      },
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 
@@ -134,6 +141,7 @@ router.patch("/setup", auth, async (req, res) => {
       return res.status(404).json({ error: "Tutor profile not found." });
     }
 
+    // Proactive Success: Returns the sanitized user summary to the dashboard
     res.json({
       message: "Professional profile saved successfully!",
       user: updatedTutor.summary()
@@ -141,7 +149,7 @@ router.patch("/setup", auth, async (req, res) => {
 
   } catch (err) {
     console.error("Tutor Setup Error:", err);
-    res.status(500).json({ error: "Failed to save profile details." });
+    res.status(500).json({ error: "Failed to save profile details. Ensure price is a number." });
   }
 });
 
