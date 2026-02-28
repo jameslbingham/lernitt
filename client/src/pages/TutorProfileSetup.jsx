@@ -29,7 +29,7 @@ export default function TutorProfileSetup() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // --- ✅ NEW STATE FOR VIDEO ---
+  // --- ✅ NEW STATE FOR VIDEO (MERGED WITHOUT TRUNCATION) ---
   const [videoUrl, setVideoUrl] = useState("");
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
@@ -113,6 +113,7 @@ export default function TutorProfileSetup() {
       const fileName = `avatar-${Date.now()}-${uniqueSuffix}.${fileExt}`;
 
       // 2. Upload to the root of 'tutor-avatars' bucket
+      // This will now pass because we are using the 'restored' project address
       const { error: uploadError } = await supabase.storage
         .from('tutor-avatars')
         .upload(fileName, file, { 
@@ -130,6 +131,7 @@ export default function TutorProfileSetup() {
       setAvatarUrl(data.publicUrl);
       setInfo("Profile photo uploaded successfully!");
     } catch (error) {
+      // Direct peer correction: If the SQL was run, this error won't show anymore
       setErr(error.message || "Failed to upload image.");
     } finally {
       setUploading(false);
@@ -208,7 +210,9 @@ export default function TutorProfileSetup() {
       });
 
       setInfo("Your tutor profile and payout preferences have been saved.");
-      setTimeout(() => nav("/tutor"), 1500);
+      
+      // ✅ SUCCESS: Redirect directly to the dashboard to avoid Step 2
+      setTimeout(() => nav("/profile"), 1500);
     } catch (e2) {
       setErr(e2?.message?.includes("lernitt-server") 
         ? "Connection error. Please refresh and try again." 
@@ -224,10 +228,10 @@ export default function TutorProfileSetup() {
         <div className="space-y-1">
           <div className="text-xs text-slate-500">
             <Link
-              to="/tutor"
+              to="/profile"
               className="inline-flex items-center gap-1 hover:underline"
             >
-              ← Back to tutor dashboard
+              ← Back to dashboard
             </Link>
           </div>
           <h1 className="text-2xl font-bold">Tutor profile setup</h1>
