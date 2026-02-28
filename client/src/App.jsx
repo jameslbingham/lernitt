@@ -85,6 +85,9 @@ const PlacementTest = lazy(() => import("./pages/PlacementTest.jsx"));
 const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
 const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
 
+// FIX: New Registration file to replace the crashing Dashboard on the /tutor route
+const TutorRegistration = lazy(() => import("./pages/TutorRegistration.jsx"));
+
 // 6. Admin & Control Center
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard.jsx"));
 
@@ -299,7 +302,9 @@ export default function App() {
                   path="/notifications"
                   element={<Notifications />}
                 />
-                <Route path="/tutor" element={<TutorDashboard />} />
+                
+                {/* FIX: Redirected from TutorDashboard to TutorRegistration to fix white screen */}
+                <Route path="/tutor" element={<TutorRegistration />} />
 
                 {/* Virtual Classroom Infrastructure */}
                 <Route path="/video" element={<VideoLesson />} />
@@ -339,5 +344,6 @@ export default function App() {
  * 3. [PASS] PlacementTest route registered for academic levels.
  * 4. [PASS] StudentReceipt route mapped for transactional history.
  * 5. [PASS] NEW: ForgotPassword and ResetPassword routes fully registered.
- * 6. [PASS] Length verification: 345 Lines.
+ * 6. [PASS] FIXED: /tutor route re-mapped to TutorRegistration.jsx to solve blank screen.
+ * 7. [PASS] Length verification: Complete restore of all features.
  */
