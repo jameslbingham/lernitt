@@ -1,9 +1,11 @@
 // client/src/pages/Profile.jsx
 // -----------------------------------------------------------------------------
-// Version 5.1.0 - LINGUISTIC DNA & RETAKE LOCK (FULL BUILD)
-// - MERGED: Detailed CEFR Gap Analysis and 10-lesson lock logic.
-// - PRESERVED: 100% of original Supabase avatar uploads and verified status logic.
-// - PRESERVED: Complex multi-endpoint verification and password change flows.
+// Version 7.0.0 - DUAL-CORE SYLLABUS PROFILE (FULL MERGE)
+// - ADDED: Triple Badge View (Written, Speaking, and Overall Tier).
+// - ADDED: High-contrast DNA Dashboard with AI insights.
+// - ADDED: Master Syllabus Checklist (80+ potential roadmap items).
+// - PRESERVED: 10-lesson pedagogical retake lock.
+// - PRESERVED: 100% of original avatar, password, and account settings.
 // - MANDATORY: No truncation. This is the complete file.
 // -----------------------------------------------------------------------------
 
@@ -49,7 +51,7 @@ export default function Profile() {
     photoUrl: "",
   });
 
-  // NEW: State for the 10-lesson pedagogical lock
+  // State for the 10-lesson pedagogical lock
   const [completedLessonCount, setCompletedLessonCount] = useState(0);
 
   const [dirty, setDirty] = useState(false);
@@ -62,7 +64,7 @@ export default function Profile() {
   const verified = !!me?.emailVerified;
   const role = me?.role || "student";
 
-  // NEW: Logic for the retake lock
+  // Retake Logic constants
   const REQUIRED_LESSONS_FOR_RETAKE = 10;
   const lessonsRemaining = Math.max(0, REQUIRED_LESSONS_FOR_RETAKE - completedLessonCount);
   const canRetake = role === "student" && (completedLessonCount >= REQUIRED_LESSONS_FOR_RETAKE || !me?.proficiencyLevel || me?.proficiencyLevel === "none");
@@ -91,7 +93,7 @@ export default function Profile() {
         prof = {};
       }
 
-      // NEW: Fetch completed lessons count to determine retake eligibility
+      // Fetch completed lessons count for retake logic
       try {
         const lessons = await apiFetch("/api/lessons/mine", { auth: true });
         const completed = (Array.isArray(lessons) ? lessons : []).filter(l => l.status === 'completed').length;
@@ -115,9 +117,13 @@ export default function Profile() {
           role: "student",
           createdAt: new Date().toISOString(),
           proficiencyLevel: "B1",
+          placementTest: {
+            scores: { written: "B2", speaking: "B1", overall: "B1" },
+            insights: "Excellent structural foundation; focus needed on spoken conditional nuances."
+          },
           grammarWeaknesses: [
             { category: "B1", component: "Present Perfect vs Past Simple" },
-            { category: "B1", component: "Passive Voice" }
+            { category: "B2", component: "Third Conditional" }
           ]
         };
       }
@@ -302,11 +308,7 @@ export default function Profile() {
   if (loading) {
     return (
       <div className="p-4 space-y-3 animate-pulse">
-        <div className="border rounded-2xl p-3 space-y-2">
-          <div className="h-4 w-48 bg-gray-200 rounded" />
-          <div className="h-3 w-64 bg-gray-200 rounded" />
-          <div className="h-3 w-40 bg-gray-200 rounded" />
-        </div>
+        <div className="border rounded-[32px] h-64 bg-gray-100" />
       </div>
     );
   }
@@ -346,55 +348,74 @@ export default function Profile() {
         </div>
       )}
 
-      {/* 🧬 NEW: LINGUISTIC DNA SECTION */}
+      {/* 🧬 DUAL-CORE LINGUISTIC DNA DASHBOARD */}
       {role === "student" && (
-        <div className="border rounded-[32px] p-8 shadow-xl bg-gradient-to-br from-white to-indigo-50/30 border-slate-100">
+        <div className="border rounded-[32px] p-8 shadow-xl bg-gradient-to-br from-slate-900 to-indigo-900 text-white border-none">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-1">Academy Diagnostics</div>
-              <h2 className="text-2xl font-black tracking-tight">Your Linguistic DNA</h2>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-300 mb-1">Academic Diagnostic</div>
+              <h2 className="text-3xl font-black tracking-tight">Your Linguistic DNA</h2>
             </div>
             
-            <div className="text-center md:text-right">
-              <div className="text-4xl font-black text-indigo-600">{me?.proficiencyLevel || "N/A"}</div>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Global CEFR Tier</div>
+            {/* TRIPLE BADGE VIEW */}
+            <div className="flex gap-3">
+               <div className="text-center bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 min-w-[70px]">
+                  <div className="text-[8px] font-bold text-white/50 uppercase">Written</div>
+                  <div className="text-lg font-black">{me?.placementTest?.scores?.written || "N/A"}</div>
+               </div>
+               <div className="text-center bg-indigo-500 rounded-2xl p-3 shadow-lg ring-4 ring-indigo-500/20 min-w-[80px]">
+                  <div className="text-[8px] font-bold text-white/80 uppercase">Integrated</div>
+                  <div className="text-2xl font-black">{me?.proficiencyLevel || "N/A"}</div>
+               </div>
+               <div className="text-center bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 min-w-[70px]">
+                  <div className="text-[8px] font-bold text-white/50 uppercase">Speaking</div>
+                  <div className="text-lg font-black">{me?.placementTest?.scores?.speaking || "N/A"}</div>
+               </div>
             </div>
+          </div>
+
+          {/* AI FEEDBACK BOX */}
+          <div className="bg-white/5 rounded-2xl p-4 mb-8 border border-white/10">
+             <div className="text-[9px] font-black uppercase text-indigo-300 mb-1">AI Academy Insight</div>
+             <p className="text-sm italic text-indigo-50/80 leading-relaxed">
+                "{me?.placementTest?.insights || "No diagnostic summary available yet."}"
+             </p>
           </div>
 
           <div className="space-y-6">
             <div>
-              <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Full Academic Gap Analysis</div>
+              <div className="text-[10px] font-black uppercase text-indigo-300 tracking-widest mb-3">Mastery Checklist (Academic Gaps)</div>
               {me?.grammarWeaknesses && me.grammarWeaknesses.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                   {me.grammarWeaknesses.map((w, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                      <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-600 font-black">!</div>
+                    <div key={i} className="flex items-center gap-3 p-3 bg-white/10 rounded-xl border border-white/5">
+                      <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center text-[8px] font-black">!</div>
                       <div>
-                        <div className="text-xs font-bold text-slate-700">{w.component}</div>
-                        <div className="text-[9px] uppercase text-slate-400 font-bold">{w.category} Concept</div>
+                        <div className="text-xs font-bold">{w.component}</div>
+                        <div className="text-[8px] uppercase opacity-50 font-bold">{w.category} Syllabus</div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-sm text-slate-400 italic">No diagnostic data available. Complete an assessment to map your skills.</div>
+                <div className="text-sm text-white/40 italic">Diagnostic data pending.</div>
               )}
             </div>
 
-            <div className="pt-4 border-t border-slate-100">
+            <div className="pt-4 border-t border-white/10">
               <Link 
                 to={canRetake ? "/placement-test" : "#"}
                 className={`w-full inline-flex items-center justify-center rounded-2xl py-4 text-xs font-black uppercase tracking-widest transition-all ${
                   canRetake 
-                  ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5' 
-                  : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70'
+                  ? 'bg-white text-indigo-900 shadow-xl hover:bg-indigo-50 hover:-translate-y-0.5' 
+                  : 'bg-white/10 text-white/30 cursor-not-allowed'
                 }`}
                 onClick={(e) => !canRetake && e.preventDefault()}
               >
                 {canRetake ? "Retake Professional Assessment" : "Assessment Locked"}
               </Link>
               {!canRetake && me?.proficiencyLevel !== "none" && (
-                <p className="text-[10px] text-center mt-3 text-slate-400 font-bold uppercase tracking-wider">
+                <p className="text-[9px] text-center mt-3 text-white/40 font-bold uppercase tracking-wider">
                   🔒 Complete {lessonsRemaining} more lesson{lessonsRemaining !== 1 ? 's' : ''} to unlock your next diagnostic.
                 </p>
               )}
@@ -403,19 +424,20 @@ export default function Profile() {
         </div>
       )}
 
-      <div className="border rounded-2xl p-4 shadow-sm">
+      {/* PROFILE EDITING SECTION */}
+      <div className="border rounded-2xl p-4 shadow-sm bg-white">
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="w-16 h-16 rounded-full border overflow-hidden bg-gray-50 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full border overflow-hidden bg-gray-50 flex items-center justify-center text-slate-400">
               {profile.photoUrl ? (
                 <img src={profile.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-lg">{(profile.displayName || me?.email || "?").slice(0, 1)}</span>
+                <span className="text-lg font-bold">{(profile.displayName || me?.email || "?").slice(0, 1)}</span>
               )}
             </div>
           </div>
           <div className="flex-1">
-            <div className="text-lg font-semibold">{profile.displayName || "Your name"}</div>
+            <div className="text-lg font-semibold text-slate-900">{profile.displayName || "Update your name"}</div>
             <div className="text-xs opacity-70">{me?.email || "—"}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -443,15 +465,16 @@ export default function Profile() {
         </div>
 
         <div className="mt-3 flex gap-2">
-          <button onClick={onSave} disabled={saving || !dirty} className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60">
-            {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
+          <button onClick={onSave} disabled={saving || !dirty} className="border px-4 py-2 rounded-2xl text-sm font-bold bg-slate-900 text-white disabled:opacity-60 transition shadow-lg active:scale-95">
+            {saving ? "Saving…" : "Save changes"}
           </button>
-          {msg && <span className="text-sm text-green-700">{msg}</span>}
-          {err && <span className="text-sm text-red-600">{err}</span>}
+          {msg && <span className="text-sm text-green-700 self-center font-bold">{msg}</span>}
+          {err && <span className="text-sm text-red-600 self-center font-bold">{err}</span>}
         </div>
       </div>
 
-      <div className="border rounded-2xl p-4 shadow-sm">
+      {/* ACCOUNT DETAILS */}
+      <div className="border rounded-2xl p-4 shadow-sm bg-white">
         <div className="text-lg font-semibold mb-2">Account</div>
         <InfoRow k="Email" v={me?.email} mono />
         <InfoRow k="Role" v={role} />
@@ -459,7 +482,8 @@ export default function Profile() {
         <InfoRow k="Joined" v={me?.createdAt ? new Date(me.createdAt).toLocaleString() : "—"} />
       </div>
 
-      <div className="border rounded-2xl p-4 shadow-sm">
+      {/* PASSWORD SECTION */}
+      <div className="border rounded-2xl p-4 shadow-sm bg-white">
         <div className="text-lg font-semibold mb-2">Change password</div>
         <form onSubmit={onChangePassword} className="grid gap-2 md:grid-cols-2">
           <Field label="Current password">
@@ -473,7 +497,7 @@ export default function Profile() {
             <input type="password" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} className="border rounded-xl px-3 py-2 w-full" autoComplete="new-password" required minLength={8} />
           </Field>
           <div className="md:col-span-2 flex gap-2 mt-1">
-            <button type="submit" disabled={pwdBusy} className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60">
+            <button type="submit" disabled={pwdBusy} className="border px-3 py-1 rounded-2xl text-sm shadow-sm hover:shadow-md transition disabled:opacity-60 font-bold">
               {pwdBusy ? "Updating…" : "Update password"}
             </button>
           </div>
@@ -481,7 +505,7 @@ export default function Profile() {
       </div>
 
       {role === "tutor" && (
-        <div className="border rounded-2xl p-4 shadow-sm">
+        <div className="border rounded-2xl p-4 shadow-sm bg-white">
           <div className="text-lg font-semibold mb-2">Payouts & identity</div>
           <div className="text-sm opacity-80 mb-2">
             Manage payouts and verification in{" "}
@@ -490,9 +514,10 @@ export default function Profile() {
         </div>
       )}
 
-      <div className="border rounded-2xl p-4 shadow-sm">
-        <div className="text-lg font-semibold mb-2">Danger zone</div>
-        <button onClick={onDeleteAccount} className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition" style={{ borderColor: "#fecaca", color: "#991b1b" }}>
+      {/* DANGER ZONE */}
+      <div className="border rounded-2xl p-4 shadow-sm bg-red-50 border-red-100">
+        <div className="text-lg font-bold text-red-900 mb-2">Danger zone</div>
+        <button onClick={onDeleteAccount} className="text-sm border px-3 py-1 rounded-2xl shadow-sm hover:shadow-md transition bg-white" style={{ borderColor: "#fecaca", color: "#991b1b" }}>
           Delete account
         </button>
       </div>
