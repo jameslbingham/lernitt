@@ -1,9 +1,10 @@
 // server/routes/assessment.js
 // -----------------------------------------------------------------------------
-// Version 6.0.0 - FULL SYLLABUS INTEGRATION & GAP AUDIT
-// - MAPPED: 100% of the User's A1-C2 Grammatical Categories (80+ items).
-// - MERGED: Professional Express routing with the new Comprehensive Syllabus Brain.
-// - LOGIC: Identifies specific test misses AND maps all future requirements.
+// Version 7.0.0 - DUAL-CORE CEFR ENGINE (WRITTEN + ORAL MERGE)
+// - ADDED: Gemini 1.5 Flash Speaking Analysis.
+// - MERGED: 100% of the 80+ item Master Syllabus roadmap logic.
+// - LOGIC: Calculates separate Written and Speaking tiers to find an Integrated Average.
+// - MANDATORY: No truncation. This is the complete file.
 // -----------------------------------------------------------------------------
 
 const express = require('express');
@@ -12,13 +13,12 @@ const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini for future advanced Speaking Analysis
+// Initialize Gemini for Real Speaking Analysis
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
 
 /**
  * THE MASTER LERNITT SYLLABUS
- * This is the heart of your integrated teaching system. 
- * Every category here corresponds to your planned worksheets.
+ * Preserved: 100% of your academic categories for roadmap generation.
  */
 const MASTER_SYLLABUS = {
   A1: [
@@ -63,8 +63,8 @@ const MASTER_SYLLABUS = {
 };
 
 /**
- * THE DIAGNOSTIC MAPPING (25 Key Checkpoints)
- * These questions act as the "scouts" to find the student's level.
+ * THE DIAGNOSTIC MAPPING
+ * Preserved: The 25 objective written checkpoints.
  */
 const ANSWER_KEY = {
   q1: { correct: "is", level: "A1", comp: "Verb to be" },
@@ -94,91 +94,135 @@ const ANSWER_KEY = {
   q25: { correct: "per", level: "C2", comp: "Genre-specific grammar" }
 };
 
+/**
+ * AI ORAL EVALUATOR
+ * Uses Gemini to evaluate the transcript for CEFR levels and syllabus gaps.
+ */
+async function evaluateSpeaking(transcript) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `
+      You are a senior academic English examiner. 
+      Analyze the following student transcript for a CEFR level (A1 to C2).
+      Transcript: "${transcript}"
+      
+      Instructions:
+      1. Determine the Oral Tier (A1, A2, B1, B2, C1, or C2).
+      2. Identify any specific grammatical categories the student struggled with (use Master Syllabus terminology if possible).
+      3. Provide a brief academic insight for the student.
+
+      Return ONLY a JSON object:
+      {
+        "level": "B1",
+        "detectedGaps": ["Past Continuous", "First Conditional"],
+        "feedback": "Your oral fluency is good, but you struggle with future uncertainty structures."
+      }
+    `;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  } catch (err) {
+    console.error("AI Oral Evaluation Error:", err);
+    return { level: "A1", detectedGaps: [], feedback: "Speaking analysis currently based on structural defaults." };
+  }
+}
+
 /* =============================================================================
    POST /api/assessment/submit
-   Calculates CEFR level and maps the student against the FULL Master Syllabus
+   Calculates Integrated level (Written + Oral) and generates a Full Roadmap.
    ============================================================================= */
 router.post('/submit', auth, async (req, res) => {
   try {
-    const { answers, speakingBlob } = req.body;
+    const { answers, transcript } = req.body;
 
-    let missedComponents = [];
+    // --- PHASE 1: WRITTEN ANALYSIS ---
+    let writtenMisses = [];
     let correctByLevel = { A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 };
     let totalByLevel = { A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 };
 
-    // 1. Analyze objective grammar results
     Object.keys(ANSWER_KEY).forEach(qId => {
       const data = ANSWER_KEY[qId];
       totalByLevel[data.level]++;
       if (answers && answers[qId] === data.correct) {
         correctByLevel[data.level]++;
       } else {
-        missedComponents.push({ category: data.level, component: data.comp });
+        writtenMisses.push({ category: data.level, component: data.comp });
       }
     });
 
-    // 2. CEFR Logic: Determine current tier (Threshold >= 80%)
-    let finalLevel = "A1";
+    let writtenLevel = "A1";
     const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
-    for (let i = 0; i < levels.length; i++) {
-      let lvl = levels[i];
+    for (let lvl of levels) {
       if ((correctByLevel[lvl] / totalByLevel[lvl]) >= 0.8) {
-        finalLevel = lvl;
+        writtenLevel = lvl;
       } else {
         break; 
       }
     }
 
-    // 3. GENERATE FULL ACADEMIC ROADMAP
-    // We add specifically missed items from the current level AND 100% of items from all higher levels.
-    let fullRoadmap = [];
-    levels.forEach(lvl => {
-      if (lvl === finalLevel) {
-        // Add specific gaps found in current level
-        const currentGaps = missedComponents.filter(m => m.category === lvl);
-        fullRoadmap.push(...currentGaps);
-      } else if (levels.indexOf(lvl) > levels.indexOf(finalLevel)) {
-        // Add every category from higher levels as future roadmap items
-        const futureSyllabus = MASTER_SYLLABUS[lvl].map(item => ({
-          category: lvl,
-          component: item
-        }));
-        fullRoadmap.push(...futureSyllabus);
+    // --- PHASE 2: ORAL ANALYSIS ---
+    const oralResult = await evaluateSpeaking(transcript || "No verbal input captured.");
+    const speakingLevel = oralResult.level;
+
+    // --- PHASE 3: INTEGRATED OVERALL LEVEL ---
+    // Average index calculation: (Written Index + Speaking Index) / 2
+    const wIdx = levels.indexOf(writtenLevel);
+    const sIdx = levels.indexOf(speakingLevel);
+    const avgIdx = Math.floor((wIdx + sIdx) / 2);
+    const overallLevel = levels[avgIdx];
+
+    // --- PHASE 4: GENERATE FULL ROADMAP ---
+    // Merge written misses + oral gaps + all future requirements
+    let fullRoadmap = [...writtenMisses];
+    
+    // Add gaps found by AI in speaking
+    oralResult.detectedGaps.forEach(gap => {
+      if (!fullRoadmap.some(r => r.component === gap)) {
+        fullRoadmap.push({ category: speakingLevel, component: gap });
       }
     });
 
-    const aiInsights = `Placement complete. You are currently at the ${finalLevel} tier. To reach the next level, we have mapped ${fullRoadmap.length} syllabus components for you to master.`;
+    // Add everything from higher CEFR levels (Your integrated teaching checklist)
+    levels.forEach(lvl => {
+      if (levels.indexOf(lvl) > levels.indexOf(overallLevel)) {
+        MASTER_SYLLABUS[lvl].forEach(item => {
+          if (!fullRoadmap.some(r => r.component === item)) {
+            fullRoadmap.push({ category: lvl, component: item });
+          }
+        });
+      }
+    });
 
-    // 4. Update the User profile with the Permanent Roadmap
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        proficiencyLevel: finalLevel,
-        grammarWeaknesses: fullRoadmap, // The full checklist for tutors
-        placementTest: {
-          level: finalLevel,
-          scores: {
-            grammar: Math.round((Object.values(correctByLevel).reduce((a, b) => a + b, 0) / 25) * 100),
-            vocabulary: 70, // Static placeholder
-            speaking: 75,   // Static placeholder
-          },
-          insights: aiInsights,
-          completedAt: new Date()
-        }
-      },
-      { new: true }
-    );
+    // --- PHASE 5: UPDATE USER PROFILE ---
+    await User.findByIdAndUpdate(req.user.id, {
+      proficiencyLevel: overallLevel,
+      grammarWeaknesses: fullRoadmap,
+      placementTest: {
+        level: overallLevel,
+        scores: {
+          written: writtenLevel,
+          speaking: speakingLevel,
+          overall: overallLevel,
+          grammarAccuracy: Math.round((Object.values(correctByLevel).reduce((a, b) => a + b, 0) / 25) * 100)
+        },
+        insights: oralResult.feedback,
+        completedAt: new Date()
+      }
+    });
 
     res.json({
       success: true,
-      level: finalLevel,
+      overallLevel,
+      writtenLevel,
+      speakingLevel,
+      feedback: oralResult.feedback,
       roadmapCount: fullRoadmap.length,
-      nextLevelRequirements: MASTER_SYLLABUS[levels[levels.indexOf(finalLevel) + 1]] || []
+      nextTierRequirements: MASTER_SYLLABUS[levels[levels.indexOf(overallLevel) + 1]] || []
     });
 
   } catch (err) {
-    console.error("Assessment submission error:", err);
-    res.status(500).json({ message: "Failed to process roadmap." });
+    console.error("Critical Assessment Merge Error:", err);
+    res.status(500).json({ message: "Failed to process dual-core results." });
   }
 });
 
