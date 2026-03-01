@@ -1,9 +1,9 @@
 // server/routes/assessment.js
 // -----------------------------------------------------------------------------
-// Version 5.0.0 - COMPREHENSIVE CEFR DIAGNOSTIC ENGINE
-// - MERGED: Calculation logic with Express router structure.
-// - ADDED: Full 25-question answer key mapped to custom CEFR categories.
-// - FIXED: Grammar Gap Analysis data is now saved to the User profile.
+// Version 6.0.0 - FULL SYLLABUS INTEGRATION & GAP AUDIT
+// - MAPPED: 100% of the User's A1-C2 Grammatical Categories (80+ items).
+// - MERGED: Professional Express routing with the new Comprehensive Syllabus Brain.
+// - LOGIC: Identifies specific test misses AND maps all future requirements.
 // -----------------------------------------------------------------------------
 
 const express = require('express');
@@ -16,46 +16,87 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
 
 /**
- * COMPREHENSIVE ANSWER KEY MAPPED TO USER GRAMMAR CATEGORIES
- * This matches the questions provided in the Frontend.
+ * THE MASTER LERNITT SYLLABUS
+ * This is the heart of your integrated teaching system. 
+ * Every category here corresponds to your planned worksheets.
+ */
+const MASTER_SYLLABUS = {
+  A1: [
+    "Subject pronouns", "Verb to be", "Verb have / have got", "Present Simple (Affirmative)",
+    "Yes / No questions", "Wh- questions", "Articles: a / an / the", "Singular & plural nouns",
+    "Possessive adjectives", "Demonstratives", "There is / there are", "Basic prepositions",
+    "Adjectives (Basic order)", "Imperatives", "Basic conjunctions", "Numbers, dates, time"
+  ],
+  A2: [
+    "Present Simple (Full)", "Present Continuous", "Past Simple", "Used to (Basic)",
+    "Future: going to", "Future: will", "Countable / uncountable nouns", "Quantifiers",
+    "Comparative adjectives", "Superlatives", "Object pronouns", "Adverbs of frequency",
+    "Prepositions (Expanded)", "Simple modals: can / must", "Simple connectors (because, so)"
+  ],
+  B1: [
+    "Present Perfect", "Present Perfect vs Past Simple", "Past Continuous", "Future Continuous",
+    "First Conditional", "Zero Conditional", "Modal verbs: obligation", "Modal verbs: advice",
+    "Modal verbs: possibility", "Gerund vs infinitive", "Relative clauses", "Passive voice (Basic)",
+    "Reported speech (Statements)", "Advanced Comparatives", "Adverbial clauses", 
+    "Word order (Questions/Negatives)", "Linking words (however, although)"
+  ],
+  B2: [
+    "Full tense system control", "Present Perfect Continuous", "Past Perfect", 
+    "Past Perfect Continuous", "Future Perfect", "Second Conditional", "Third Conditional",
+    "Mixed conditionals", "Advanced modals: deduction", "Advanced modals: nuances",
+    "Passive voice (Advanced)", "Reported speech (Questions/Commands)", "Reduced relative clauses",
+    "Causative forms", "Inversion", "Discourse markers", "Complex noun phrases", "Formal vs informal choices"
+  ],
+  C1: [
+    "Full mastery of verb aspects", "Subjunctive structures", "Advanced inversion", "Ellipsis",
+    "Advanced cleft sentences", "Complex participle clauses", "Advanced conditionals",
+    "Hedging language", "Nominalisation", "Advanced reported speech", "Register control",
+    "Embedded questions", "Advanced linking & cohesion"
+  ],
+  C2: [
+    "Grammatical flexibility", "Native-like tense switching", "Complex metaphorical structures",
+    "Idiomatic grammatical patterns", "Advanced pragmatic grammar", "Stylistic deviation",
+    "Highly compressed structures", "Literary and rhetorical grammar", "Genre-specific grammar",
+    "Ambiguity management", "Natural use of understatement & irony", "Fine-grained modal nuance",
+    "Creative manipulation of syntax"
+  ]
+};
+
+/**
+ * THE DIAGNOSTIC MAPPING (25 Key Checkpoints)
+ * These questions act as the "scouts" to find the student's level.
  */
 const ANSWER_KEY = {
-  // A1 - Beginner
   q1: { correct: "is", level: "A1", comp: "Verb to be" },
   q2: { correct: "Where", level: "A1", comp: "Wh- questions" },
-  q3: { correct: "an", level: "A1", comp: "Articles" },
+  q3: { correct: "an", level: "A1", comp: "Articles: a / an / the" },
   q4: { correct: "His", level: "A1", comp: "Possessive adjectives" },
-  // A2 - Elementary
   q5: { correct: "went", level: "A2", comp: "Past Simple" },
-  q6: { correct: "are going to", level: "A2", comp: "Future forms" },
-  q7: { correct: "faster", level: "A2", comp: "Comparatives" },
+  q6: { correct: "are going to", level: "A2", comp: "Future: going to" },
+  q7: { correct: "faster", level: "A2", comp: "Comparative adjectives" },
   q8: { correct: "any", level: "A2", comp: "Quantifiers" },
-  // B1 - Intermediate
   q9: { correct: "have visited", level: "B1", comp: "Present Perfect" },
   q10: { correct: "will stay", level: "B1", comp: "First Conditional" },
-  q11: { correct: "was written", level: "B1", comp: "Passive Voice" },
-  q12: { correct: "mustn't", level: "B1", comp: "Modal verbs" },
-  // B2 - Upper-Intermediate
+  q11: { correct: "was written", level: "B1", comp: "Passive voice (Basic)" },
+  q12: { correct: "mustn't", level: "B1", comp: "Modal verbs: obligation" },
   q13: { correct: "had", level: "B2", comp: "Third Conditional" },
   q14: { correct: "had I", level: "B2", comp: "Inversion" },
   q15: { correct: "cut", level: "B2", comp: "Causative forms" },
-  q16: { correct: "must", level: "B2", comp: "Advanced Modal meanings" },
-  // C1 - Advanced
-  q17: { correct: "be", level: "C1", comp: "Subjunctive" },
-  q18: { correct: "was he", level: "C1", comp: "Advanced Inversion" },
-  q19: { correct: "Having studied", level: "C1", comp: "Participle clauses" },
+  q16: { correct: "must", level: "B2", comp: "Advanced modals: deduction" },
+  q17: { correct: "be", level: "C1", comp: "Subjunctive structures" },
+  q18: { correct: "was he", level: "C1", comp: "Advanced inversion" },
+  q19: { correct: "Having studied", level: "C1", comp: "Complex participle clauses" },
   q20: { correct: "appears", level: "C1", comp: "Hedging language" },
-  // C2 - Proficient
   q21: { correct: "Were", level: "C2", comp: "Fine-grained modal nuance" },
   q22: { correct: "seldom", level: "C2", comp: "Stylistic deviation" },
-  q23: { correct: "should", level: "C2", comp: "Creative manipulation" },
+  q23: { correct: "should", level: "C2", comp: "Creative manipulation of syntax" },
   q24: { correct: "might", level: "C2", comp: "Ambiguity management" },
   q25: { correct: "per", level: "C2", comp: "Genre-specific grammar" }
 };
 
 /* =============================================================================
    POST /api/assessment/submit
-   Calculates CEFR level and identifies specific Grammar Gaps
+   Calculates CEFR level and maps the student against the FULL Master Syllabus
    ============================================================================= */
 router.post('/submit', auth, async (req, res) => {
   try {
@@ -72,34 +113,54 @@ router.post('/submit', auth, async (req, res) => {
       if (answers && answers[qId] === data.correct) {
         correctByLevel[data.level]++;
       } else {
-        // Track specifically what the student needs to learn
         missedComponents.push({ category: data.level, component: data.comp });
       }
     });
 
-    // 2. CEFR Logic: Move up if score >= 80% (0.8) for the current tier
+    // 2. CEFR Logic: Determine current tier (Threshold >= 80%)
     let finalLevel = "A1";
-    if (correctByLevel.A1 / totalByLevel.A1 >= 0.8) finalLevel = "A2";
-    if (finalLevel === "A2" && correctByLevel.A2 / totalByLevel.A2 >= 0.8) finalLevel = "B1";
-    if (finalLevel === "B1" && correctByLevel.B1 / totalByLevel.B1 >= 0.8) finalLevel = "B2";
-    if (finalLevel === "B2" && correctByLevel.B2 / totalByLevel.B2 >= 0.8) finalLevel = "C1";
-    if (finalLevel === "C1" && correctByLevel.C1 / totalByLevel.C1 >= 0.8) finalLevel = "C2";
+    const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+    for (let i = 0; i < levels.length; i++) {
+      let lvl = levels[i];
+      if ((correctByLevel[lvl] / totalByLevel[lvl]) >= 0.8) {
+        finalLevel = lvl;
+      } else {
+        break; 
+      }
+    }
 
-    // 3. AI Insights (Placeholder for actual Gemini analysis of audio)
-    const aiInsights = `Based on your grammar inputs, you have achieved a ${finalLevel} rating. We detected specific gaps in ${missedComponents.length > 0 ? missedComponents[0].component : 'advanced synthesis'}.`;
+    // 3. GENERATE FULL ACADEMIC ROADMAP
+    // We add specifically missed items from the current level AND 100% of items from all higher levels.
+    let fullRoadmap = [];
+    levels.forEach(lvl => {
+      if (lvl === finalLevel) {
+        // Add specific gaps found in current level
+        const currentGaps = missedComponents.filter(m => m.category === lvl);
+        fullRoadmap.push(...currentGaps);
+      } else if (levels.indexOf(lvl) > levels.indexOf(finalLevel)) {
+        // Add every category from higher levels as future roadmap items
+        const futureSyllabus = MASTER_SYLLABUS[lvl].map(item => ({
+          category: lvl,
+          component: item
+        }));
+        fullRoadmap.push(...futureSyllabus);
+      }
+    });
 
-    // 4. Update User Profile with Gap Analysis
+    const aiInsights = `Placement complete. You are currently at the ${finalLevel} tier. To reach the next level, we have mapped ${fullRoadmap.length} syllabus components for you to master.`;
+
+    // 4. Update the User profile with the Permanent Roadmap
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
       {
         proficiencyLevel: finalLevel,
-        grammarWeaknesses: missedComponents, // Matches new User Schema
+        grammarWeaknesses: fullRoadmap, // The full checklist for tutors
         placementTest: {
           level: finalLevel,
           scores: {
             grammar: Math.round((Object.values(correctByLevel).reduce((a, b) => a + b, 0) / 25) * 100),
-            vocabulary: 75, // Sample static value until vocab logic added
-            speaking: 80,   // Sample static value
+            vocabulary: 70, // Static placeholder
+            speaking: 75,   // Static placeholder
           },
           insights: aiInsights,
           completedAt: new Date()
@@ -111,29 +172,27 @@ router.post('/submit', auth, async (req, res) => {
     res.json({
       success: true,
       level: finalLevel,
-      weaknesses: missedComponents.slice(0, 8), // Return top 8 gaps for immediate feedback
-      profileName: finalLevel.startsWith('C') ? "Academic Professional" : "Developing Learner"
+      roadmapCount: fullRoadmap.length,
+      nextLevelRequirements: MASTER_SYLLABUS[levels[levels.indexOf(finalLevel) + 1]] || []
     });
 
   } catch (err) {
     console.error("Assessment submission error:", err);
-    res.status(500).json({ message: "Failed to process assessment results." });
+    res.status(500).json({ message: "Failed to process roadmap." });
   }
 });
 
 /* =============================================================================
    GET /api/assessment/result
-   Retrieves the student's existing test results and weaknesses
    ============================================================================= */
 router.get('/result', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('placementTest grammarWeaknesses proficiencyLevel');
     if (!user || !user.placementTest || user.placementTest.level === 'none') {
-      return res.status(404).json({ message: "No assessment result found." });
+      return res.status(404).json({ message: "No result found." });
     }
     res.json(user);
   } catch (err) {
-    console.error("Fetch assessment error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
