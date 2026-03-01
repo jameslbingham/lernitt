@@ -1,3 +1,12 @@
+// client/src/pages/Profile.jsx
+// -----------------------------------------------------------------------------
+// Version 5.1.0 - LINGUISTIC DNA & RETAKE LOCK (FULL BUILD)
+// - MERGED: Detailed CEFR Gap Analysis and 10-lesson lock logic.
+// - PRESERVED: 100% of original Supabase avatar uploads and verified status logic.
+// - PRESERVED: Complex multi-endpoint verification and password change flows.
+// - MANDATORY: No truncation. This is the complete file.
+// -----------------------------------------------------------------------------
+
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
@@ -40,6 +49,9 @@ export default function Profile() {
     photoUrl: "",
   });
 
+  // NEW: State for the 10-lesson pedagogical lock
+  const [completedLessonCount, setCompletedLessonCount] = useState(0);
+
   const [dirty, setDirty] = useState(false);
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [pwdBusy, setPwdBusy] = useState(false);
@@ -49,6 +61,11 @@ export default function Profile() {
 
   const verified = !!me?.emailVerified;
   const role = me?.role || "student";
+
+  // NEW: Logic for the retake lock
+  const REQUIRED_LESSONS_FOR_RETAKE = 10;
+  const lessonsRemaining = Math.max(0, REQUIRED_LESSONS_FOR_RETAKE - completedLessonCount);
+  const canRetake = role === "student" && (completedLessonCount >= REQUIRED_LESSONS_FOR_RETAKE || !me?.proficiencyLevel || me?.proficiencyLevel === "none");
 
   function markDirty(patch) {
     setProfile((prev) => ({ ...prev, ...patch }));
@@ -74,6 +91,16 @@ export default function Profile() {
         prof = {};
       }
 
+      // NEW: Fetch completed lessons count to determine retake eligibility
+      try {
+        const lessons = await apiFetch("/api/lessons/mine", { auth: true });
+        const completed = (Array.isArray(lessons) ? lessons : []).filter(l => l.status === 'completed').length;
+        setCompletedLessonCount(completed);
+      } catch (lessonErr) {
+        console.warn("Could not fetch lessons for DNA lock:", lessonErr);
+        setCompletedLessonCount(0);
+      }
+
       if (!base?._id && !MOCK) {
         const next = encodeURIComponent("/profile");
         nav(`/login?next=${next}`, { replace: true });
@@ -87,6 +114,11 @@ export default function Profile() {
           emailVerified: true,
           role: "student",
           createdAt: new Date().toISOString(),
+          proficiencyLevel: "B1",
+          grammarWeaknesses: [
+            { category: "B1", component: "Present Perfect vs Past Simple" },
+            { category: "B1", component: "Passive Voice" }
+          ]
         };
       }
       if (MOCK && !prof?.displayName) {
@@ -310,6 +342,63 @@ export default function Profile() {
             <button className="ml-3 border px-3 py-1 rounded-2xl text-sm" onClick={onSendVerify} disabled={verifyBusy}>
               {verifyBusy ? "Sending…" : "Send verification email"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🧬 NEW: LINGUISTIC DNA SECTION */}
+      {role === "student" && (
+        <div className="border rounded-[32px] p-8 shadow-xl bg-gradient-to-br from-white to-indigo-50/30 border-slate-100">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-1">Academy Diagnostics</div>
+              <h2 className="text-2xl font-black tracking-tight">Your Linguistic DNA</h2>
+            </div>
+            
+            <div className="text-center md:text-right">
+              <div className="text-4xl font-black text-indigo-600">{me?.proficiencyLevel || "N/A"}</div>
+              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Global CEFR Tier</div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Full Academic Gap Analysis</div>
+              {me?.grammarWeaknesses && me.grammarWeaknesses.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {me.grammarWeaknesses.map((w, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                      <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-600 font-black">!</div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-700">{w.component}</div>
+                        <div className="text-[9px] uppercase text-slate-400 font-bold">{w.category} Concept</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-slate-400 italic">No diagnostic data available. Complete an assessment to map your skills.</div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100">
+              <Link 
+                to={canRetake ? "/placement-test" : "#"}
+                className={`w-full inline-flex items-center justify-center rounded-2xl py-4 text-xs font-black uppercase tracking-widest transition-all ${
+                  canRetake 
+                  ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-70'
+                }`}
+                onClick={(e) => !canRetake && e.preventDefault()}
+              >
+                {canRetake ? "Retake Professional Assessment" : "Assessment Locked"}
+              </Link>
+              {!canRetake && me?.proficiencyLevel !== "none" && (
+                <p className="text-[10px] text-center mt-3 text-slate-400 font-bold uppercase tracking-wider">
+                  🔒 Complete {lessonsRemaining} more lesson{lessonsRemaining !== 1 ? 's' : ''} to unlock your next diagnostic.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
