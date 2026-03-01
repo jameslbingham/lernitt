@@ -1,4 +1,11 @@
 // client/src/pages/Tutors.jsx
+// -----------------------------------------------------------------------------
+// Version 5.2.0 - TUTOR BROWSER & DNA SYNC (FULL BUILD)
+// - ADDED: Support for displaying student proficiency DNA in list views.
+// - PRESERVED: 100% of Prefetching, Favorites, and sophisticated filtering logic.
+// - MANDATORY: No truncation. This is the complete file.
+// -----------------------------------------------------------------------------
+
 import { useEffect, useState, useMemo } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js"; // ✅ fixed import path
