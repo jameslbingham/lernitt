@@ -1,10 +1,10 @@
 // client/src/pages/Home.jsx
 // -----------------------------------------------------------------------------
-// Version 5.0.0 - PRODUCTION SYNC (FULL 600+ LINE BUILD)
-// - FIXED: Removed blocking loading state that caused blank "Welcome" screen.
-// - FIXED: Added missing API base URL for production fetch calls.
-// - UPDATED: Added "Linguistic DNA" Gap Analysis section to LoggedInHomepage.
-// - PRESERVED: 100% of original marketing, FAQ, and business logic.
+// Version 7.0.0 - DUAL-CORE DASHBOARD (FULL 1200+ LINE MERGE)
+// - ADDED: Triple-Badge DNA Dashboard (Written, Speaking, Integrated).
+// - ADDED: Priority Gap Preview (Next Milestone) for immediate learning.
+// - PRESERVED: 100% of original marketing, FAQ, business logic, and theme system.
+// - MANDATORY: NO TRUNCATION. This is the complete file.
 // -----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useState } from "react";
@@ -304,13 +304,12 @@ function FaqDrawer({ open, onClose, theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// ASSESSMENT PROMO COMPONENT (UPDATED REDIRECT LOGIC)
+// ASSESSMENT PROMO COMPONENT
 // -----------------------------------------------------------------------------
 function AssessmentPromo({ theme }) {
   const isDark = theme === "dark";
   const { isAuthed } = useAuth();
 
-  // If already logged in, go to test. If not, go to Join Lernitt (Signup) with a redirect path back to the test.
   const destination = isAuthed ? "/placement-test" : "/signup?mode=signup&next=/placement-test";
 
   return (
@@ -338,7 +337,7 @@ function AssessmentPromo({ theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// MAIN HOME — ALWAYS SHOW MARKETING HOMEPAGE NOW
+// MAIN HOME
 // -----------------------------------------------------------------------------
 export default function Home() {
   const [theme, setTheme] = useState("light");
@@ -373,7 +372,7 @@ export default function Home() {
 }
 
 // -----------------------------------------------------------------------------
-// MARKETING HOMEPAGE (UPDATED: TEXT MOVED LOWER)
+// MARKETING HOMEPAGE
 // -----------------------------------------------------------------------------
 function MarketingHomepage({ theme }) {
   const baseBg =
@@ -385,15 +384,12 @@ function MarketingHomepage({ theme }) {
       style={theme === "dark" ? undefined : { backgroundColor: "#E9F1F7" }}
     >
       <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-4 pb-20">
-        {/* HERO SECTION WITH IMAGE BACKGROUND */}
         <section 
           className="relative overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center min-h-[500px] flex flex-col"
           style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
         >
-          {/* Subtle dark overlay for readability */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
           
-          {/* justify-end pushes text to bottom; pt-32 ensures space from top */}
           <div className="relative flex flex-1 flex-col items-center justify-end gap-8 px-6 pt-32 pb-12 text-center text-white sm:items-center sm:text-left">
             <div className="max-w-xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
@@ -430,10 +426,8 @@ function MarketingHomepage({ theme }) {
           </div>
         </section>
 
-        {/* ASSESSMENT BANNER */}
         <AssessmentPromo theme={theme} />
 
-        {/* PRICING TEASER */}
         <section className="rounded-2xl bg-gradient-to-r from-sky-500/10 via-teal-500/10 to-sky-500/10 border border-sky-500/20 px-6 py-8 md:px-10 md:py-10 flex flex-col md:flex-row items-start md:items-center gap-6">
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-wide text-sky-500 font-semibold">
@@ -468,7 +462,6 @@ function MarketingHomepage({ theme }) {
         </div>
       </section>
 
-      {/* WHY LERNITT */}
       <section className="space-y-6">
         <div className="space-y-3 text-center">
           <h2 className="text-3xl font-bold">Why Lernitt?</h2>
@@ -527,7 +520,6 @@ function MarketingHomepage({ theme }) {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
       <section className="space-y-6">
         <div className="space-y-3 text-center">
           <h2 className="text-3xl font-bold">How Lernitt works</h2>
@@ -570,7 +562,6 @@ function MarketingHomepage({ theme }) {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
       <section className="space-y-6">
         <div className="space-y-3 text-center">
           <h2 className="text-3xl font-bold">What learners say</h2>
@@ -610,7 +601,6 @@ function MarketingHomepage({ theme }) {
         </div>
       </section>
 
-      {/* FOUNDER CREDIBILITY STRIP */}
       <section className="mt-10 rounded-xl border border-slate-200 bg-white/70 px-4 py-4 md:px-6 md:py-5">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
           <div className="flex-1">
@@ -642,7 +632,6 @@ function MarketingHomepage({ theme }) {
         </div>
       </section>
 
-      {/* FINAL CTA */}
       <section className="space-y-4 text-center">
         <h2 className="text-3xl font-bold">Ready to start learning?</h2>
         <p className="mx-auto max-w-md text-sm opacity-80">
@@ -674,592 +663,605 @@ function MarketingHomepage({ theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// LOGGED-IN HOMEPAGE (UPDATED: LINGUISTIC DNA SECTION ADDED)
+// LOGGED-IN HOMEPAGE (UPDATED WITH DUAL-CORE DNA DASHBOARD)
 // -----------------------------------------------------------------------------
 function LoggedInHomepage({ theme }) {
-const [q, setQ] = useState("");
-const nav = useNavigate();
-const { isAuthed, user } = useAuth(); // Ensure 'user' is extracted here
+  const [q, setQ] = useState("");
+  const nav = useNavigate();
+  const { isAuthed, user } = useAuth();
 
-const [loading, setLoading] = useState(true);
-const [err, setErr] = useState("");
-const [upcoming, setUpcoming] = useState(null);
-const [notifUnread, setNotifUnread] = useState(0);
-const [favCount, setFavCount] = useState(0);
-const [tutorPeek, setTutorPeek] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [upcoming, setUpcoming] = useState(null);
+  const [notifUnread, setNotifUnread] = useState(0);
+  const [favCount, setFavCount] = useState(0);
+  const [tutorPeek, setTutorPeek] = useState([]);
 
-const categories = ["English", "Spanish", "Maths", "Piano"];
+  const categories = ["English", "Spanish", "Maths", "Piano"];
 
-useEffect(() => {
-  try {
-    const ids = JSON.parse(localStorage.getItem("favTutors") || "[]");
-    setFavCount(Array.isArray(ids) ? ids.length : 0);
-  } catch {
-    setFavCount(0);
-  }
-}, []);
-
-useEffect(() => {
-  let alive = true;
-
-  (async () => {
-    setLoading(true);
-    setErr("");
-
+  useEffect(() => {
     try {
-      if (isAuthed) {
-        // FIXED: ADDED API BASE URL
-        const ns = await apiFetch(`${API}/api/notifications`, { auth: true });
-        if (alive) {
-          const unread = Array.isArray(ns)
-            ? ns.filter((n) => !n.read).length
-            : 0;
-          setNotifUnread(unread);
-        }
-      } else {
-        setNotifUnread(0);
-      }
+      const ids = JSON.parse(localStorage.getItem("favTutors") || "[]");
+      setFavCount(Array.isArray(ids) ? ids.length : 0);
+    } catch {
+      setFavCount(0);
+    }
+  }, []);
 
-      if (isAuthed) {
-        // FIXED: ADDED API BASE URL
-        const lessons = await apiFetch(`${API}/api/lessons/mine`, { auth: true });
-        if (alive) {
-          const rows = (Array.isArray(lessons) ? lessons : []).filter(
-            Boolean
-          );
-          rows.sort(
-            (a, b) =>
-              new Date(a.start || a.startTime || 0) -
-              new Date(b.start || b.startTime || 0)
-          );
-          setUpcoming(
-            rows.find(
-              (l) => new Date(l.start || l.startTime || 0) > new Date()
-            ) || null
-          );
-        }
-      } else {
-        setUpcoming(null);
-      }
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setLoading(true);
+      setErr("");
 
       try {
-        // FIXED: ADDED API BASE URL
-        const res = await apiFetch(`${API}/api/tutors?page=1&limit=6`);
-        const list = Array.isArray(res)
-          ? res
-          : res?.data && Array.isArray(res.data)
-          ? res.data
-          : [];
-        if (alive) setTutorPeek(list.slice(0, 6));
-      } catch {
-        if (alive) setTutorPeek([]);
+        if (isAuthed) {
+          const ns = await apiFetch(`${API}/api/notifications`, { auth: true });
+          if (alive) {
+            const unread = Array.isArray(ns)
+              ? ns.filter((n) => !n.read).length
+              : 0;
+            setNotifUnread(unread);
+          }
+        } else {
+          setNotifUnread(0);
+        }
+
+        if (isAuthed) {
+          const lessons = await apiFetch(`${API}/api/lessons/mine`, { auth: true });
+          if (alive) {
+            const rows = (Array.isArray(lessons) ? lessons : []).filter(
+              Boolean
+            );
+            rows.sort(
+              (a, b) =>
+                new Date(a.start || a.startTime || 0) -
+                new Date(b.start || b.startTime || 0)
+            );
+            setUpcoming(
+              rows.find(
+                (l) => new Date(l.start || l.startTime || 0) > new Date()
+              ) || null
+            );
+          }
+        } else {
+          setUpcoming(null);
+        }
+
+        try {
+          const res = await apiFetch(`${API}/api/tutors?page=1&limit=6`);
+          const list = Array.isArray(res)
+            ? res
+            : res?.data && Array.isArray(res.data)
+            ? res.data
+            : [];
+          if (alive) setTutorPeek(list.slice(0, 6));
+        } catch {
+          if (alive) setTutorPeek([]);
+        }
+      } catch (e) {
+        if (alive) setErr(e?.message || "Failed to load home data.");
+      } finally {
+        if (alive) setLoading(false);
       }
-    } catch (e) {
-      if (alive) setErr(e?.message || "Failed to load home data.");
-    } finally {
-      if (alive) setLoading(false);
-    }
-  })();
+    })();
 
-  return () => {
-    alive = false;
-  };
-}, [isAuthed]);
+    return () => {
+      alive = false;
+    };
+  }, [isAuthed]);
 
-const nextLesson = useMemo(() => {
-  if (!upcoming) return null;
+  const nextLesson = useMemo(() => {
+    if (!upcoming) return null;
 
-  const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
-  const start = startISO ? new Date(startISO) : null;
+    const startISO = upcoming.start || upcoming.startTime || upcoming.begin;
+    const start = startISO ? new Date(startISO) : null;
 
-  return {
-    id: upcoming._id || upcoming.id,
-    tutorName: upcoming.tutorName || upcoming.tutor?.name || "Tutor",
-    tutorId: String(
-      upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
-    ),
-    when: start
-      ? start.toLocaleString([], {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })
-      : "—",
-    duration:
-      Number(
-        upcoming.duration ||
-          (upcoming.endTime
-            ? (new Date(upcoming.endTime) - new Date(startISO)) / 60000
-            : 0)
-      ) || 0,
-    isTrial: !!upcoming.isTrial,
-    price:
-      typeof upcoming.price === "number"
-        ? upcoming.price
-        : Number(upcoming.price) || 0,
-  };
-}, [upcoming]);
+    return {
+      id: upcoming._id || upcoming.id,
+      tutorName: upcoming.tutorName || upcoming.tutor?.name || "Tutor",
+      tutorId: String(
+        upcoming.tutorId || upcoming.tutor?._id || upcoming.tutor || ""
+      ),
+      when: start
+        ? start.toLocaleString([], {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        : "—",
+      duration:
+        Number(
+          upcoming.duration ||
+            (upcoming.endTime
+              ? (new Date(upcoming.endTime) - new Date(startISO)) / 60000
+              : 0)
+        ) || 0,
+      isTrial: !!upcoming.isTrial,
+      price:
+        typeof upcoming.price === "number"
+          ? upcoming.price
+          : Number(upcoming.price) || 0,
+    };
+  }, [upcoming]);
 
-const baseBg =
-  theme === "dark"
-    ? "bg-slate-950 text-slate-50"
-    : "bg-white text-slate-900";
-const cardBg =
-  theme === "dark"
-    ? "bg-slate-900 border-slate-700"
-    : "bg-white border-gray-200";
-const subtleBg =
-  theme === "dark"
-    ? "from-slate-900 to-slate-800 border-slate-700"
-    : "from-white to-blue-50 border-gray-200";
-const avatarBg =
-  theme === "dark"
-    ? "bg-gradient-to-br from-indigo-500 to-sky-500"
-    : "bg-gradient-to-br from-indigo-100 to-sky-200";
+  const baseBg =
+    theme === "dark"
+      ? "bg-slate-950 text-slate-50"
+      : "bg-white text-slate-900";
+  const cardBg =
+    theme === "dark"
+      ? "bg-slate-900 border-slate-700"
+      : "bg-white border-gray-200";
+  const subtleBg =
+    theme === "dark"
+      ? "from-slate-900 to-slate-800 border-slate-700"
+      : "from-white to-blue-50 border-gray-200";
+  const avatarBg =
+    theme === "dark"
+      ? "bg-gradient-to-br from-indigo-500 to-sky-500"
+      : "bg-gradient-to-br from-indigo-100 to-sky-200";
 
-// FIXED: REMOVED BLOCKING LOADING IF-STATEMENT TO PREVENT BLANK SCREEN
-// DATA SECTIONS WILL NOW SHOW LOADING STATES INTERNALLY.
+  // 🧬 LINGUISTIC DNA DATA EXTRACTION
+  const hasDna = user?.proficiencyLevel && user?.proficiencyLevel !== "none";
+  const weaknesses = user?.grammarWeaknesses || [];
+  const scores = user?.placementTest?.scores || {};
 
-// DNA Logic: check if student has a CEFR level
-const hasDna = user?.proficiencyLevel && user?.proficiencyLevel !== "none";
-const weaknesses = user?.grammarWeaknesses || [];
+  return (
+    <div className={`${baseBg} min-h-screen`}>
+      <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
+        
+        {/* 🧬 NEW: DUAL-CORE LINGUISTIC DNA DASHBOARD */}
+        <section className="animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className={`rounded-[32px] border ${theme === 'dark' ? 'bg-indigo-950/20 border-indigo-900' : 'bg-white border-slate-100'} p-8 shadow-xl shadow-indigo-500/5`}>
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="space-y-2 flex-1">
+                   <div className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+                      Lernitt Academic Instance
+                   </div>
+                   <h2 className="text-3xl font-black tracking-tight">Your Linguistic DNA</h2>
+                   
+                   {!hasDna ? (
+                      <p className="text-slate-500 max-w-md">
+                         Your global CEFR profile is currently locked. Complete the dual-core diagnostic to map your grammar and speaking gaps.
+                      </p>
+                   ) : (
+                      <div className="space-y-6">
+                         {/* 3-BADGE DASHBOARD */}
+                         <div className="flex flex-wrap gap-4 items-end mt-4">
+                            <div className="space-y-1">
+                               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Structural</div>
+                               <div className={`text-2xl font-black px-4 py-2 rounded-2xl border ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'} text-slate-600`}>
+                                  {scores.written || user.proficiencyLevel}
+                               </div>
+                            </div>
+                            
+                            <div className="space-y-1 scale-110 origin-bottom">
+                               <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Integrated Tier</div>
+                               <div className="text-4xl font-black px-6 py-3 rounded-[24px] bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+                                  {user.proficiencyLevel}
+                               </div>
+                            </div>
 
-return (
-  <div className={`${baseBg} min-h-screen`}>
-    <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
-      
-      {/* 🧬 NEW: LINGUISTIC DNA SECTION */}
-      <section className="animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className={`rounded-3xl border ${theme === 'dark' ? 'bg-indigo-950/20 border-indigo-900' : 'bg-white border-slate-100'} p-8 shadow-xl shadow-indigo-500/5`}>
-           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="space-y-2 flex-1">
-                 <div className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
-                    Lernitt Academic Instance
-                 </div>
-                 <h2 className="text-3xl font-black tracking-tight">Your Linguistic DNA</h2>
-                 
-                 {!hasDna ? (
-                    <p className="text-slate-500 max-w-md">
-                       Your global CEFR profile is currently locked. Complete the 25-question diagnostic to map your grammar gaps.
-                    </p>
-                 ) : (
-                    <div className="space-y-4">
-                       <div className="flex items-baseline gap-2">
-                          <span className="text-6xl font-black text-indigo-600">{user.proficiencyLevel}</span>
-                          <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">Validated Tier</span>
-                       </div>
-                       
-                       {weaknesses.length > 0 && (
-                          <div className="space-y-3">
-                             <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Priority Gap Analysis (To reach next tier):</div>
-                             <div className="flex flex-wrap gap-2">
-                                {weaknesses.slice(0, 4).map((w, i) => (
-                                   <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50/50 text-[11px] font-bold text-indigo-700">
-                                      <span className="opacity-40">!</span> {w.component}
-                                   </div>
-                                ))}
-                                {weaknesses.length > 4 && <span className="text-[11px] text-slate-400 font-bold self-center">+{weaknesses.length - 4} more</span>}
-                             </div>
-                          </div>
-                       )}
-                    </div>
-                 )}
-              </div>
+                            <div className="space-y-1">
+                               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Oral Fluency</div>
+                               <div className={`text-2xl font-black px-4 py-2 rounded-2xl border ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-100 bg-slate-50'} text-slate-600`}>
+                                  {scores.speaking || "—"}
+                               </div>
+                            </div>
+                         </div>
+                         
+                         {/* PRIORITY GAP ANALYSIS (NEXT MILESTONE) */}
+                         {weaknesses.length > 0 && (
+                            <div className="space-y-3 pt-2">
+                               <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Next Milestone: Priority Gap Analysis</div>
+                               <div className="flex flex-wrap gap-2">
+                                  {weaknesses.slice(0, 3).map((w, i) => (
+                                     <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50/50 text-[11px] font-bold text-indigo-700">
+                                        <span className="opacity-40">!</span> {w.component}
+                                     </div>
+                                  ))}
+                                  {weaknesses.length > 3 && <span className="text-[11px] text-slate-400 font-bold self-center">+{weaknesses.length - 3} more checklist items</span>}
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                   )}
+                </div>
 
-              <div className="w-full md:w-auto">
-                 <Link 
-                    to="/placement-test" 
-                    className={`inline-flex w-full md:w-auto items-center justify-center rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest transition-all ${
-                       hasDna 
-                       ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
-                       : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:-translate-y-0.5 hover:bg-indigo-700'
-                    }`}
-                 >
-                    {hasDna ? "Refresh Assessment" : "Unlock DNA Profile"}
-                 </Link>
-              </div>
-           </div>
-        </div>
-      </section>
-
-      {/* SEARCH + CATEGORIES */}
-      <section>
-        <div
-          className={`sticky top-2 z-10 space-y-3 rounded-2xl border p-3 shadow-sm backdrop-blur ${
-            theme === "dark"
-              ? "bg-slate-900/95 border-slate-700"
-              : "bg-white/95 border-gray-200"
-          }`}
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              nav(`/tutors?q=${encodeURIComponent(q)}`);
-            }}
-            className="flex flex-col items-center gap-2 sm:flex-row"
-          >
-            <input
-              placeholder="Search tutors (e.g., English)"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
-            />
-            <button
-              type="submit"
-              className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
-            >
-              Search
-            </button>
-          </form>
-
-          <div className="flex flex-wrap gap-2">
-            {categories.map((label) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() =>
-                  nav(`/tutors?q=${encodeURIComponent(label)}`)
-                }
-                className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
-              >
-                {label}
-              </button>
-            ))}
+                <div className="w-full md:w-auto">
+                   <Link 
+                      to="/placement-test" 
+                      className={`inline-flex w-full md:w-auto items-center justify-center rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest transition-all ${
+                         hasDna 
+                         ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
+                         : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:-translate-y-0.5 hover:bg-indigo-700'
+                      }`}
+                   >
+                      {hasDna ? "Refresh Diagnostic" : "Unlock DNA Profile"}
+                   </Link>
+                </div>
+             </div>
           </div>
+        </section>
 
-          {err && <div className="text-xs text-red-500">{err}</div>}
-        </div>
-      </section>
-
-      {/* TOP CARDS */}
-      <section>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+        {/* SEARCH + CATEGORIES */}
+        <section>
           <div
-            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-              cardBg
+            className={`sticky top-2 z-10 space-y-3 rounded-2xl border p-3 shadow-sm backdrop-blur ${
+              theme === "dark"
+                ? "bg-slate-900/95 border-slate-700"
+                : "bg-white/95 border-gray-200"
             }`}
           >
-            <div className="mb-1 font-semibold">Get started</div>
-            <p className="text-sm opacity-80">
-              Browse tutors, book lessons, manage availability.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/tutors"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                nav(`/tutors?q=${encodeURIComponent(q)}`);
+              }}
+              className="flex flex-col items-center gap-2 sm:flex-row"
+            >
+              <input
+                placeholder="Search tutors (e.g., English)"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-72"
+              />
+              <button
+                type="submit"
+                className="w-full rounded-xl border px-3 py-2 text-sm sm:w-auto"
               >
-                Find tutors
-              </Link>
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/favourites"
-              >
-                Favourites {favCount ? `(${favCount})` : ""}
-              </Link>
-              {isAuthed ? (
+                Search
+              </button>
+            </form>
+
+            <div className="flex flex-wrap gap-2">
+              {categories.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() =>
+                    nav(`/tutors?q=${encodeURIComponent(label)}`)
+                  }
+                  className="rounded-xl border border-gray-200 bg-gradient-to-br from-white to-blue-50 px-3 py-1 text-xs shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:text-sm"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {err && <div className="text-xs text-red-500">{err}</div>}
+          </div>
+        </section>
+
+        {/* TOP CARDS */}
+        <section>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                cardBg
+              }`}
+            >
+              <div className="mb-1 font-semibold">Get started</div>
+              <p className="text-sm opacity-80">
+                Browse tutors, book lessons, manage availability.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
-                  to="/my-lessons"
+                  to="/tutors"
                 >
-                  My Lessons
+                  Find tutors
                 </Link>
-              ) : (
                 <Link
                   className="rounded-xl border px-3 py-1 text-sm"
-                  to="/login"
+                  to="/favourites"
                 >
-                  Log in
+                  Favourites {favCount ? `(${favCount})` : ""}
                 </Link>
+                {isAuthed ? (
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to="/my-lessons"
+                  >
+                    My Lessons
+                  </Link>
+                ) : (
+                  <Link
+                    className="rounded-xl border px-3 py-1 text-sm"
+                    to="/login"
+                  >
+                    Log in
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                cardBg
+              }`}
+            >
+              <div className="mb-1 font-semibold">Notifications</div>
+              <p className="text-sm opacity-80">Your inbox.</p>
+              <div className="mt-3 flex items-center gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/notifications"
+                >
+                  Open inbox
+                </Link>
+                <span className="text-xs opacity-70">
+                  {loading ? "Syncing..." : isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                cardBg
+              }`}
+            >
+              <div className="mb-1 font-semibold">Upcoming lesson</div>
+
+              {!isAuthed && (
+                <p className="text-sm opacity-80">
+                  Log in to see your schedule.
+                </p>
+              )}
+
+              {isAuthed && loading && !nextLesson && (
+                <p className="text-sm opacity-60 italic">Refreshing schedule...</p>
+              )}
+
+              {isAuthed && !loading && !nextLesson && (
+                <p className="text-sm opacity-80">No upcoming lessons.</p>
+              )}
+
+              {isAuthed && nextLesson && (
+                <>
+                  <div className="text-sm">
+                    <b>{nextLesson.tutorName}</b>{" "}
+                    <span className="opacity-70">({nextLesson.when})</span>
+                    <div className="opacity-80">
+                      {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
+                      {nextLesson.duration} min
+                      {!nextLesson.isTrial && nextLesson.price ? (
+                        <> · € {euros(nextLesson.price)}</>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      className="rounded-xl border px-3 py-1 text-sm"
+                      to={`/student-lesson/${nextLesson.id}`}
+                    >
+                      View details
+                    </Link>
+                    <Link
+                      className="rounded-xl border px-3 py-1 text-sm"
+                      to={`/tutors/${nextLesson.tutorId}`}
+                    >
+                      Tutor
+                    </Link>
+                  </div>
+                </>
               )}
             </div>
           </div>
+        </section>
 
-          {/* Notifications */}
-          <div
-            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-              cardBg
-            }`}
-          >
-            <div className="mb-1 font-semibold">Notifications</div>
-            <p className="text-sm opacity-80">Your inbox.</p>
-            <div className="mt-3 flex items-center gap-2">
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/notifications"
-              >
-                Open inbox
-              </Link>
-              <span className="text-xs opacity-70">
-                {loading ? "Syncing..." : isAuthed ? `Unread: ${notifUnread}` : "Login to see inbox"}
-              </span>
-            </div>
-          </div>
-
-          {/* Upcoming lesson */}
-          <div
-            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-              cardBg
-            }`}
-          >
-            <div className="mb-1 font-semibold">Upcoming lesson</div>
-
-            {!isAuthed && (
-              <p className="text-sm opacity-80">
-                Log in to see your schedule.
-              </p>
-            )}
-
-            {isAuthed && loading && !nextLesson && (
-              <p className="text-sm opacity-60 italic">Refreshing schedule...</p>
-            )}
-
-            {isAuthed && !loading && !nextLesson && (
-              <p className="text-sm opacity-80">No upcoming lessons.</p>
-            )}
-
-            {isAuthed && nextLesson && (
-              <>
-                <div className="text-sm">
-                  <b>{nextLesson.tutorName}</b>{" "}
-                  <span className="opacity-70">({nextLesson.when})</span>
-                  <div className="opacity-80">
-                    {nextLesson.isTrial ? "Trial" : "Paid"} ·{" "}
-                    {nextLesson.duration} min
-                    {!nextLesson.isTrial && nextLesson.price ? (
-                      <> · € {euros(nextLesson.price)}</>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    className="rounded-xl border px-3 py-1 text-sm"
-                    to={`/student-lesson/${nextLesson.id}`}
-                  >
-                    View details
-                  </Link>
-                  <Link
-                    className="rounded-xl border px-3 py-1 text-sm"
-                    to={`/tutors/${nextLesson.tutorId}`}
-                  >
-                    Tutor
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* POPULAR TUTORS */}
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <div className="text-lg font-semibold">Popular tutors</div>
-          <Link to="/tutors" className="text-sm underline">
-            See all
-          </Link>
-        </div>
-
-        {loading && tutorPeek.length === 0 ? (
-          <div className="text-sm opacity-60">Refreshing featured tutors...</div>
-        ) : tutorPeek.length === 0 ? (
-          <div className="text-sm opacity-70">No tutors yet.</div>
-        ) : (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {tutorPeek.map((t) => {
-              const id = t._id || t.id;
-              const subjects = Array.isArray(t.subjects) ? t.subjects : [];
-
-              return (
-                <li
-                  key={id}
-                  className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-                >
-                  <Link
-                    to={`/tutors/${encodeURIComponent(id)}`}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
-                      >
-                        {t.name?.[0] || "?"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold">
-                          {t.name || "Tutor"}
-                        </div>
-                        <div className="truncate text-xs opacity-80">
-                          {subjects.slice(0, 2).join(" · ") || "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {subjects.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {subjects.slice(0, 3).map((s) => (
-                          <span
-                            key={s}
-                            className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="text-xs text-gray-600">
-                      View profile →
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      {/* POPULAR SUBJECTS */}
-      <section className="space-y-4">
-        <div className="text-lg font-semibold">Popular subjects</div>
-
-        <div className="flex flex-wrap gap-3">
-          {[
-            { name: "English", icon: "🇬🇧" },
-            { name: "Spanish", icon: "🇪🇸" },
-            { name: "Maths", icon: "🧮" },
-            { name: "Piano", icon: "🎹" },
-            { name: "French", icon: "🇫🇷" },
-            { name: "German", icon: "🇩🇪" },
-            { name: "Japanese", icon: "🇯🇵" },
-            { name: "Business English", icon: "💼" },
-          ].map(({ name, icon }) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() =>
-                nav(`/tutors?q=${encodeURIComponent(name)}`)
-              }
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
-            >
-              <span className="text-lg">{icon}</span>
-              {name}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW LERNITT WORKS — AGAIN */}
-      <section className="space-y-4">
-        <div className="text-lg font-semibold">How Lernitt works</div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div
-            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-          >
-            <div className="text-3xl">🔎</div>
-            <div className="font-semibold">1. Find your tutor</div>
-            <p className="text-sm opacity-80">
-              Search friendly tutors for languages, skills and more.
-            </p>
-          </div>
-
-          <div
-            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-          >
-            <div className="text-3xl">📅</div>
-            <div className="font-semibold">2. Book your lesson</div>
-            <p className="text-sm opacity-80">
-              Choose a time that suits you.
-            </p>
-          </div>
-
-          <div
-            className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
-          >
-            <div className="text-3xl">🎥</div>
-            <div className="font-semibold">3. Learn live</div>
-            <p className="text-sm opacity-80">
-              Meet your tutor online in a fun, interactive lesson.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* BOTTOM CARDS */}
-      <section>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-          <div
-            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-          >
-            <div className="mb-1 font-semibold">Tutor tools</div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/availability"
-              >
-                Availability
-              </Link>
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/tutor-lessons"
-              >
-                Tutor lessons
-              </Link>
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/payouts"
-              >
-                Payouts
-              </Link>
-            </div>
-            {MOCK && (
-              <div className="mt-2 text-xs opacity-60">
-                Mock mode: simulated data.
-              </div>
-            )}
-          </div>
-
-          <div
-            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-          >
-            <div className="mb-1 font-semibold">Students</div>
-            <p className="text-sm opacity-80">Student list & bookings.</p>
-            <Link
-              className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
-              to="/students"
-            >
-              Open Students
+        {/* POPULAR TUTORS */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <div className="text-lg font-semibold">Popular tutors</div>
+            <Link to="/tutors" className="text-sm underline">
+              See all
             </Link>
           </div>
 
-          <div
-            className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
-          >
-            <div className="mb-1 font-semibold">Account Area</div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/profile"
+          {loading && tutorPeek.length === 0 ? (
+            <div className="text-sm opacity-60">Refreshing featured tutors...</div>
+          ) : tutorPeek.length === 0 ? (
+            <div className="text-sm opacity-70">No tutors yet.</div>
+          ) : (
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {tutorPeek.map((t) => {
+                const id = t._id || t.id;
+                const subjects = Array.isArray(t.subjects) ? t.subjects : [];
+
+                return (
+                  <li
+                    key={id}
+                    className={`flex flex-col gap-3 rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+                  >
+                    <Link
+                      to={`/tutors/${encodeURIComponent(id)}`}
+                      className="flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold shadow-inner ${avatarBg}`}
+                        >
+                          {t.name?.[0] || "?"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">
+                            {t.name || "Tutor"}
+                          </div>
+                          <div className="truncate text-xs opacity-80">
+                            {subjects.slice(0, 2).join(" · ") || "—"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {subjects.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {subjects.slice(0, 3).map((s) => (
+                            <span
+                              key={s}
+                              className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-[11px]"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="text-xs text-gray-600">
+                        View profile →
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* POPULAR SUBJECTS */}
+        <section className="space-y-4">
+          <div className="text-lg font-semibold">Popular subjects</div>
+
+          <div className="flex flex-wrap gap-3">
+            {[
+              { name: "English", icon: "🇬🇧" },
+              { name: "Spanish", icon: "🇪🇸" },
+              { name: "Maths", icon: "🧮" },
+              { name: "Piano", icon: "🎹" },
+              { name: "French", icon: "🇫🇷" },
+              { name: "German", icon: "🇩🇪" },
+              { name: "Japanese", icon: "🇯🇵" },
+              { name: "Business English", icon: "💼" },
+            ].map(({ name, icon }) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() =>
+                  nav(`/tutors?q=${encodeURIComponent(name)}`)
+                }
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md bg-gradient-to-br ${subtleBg}`}
               >
-                Profile
-              </Link>
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/notifications"
-              >
-                Notifications {notifUnread ? `(${notifUnread})` : ""}
-              </Link>
-              <Link
-                className="rounded-xl border px-3 py-1 text-sm"
-                to="/settings"
-              >
-                Settings
-              </Link>
+                <span className="text-lg">{icon}</span>
+                {name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* HOW LERNITT WORKS */}
+        <section className="space-y-4">
+          <div className="text-lg font-semibold">How Lernitt works</div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+            >
+              <div className="text-3xl">🔎</div>
+              <div className="font-semibold">1. Find your tutor</div>
+              <p className="text-sm opacity-80">
+                Search friendly tutors for languages, skills and more.
+              </p>
+            </div>
+
+            <div
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+            >
+              <div className="text-3xl">📅</div>
+              <div className="font-semibold">2. Book your lesson</div>
+              <p className="text-sm opacity-80">
+                Choose a time that suits you.
+              </p>
+            </div>
+
+            <div
+              className={`flex flex-col gap-3 rounded-xl border p-5 bg-gradient-to-br ${subtleBg}`}
+            >
+              <div className="text-3xl">🎥</div>
+              <div className="font-semibold">3. Learn live</div>
+              <p className="text-sm opacity-80">
+                Meet your tutor online in a fun, interactive lesson.
+              </p>
             </div>
           </div>
-        </div>
-      </section>
-    </main>
-  </div>
-);
+        </section>
+
+        {/* BOTTOM CARDS */}
+        <section>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Tutor tools</div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/availability"
+                >
+                  Availability
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/tutor-lessons"
+                >
+                  Tutor lessons
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/payouts"
+                >
+                  Payouts
+                </Link>
+              </div>
+              {MOCK && (
+                <div className="mt-2 text-xs opacity-60">
+                  Mock mode: simulated data.
+                </div>
+              )}
+            </div>
+
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Students</div>
+              <p className="text-sm opacity-80">Student list & bookings.</p>
+              <Link
+                className="mt-2 inline-block rounded-xl border px-3 py-1 text-sm"
+                to="/students"
+              >
+                Open Students
+              </Link>
+            </div>
+
+            <div
+              className={`rounded-xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardBg}`}
+            >
+              <div className="mb-1 font-semibold">Account Area</div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/profile"
+                >
+                  Profile
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/notifications"
+                >
+                  Notifications {notifUnread ? `(${notifUnread})` : ""}
+                </Link>
+                <Link
+                  className="rounded-xl border px-3 py-1 text-sm"
+                  to="/settings"
+                >
+                  Settings
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 }
