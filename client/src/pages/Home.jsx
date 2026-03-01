@@ -1,8 +1,8 @@
 // client/src/pages/Home.jsx
 // -----------------------------------------------------------------------------
-// Version 4.3.0 - PRODUCTION SYNC (FULL 600+ LINE BUILD)
-// - FIXED: Removed blocking loading state that caused blank "Welcome" screen.
-// - FIXED: Added missing API base URL for production fetch calls.
+// Version 4.3.1 - PRODUCTION SYNC (FULL 600+ LINE BUILD)
+// - FIXED: "Start Assessment" now redirects to Signup instead of Login.
+// - UPDATED: Added destination context to the Assessment button.
 // - PRESERVED: 100% of original marketing, FAQ, and business logic.
 // -----------------------------------------------------------------------------
 
@@ -303,10 +303,15 @@ function FaqDrawer({ open, onClose, theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// ASSESSMENT PROMO COMPONENT (ADDED FOR PLACEMENT TEST)
+// ASSESSMENT PROMO COMPONENT (UPDATED REDIRECT LOGIC)
 // -----------------------------------------------------------------------------
 function AssessmentPromo({ theme }) {
   const isDark = theme === "dark";
+  const { isAuthed } = useAuth();
+
+  // If already logged in, go to test. If not, go to Join Lernitt (Signup) with a redirect path back to the test.
+  const destination = isAuthed ? "/placement-test" : "/signup?mode=signup&next=/placement-test";
+
   return (
     <section className={`rounded-2xl border ${isDark ? "bg-indigo-900/20 border-indigo-700" : "bg-indigo-50 border-indigo-100"} p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 shadow-sm`}>
       <div className="flex-1 space-y-3">
@@ -321,7 +326,7 @@ function AssessmentPromo({ theme }) {
       </div>
       <div className="w-full md:w-auto">
         <Link 
-          to="/placement-test"
+          to={destination}
           className="inline-flex w-full md:w-auto items-center justify-center rounded-xl bg-indigo-600 px-8 py-4 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-700 active:scale-95"
         >
           Start Assessment
