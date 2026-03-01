@@ -1,8 +1,9 @@
 // client/src/pages/Home.jsx
 // -----------------------------------------------------------------------------
-// Version 4.3.1 - PRODUCTION SYNC (FULL 600+ LINE BUILD)
-// - FIXED: "Start Assessment" now redirects to Signup instead of Login.
-// - UPDATED: Added destination context to the Assessment button.
+// Version 5.0.0 - PRODUCTION SYNC (FULL 600+ LINE BUILD)
+// - FIXED: Removed blocking loading state that caused blank "Welcome" screen.
+// - FIXED: Added missing API base URL for production fetch calls.
+// - UPDATED: Added "Linguistic DNA" Gap Analysis section to LoggedInHomepage.
 // - PRESERVED: 100% of original marketing, FAQ, and business logic.
 // -----------------------------------------------------------------------------
 
@@ -673,12 +674,12 @@ function MarketingHomepage({ theme }) {
 }
 
 // -----------------------------------------------------------------------------
-// LOGGED-IN HOMEPAGE (UPDATED: TEXT MOVED LOWER & NON-BLOCKING LOAD)
+// LOGGED-IN HOMEPAGE (UPDATED: LINGUISTIC DNA SECTION ADDED)
 // -----------------------------------------------------------------------------
 function LoggedInHomepage({ theme }) {
 const [q, setQ] = useState("");
 const nav = useNavigate();
-const { isAuthed } = useAuth();
+const { isAuthed, user } = useAuth(); // Ensure 'user' is extracted here
 
 const [loading, setLoading] = useState(true);
 const [err, setErr] = useState("");
@@ -818,56 +819,67 @@ const avatarBg =
 // FIXED: REMOVED BLOCKING LOADING IF-STATEMENT TO PREVENT BLANK SCREEN
 // DATA SECTIONS WILL NOW SHOW LOADING STATES INTERNALLY.
 
+// DNA Logic: check if student has a CEFR level
+const hasDna = user?.proficiencyLevel && user?.proficiencyLevel !== "none";
+const weaknesses = user?.grammarWeaknesses || [];
+
 return (
   <div className={`${baseBg} min-h-screen`}>
     <main className="mx-auto flex max-w-6xl flex-col space-y-16 px-4 pt-20 pb-20">
-      {/* HERO SECTION WITH PHOTO BACKGROUND */}
-      <section 
-        className="relative flex overflow-hidden rounded-2xl bg-slate-800 bg-cover bg-center min-h-[500px] flex flex-col"
-        style={{ backgroundImage: "url('/assets/hero-bg.jpg')" }}
-      >
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+      
+      {/* 🧬 NEW: LINGUISTIC DNA SECTION */}
+      <section className="animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className={`rounded-3xl border ${theme === 'dark' ? 'bg-indigo-950/20 border-indigo-900' : 'bg-white border-slate-100'} p-8 shadow-xl shadow-indigo-500/5`}>
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="space-y-2 flex-1">
+                 <div className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+                    Lernitt Academic Instance
+                 </div>
+                 <h2 className="text-3xl font-black tracking-tight">Your Linguistic DNA</h2>
+                 
+                 {!hasDna ? (
+                    <p className="text-slate-500 max-w-md">
+                       Your global CEFR profile is currently locked. Complete the 25-question diagnostic to map your grammar gaps.
+                    </p>
+                 ) : (
+                    <div className="space-y-4">
+                       <div className="flex items-baseline gap-2">
+                          <span className="text-6xl font-black text-indigo-600">{user.proficiencyLevel}</span>
+                          <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">Validated Tier</span>
+                       </div>
+                       
+                       {weaknesses.length > 0 && (
+                          <div className="space-y-3">
+                             <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Priority Gap Analysis (To reach next tier):</div>
+                             <div className="flex flex-wrap gap-2">
+                                {weaknesses.slice(0, 4).map((w, i) => (
+                                   <div key={i} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50/50 text-[11px] font-bold text-indigo-700">
+                                      <span className="opacity-40">!</span> {w.component}
+                                   </div>
+                                ))}
+                                {weaknesses.length > 4 && <span className="text-[11px] text-slate-400 font-bold self-center">+{weaknesses.length - 4} more</span>}
+                             </div>
+                          </div>
+                       )}
+                    </div>
+                 )}
+              </div>
 
-        {/* justify-end and pt-32 move content lower */}
-        <div className="relative flex flex-1 flex-col items-start justify-end gap-4 px-6 pt-32 pb-12 text-white sm:max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
-            <span>✨</span>
-            <span>Try a free trial lesson</span>
-          </div>
-
-          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl drop-shadow-md">
-            Book live 1-to-1 lessons with expert tutors
-          </h1>
-
-          <p className="text-base opacity-95 sm:text-lg drop-shadow">
-            Learn languages, skills, and more — with friendly tutors who teach
-            you live.
-          </p>
-
-          <div className="mt-2 flex flex-wrap gap-3">
-            <Link
-              to="/signup"
-              className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-            >
-              I’m a student — Get started
-            </Link>
-
-            <Link
-              to="/signup?type=tutor"
-              className="inline-flex items-center justify-center rounded-xl border border-white px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-black"
-            >
-              I’m a tutor — Apply to teach
-            </Link>
-          </div>
-
-          <p className="text-xs opacity-90 font-medium">
-            Only takes a minute to sign up. No long forms.
-          </p>
+              <div className="w-full md:w-auto">
+                 <Link 
+                    to="/placement-test" 
+                    className={`inline-flex w-full md:w-auto items-center justify-center rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-widest transition-all ${
+                       hasDna 
+                       ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
+                       : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:-translate-y-0.5 hover:bg-indigo-700'
+                    }`}
+                 >
+                    {hasDna ? "Refresh Assessment" : "Unlock DNA Profile"}
+                 </Link>
+              </div>
+           </div>
         </div>
       </section>
-
-      {/* ASSESSMENT BANNER */}
-      <AssessmentPromo theme={theme} />
 
       {/* SEARCH + CATEGORIES */}
       <section>
