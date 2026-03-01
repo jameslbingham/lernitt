@@ -1,8 +1,15 @@
 // client/src/pages/StudentLessonDetail.jsx
+// -----------------------------------------------------------------------------
+// Version 5.2.0 - INTEGRATED LINGUISTIC DNA
+// - UPDATED: Added useAuth to access student proficiency data.
+// - ADDED: Subject-aware "Linguistic DNA" badge for English lessons.
+// - PRESERVED: 100% of original status derivations, countdowns, and AI components.
+// -----------------------------------------------------------------------------
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
-// ✅ A. Import the component at the top
+import { useAuth } from "../hooks/useAuth.jsx"; // ✅ Added for DNA context
 import LessonSummary from '../components/lessons/LessonSummary';
 
 const MOCK = import.meta.env.VITE_MOCK === "1";
@@ -95,7 +102,6 @@ function normalize(raw) {
     subject: raw.subject || "",
     notes: raw.notes || "",
     createdAt: raw.createdAt,
-    // ✅ Ensure AI fields are normalized
     aiSummary: raw.aiSummary || null,
     recordingUrl: raw.recordingUrl || null,
   };
@@ -166,6 +172,7 @@ export default function StudentLessonDetail() {
   const { lessonId } = useParams();
   const nav = useNavigate();
   const loc = useLocation();
+  const { user: studentUser } = useAuth(); // ✅ Access logged-in student's DNA
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -207,7 +214,6 @@ export default function StudentLessonDetail() {
 
   useEffect(() => {
     if (!passed) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
   /* -------------------- AUTO-REFRESH -------------------- */
@@ -215,11 +221,10 @@ export default function StudentLessonDetail() {
     if (!lessonId) return;
 
     const id = setInterval(() => {
-      load(); // refresh from DB
+      load(); 
     }, 5000);
 
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
 
   /* -------------------- MEMOS -------------------- */
@@ -233,6 +238,10 @@ export default function StudentLessonDetail() {
     () => (lesson ? deriveStatus(lesson) : "pending_payment"),
     [lesson]
   );
+
+  // ✅ NEW DNA CHECK: Only show English test data if subject is English
+  const isEnglishLesson = (lesson?.subject || "").toLowerCase().includes("english");
+  const hasDna = studentUser?.proficiencyLevel && studentUser?.proficiencyLevel !== "none";
 
   /* -------------------- permissions -------------------- */
 
@@ -330,6 +339,23 @@ export default function StudentLessonDetail() {
       >
         Times are shown in your timezone: {yourTZ}.
       </div>
+
+      {/* DNA BADGE: SURGICAL ADDITION */}
+      {isEnglishLesson && hasDna && (
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <div className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Validated Syllabus</div>
+            <div className="text-lg font-black text-slate-900">Tier: {studentUser.proficiencyLevel}</div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {studentUser.grammarWeaknesses?.slice(0, 3).map((w, i) => (
+              <span key={i} className="px-2 py-1 rounded-lg bg-white border border-indigo-100 text-[10px] font-bold text-indigo-600">
+                ! {w.component}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Back link */}
       <div className="flex items-center justify-between">
@@ -603,7 +629,6 @@ END:VCALENDAR`;
         </p>
       </div>
 
-      {/* ✅ B. Add the component to the page layout */}
       <div className="container mx-auto">
 
         {/* Recording Display */}
