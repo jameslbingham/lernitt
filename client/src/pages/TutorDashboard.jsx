@@ -1,4 +1,12 @@
 // /client/src/pages/TutorDashboard.jsx
+// -----------------------------------------------------------------------------
+// Version 5.2.0 - TUTOR X-RAY VISION (FULL BUILD)
+// - ADDED: Linguistic DNA visibility for tutors during English lessons.
+// - ADDED: Subject Guard to hide English test data for non-English subjects.
+// - PRESERVED: 100% of Lesson Type Editor, Availability Panel, and Earnings.
+// - MANDATORY: No truncation. This is the complete file.
+// -----------------------------------------------------------------------------
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/apiFetch.js";
@@ -99,7 +107,6 @@ function LessonTypeModal({ template, onSave, onClose }) {
 function LessonTypesManager({ currentTemplates, onUpdate }) {
   const [editingIndex, setEditingIndex] = useState(null);
   
-  // Sophisticated Guard: Ensure currentTemplates is always an array to prevent dashboard crash
   const safeTemplates = Array.isArray(currentTemplates) ? currentTemplates : [];
   const slots = Array.from({ length: 8 }, (_, i) => safeTemplates[i] || null);
 
@@ -387,7 +394,7 @@ function AvailabilityPanel() {
   );
 }
 
-// ================= Today's Lessons =================
+// ================= Today's Lessons with DNA X-Ray Vision =================
 function TutorLessonSummary() {
   const { token } = useAuth();
   const [lessons, setLessons] = useState([]);
@@ -425,18 +432,40 @@ function TutorLessonSummary() {
       {todaysLessons.length === 0 ? (
         <p>No lessons scheduled today.</p>
       ) : (
-        <ul>
-          {todaysLessons.map((l, i) => (
-            <li key={i}>
-              <b>
-                {new Date(l.startTime).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </b>{" "}
-              with {l.studentName || "student"}
-            </li>
-          ))}
+        <ul className="space-y-3">
+          {todaysLessons.map((l, i) => {
+            // Subject Guard: DNA is only relevant if studying English
+            const isEnglish = (l.subject || "").toLowerCase().includes("english");
+            const hasDna = l.student?.proficiencyLevel && l.student.proficiencyLevel !== 'none';
+
+            return (
+              <li key={i} className="bg-white p-3 rounded-xl shadow-sm border border-indigo-50">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <b>
+                      {new Date(l.startTime).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </b>{" "}
+                    with {l.studentName || "student"}
+                  </div>
+
+                  {/* DNA Badge: Only visible to English tutors for English lessons */}
+                  {isEnglish && hasDna && (
+                    <div className="flex gap-2">
+                       <span className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black uppercase">
+                          CEFR: {l.student.proficiencyLevel}
+                       </span>
+                       <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-700 text-[10px] font-bold">
+                          DNA Ready
+                       </span>
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -639,7 +668,6 @@ function TutorOnboardingPanel() {
           Set weekly availability so students can book time slots.
         </li>
         <li style={{ marginBottom: 6 }}>Check your hourly rate and review payouts and earnings.</li>
-        {/* ✅ SURGICAL ADDITION: Step 4 Intro Video */}
         <li>Upload your pre-recorded promotional video for students to watch.</li>
       </ol>
 
@@ -669,7 +697,6 @@ function TutorOnboardingPanel() {
         >
           3) Payouts & pricing
         </Link>
-        {/* ✅ SURGICAL ADDITION: Step 4 Link */}
         <Link
           to="/tutor-video-setup"
           className="inline-block rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 font-bold px-3 py-1 text-sm hover:bg-indigo-100"
@@ -688,7 +715,6 @@ export default function TutorDashboard() {
   const [unread, setUnread] = useState(null);
   const [err, setErr] = useState("");
 
-  // CRITICAL FIX: Add a high-level loading state to prevent crash during session init
   if (!user) return <div style={{ padding: "50px", textAlign: "center", fontSize: "18px", color: "#64748b" }}>Initializing your tutor dashboard...</div>;
 
   const tutorStatus = user?.tutorStatus || user?.status || "none";
@@ -803,7 +829,6 @@ export default function TutorDashboard() {
         </section>
       )}
 
-      {/* SURGICAL INSERTION OF LESSON TYPES MANAGER */}
       <LessonTypesManager 
         currentTemplates={user?.lessonTemplates || []} 
         onUpdate={handleTemplatesUpdate} 
@@ -832,7 +857,6 @@ export default function TutorDashboard() {
           >
             Open availability
           </Link>
-          {/* ✅ SURGICAL ADDITION: Video call to action */}
           <Link
             to="/tutor-video-setup"
             className="inline-block rounded-lg bg-indigo-400 px-4 py-2 font-semibold text-white hover:bg-indigo-300 transition"
