@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const { Schema } = mongoose;
 
 /**
- * LERNITT ACADEMY - ENHANCED USER DATA MODEL v3.2.0
+ * LERNITT ACADEMY - ENHANCED USER DATA MODEL v3.3.0
  * ----------------------------------------------------------------------------
  * CORE ARCHITECTURE:
  * - Identity: Fundamental account credentials and unique identification.
@@ -38,7 +38,7 @@ const UserSchema = new Schema(
     },
 
     /**
-     * RECOVERY & SECURITY (✅ NEW FIELDS ADDED)
+     * RECOVERY & SECURITY
      * Temporary tokens used for the secure 'Forgot Password' recovery flow.
      */
     resetPasswordToken: { 
@@ -64,7 +64,6 @@ const UserSchema = new Schema(
     avatar: { 
       type: String 
     },
-    // ✅ SURGICAL ADDITION: Store the promotional video link
     introVideo: {
       type: String
     },
@@ -123,6 +122,17 @@ const UserSchema = new Schema(
       enum: ["A1", "A2", "B1", "B2", "C1", "C2", "none"],
       default: "none",
     },
+
+    /**
+     * ✅ NEW: GRAMMAR GAP ANALYSIS
+     * Stores specific components from the CEFR list that the student needs to learn.
+     */
+    grammarWeaknesses: [
+      {
+        category: { type: String }, // e.g., "B1"
+        component: { type: String } // e.g., "Passive Voice"
+      }
+    ],
 
     /**
      * COMPREHENSIVE PLACEMENT TEST RESULTS
@@ -225,9 +235,9 @@ UserSchema.methods.summary = function () {
     totalEarnings: this.totalEarnings,
     tutorStatus: this.tutorStatus || "none",
     proficiencyLevel: this.proficiencyLevel || "none",
+    grammarWeaknesses: this.grammarWeaknesses || [], // ✅ ADDED TO SUMMARY
     placementTest: this.placementTest || null, 
     lessonTemplates: this.lessonTemplates || [],
-    // ✅ SURGICAL ADDITION: Include video in frontend summary
     introVideo: this.introVideo || null
   };
 };
