@@ -1,10 +1,11 @@
 // server/routes/assessment.js
 // -----------------------------------------------------------------------------
-// Version 7.0.0 - DUAL-CORE CEFR ENGINE (WRITTEN + ORAL MERGE)
-// - ADDED: Gemini 1.5 Flash Speaking Analysis.
-// - MERGED: 100% of the 80+ item Master Syllabus roadmap logic.
-// - LOGIC: Calculates separate Written and Speaking tiers to find an Integrated Average.
-// - MANDATORY: No truncation. This is the complete file.
+// Version 8.0.0 - DUAL-CORE CEFR ENGINE (STABILIZED & UPGRADED)
+// - UPGRADED: Switched to Gemini 2.0 Flash for Oral Analysis.
+// - FIXED: Added JSON Schema enforcement to prevent "Failed to process" errors.
+// - FIXED: Added Level Sanitization to ensure the "Integrated Average" math never fails.
+// - PRESERVED: 100% of the Master Syllabus and Roadmap logic.
+// - MANDATORY: Full file provided. No truncation.
 // -----------------------------------------------------------------------------
 
 const express = require('express');
@@ -13,7 +14,7 @@ const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini for Real Speaking Analysis
+// Initialize Gemini for Real Speaking Analysis (Upgraded to 2.0 Flash)
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
 
 /**
@@ -96,34 +97,56 @@ const ANSWER_KEY = {
 
 /**
  * AI ORAL EVALUATOR
- * Uses Gemini to evaluate the transcript for CEFR levels and syllabus gaps.
+ * Uses Gemini 2.0 Flash to evaluate the transcript.
+ * Includes safety logic to ensure the AI only returns valid CEFR levels.
  */
 async function evaluateSpeaking(transcript) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash",
+      generationConfig: { responseMimeType: "application/json" } 
+    });
+
     const prompt = `
       You are a senior academic English examiner. 
       Analyze the following student transcript for a CEFR level (A1 to C2).
       Transcript: "${transcript}"
       
       Instructions:
-      1. Determine the Oral Tier (A1, A2, B1, B2, C1, or C2).
-      2. Identify any specific grammatical categories the student struggled with (use Master Syllabus terminology if possible).
-      3. Provide a brief academic insight for the student.
+      1. Determine the Oral Tier (MUST BE exactly: A1, A2, B1, B2, C1, or C2).
+      2. Identify grammatical categories the student struggled with (use Master Syllabus terminology).
+      3. Provide a brief academic insight.
 
-      Return ONLY a JSON object:
+      Return ONLY this JSON structure:
       {
-        "level": "B1",
-        "detectedGaps": ["Past Continuous", "First Conditional"],
-        "feedback": "Your oral fluency is good, but you struggle with future uncertainty structures."
+        "level": "string",
+        "detectedGaps": ["string"],
+        "feedback": "string"
       }
     `;
+
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    return JSON.parse(text.replace(/```json|```/g, "").trim());
+    const responseText = result.response.text();
+    const parsedData = JSON.parse(responseText);
+
+    // --- SANITIZATION: Prevent "B1+" or "Intermediate" from breaking the math ---
+    const validLevels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+    let sanitizedLevel = (parsedData.level || "A1").toUpperCase().trim();
+    
+    // If the AI gives us something not in our list, default it to A1 so the code doesn't crash
+    if (!validLevels.includes(sanitizedLevel)) {
+        sanitizedLevel = "A1";
+    }
+
+    return {
+      level: sanitizedLevel,
+      detectedGaps: Array.isArray(parsedData.detectedGaps) ? parsedData.detectedGaps : [],
+      feedback: parsedData.feedback || "Oral evaluation completed."
+    };
+
   } catch (err) {
     console.error("AI Oral Evaluation Error:", err);
-    return { level: "A1", detectedGaps: [], feedback: "Speaking analysis currently based on structural defaults." };
+    return { level: "A1", detectedGaps: [], feedback: "Speaking analysis error - defaulting to basic tier." };
   }
 }
 
@@ -168,7 +191,12 @@ router.post('/submit', auth, async (req, res) => {
     // Average index calculation: (Written Index + Speaking Index) / 2
     const wIdx = levels.indexOf(writtenLevel);
     const sIdx = levels.indexOf(speakingLevel);
-    const avgIdx = Math.floor((wIdx + sIdx) / 2);
+    
+    // Ensure we have valid numbers for the math
+    const safeWIdx = wIdx === -1 ? 0 : wIdx;
+    const safeSIdx = sIdx === -1 ? 0 : sIdx;
+    
+    const avgIdx = Math.floor((safeWIdx + safeSIdx) / 2);
     const overallLevel = levels[avgIdx];
 
     // --- PHASE 4: GENERATE FULL ROADMAP ---
@@ -182,7 +210,7 @@ router.post('/submit', auth, async (req, res) => {
       }
     });
 
-    // Add everything from higher CEFR levels (Your integrated teaching checklist)
+    // Add everything from higher CEFR levels
     levels.forEach(lvl => {
       if (levels.indexOf(lvl) > levels.indexOf(overallLevel)) {
         MASTER_SYLLABUS[lvl].forEach(item => {
@@ -222,7 +250,7 @@ router.post('/submit', auth, async (req, res) => {
 
   } catch (err) {
     console.error("Critical Assessment Merge Error:", err);
-    res.status(500).json({ message: "Failed to process dual-core results." });
+    res.status(500).json({ message: "The system had trouble grading your test. Please try again in a moment." });
   }
 });
 
@@ -237,7 +265,7 @@ router.get('/result', auth, async (req, res) => {
     }
     res.json(user);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error retrieving results." });
   }
 });
 
