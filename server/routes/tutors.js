@@ -1,4 +1,24 @@
 // /server/routes/tutors.js
+/**
+ * ============================================================================
+ * LERNITT ACADEMY - TUTOR ARCHITECTURE & MARKETPLACE LOGIC
+ * ============================================================================
+ * ROLE: Senior Developer Audit - Step 2 (Availability Plumbing)
+ * VERSION: 4.1.0
+ * ----------------------------------------------------------------------------
+ * This file serves as the primary "Pipe System" for all tutor-related data.
+ * It manages three distinct streams of information:
+ * * 1. THE MARKETPLACE: Fetching and filtering approved tutors for students.
+ * 2. THE ONBOARDING: Handling video uploads to Supabase and profile updates.
+ * 3. THE SCHEDULING: Managing the internal "plumbing" for tutor availability.
+ * ----------------------------------------------------------------------------
+ * MANDATORY OPERATING RULES:
+ * - COMPLETE FILES ONLY: No truncation permitted.
+ * - BUSINESS LOGIC PRESERVATION: Existing marketplace aggregation must remain.
+ * - FLAT PATH RULE: Storage buckets must not use folder prefixes.
+ * ============================================================================
+ */
+
 const express = require("express");
 const mongoose = require("mongoose");
 const multer = require("multer"); // Added for video file handling
@@ -10,6 +30,7 @@ const router = express.Router();
 const { auth } = require('../middleware/auth');
 
 // Configure multer for memory storage (temporary holding for the video)
+// We hold the video in the server's RAM just long enough to pass it to Supabase.
 const upload = multer({ storage: multer.memoryStorage() });
 
 /**
@@ -31,6 +52,8 @@ const visibleTutorMatch = {
  * GET /api/tutors
  * List tutors with advanced availability signaling and review aggregation.
  * Performs a complex multi-stage aggregation to calculate ratings on the fly.
+ * * PLUMBING CHECK: 
+ * This route "joins" the User data with the Review data and Availability data.
  */
 router.get("/", auth, async (req, res) => {
   try {
@@ -53,6 +76,7 @@ router.get("/", auth, async (req, res) => {
         },
       },
       // ✅ SOPHISTICATION: Signal if tutor has configured a schedule
+      // This is the "Read Pipe" that tells the marketplace if a tutor is ready.
       {
         $lookup: {
           from: "availabilities",
@@ -79,6 +103,7 @@ router.get("/", auth, async (req, res) => {
 /**
  * GET /api/tutors/:id
  * Single tutor profile fetch with rating projection.
+ * Used when a student clicks on a specific tutor's profile.
  */
 router.get("/:id", auth, async (req, res) => {
   try {
@@ -120,6 +145,10 @@ router.get("/:id", auth, async (req, res) => {
  * POST /api/tutors/register
  * Handles the multi-part form including the video upload to Supabase.
  * MANDATORY: Uses Flat Path for tutor-videos bucket.
+ * * PLUMBING CHECK: 
+ * 1. Sends video to Supabase Storage.
+ * 2. Receives a URL back.
+ * 3. Saves that URL into the User's MongoDB profile.
  */
 router.post("/register", auth, upload.single('video'), async (req, res) => {
   try {
@@ -129,6 +158,7 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
     // 1. Handle Video Upload to Supabase if file exists
     if (req.file) {
       // Create a clean filename: tutorID-timestamp-originalName
+      // VITAL: No folder prefixes are added here (Flat Path Rule).
       const fileName = `${req.user.id}-${Date.now()}-${req.file.originalname.replace(/\s/g, '_')}`;
       
       const { data, error: uploadError } = await supabase.storage
@@ -232,8 +262,35 @@ router.patch("/setup", auth, async (req, res) => {
 });
 
 /**
- * ✅ NEW PLUMBING: Connects Availability.jsx to the Database
+ * ✅ NEW PLUMBING: GET /api/tutors/availability/me
  * ----------------------------------------------------------------------------
+ * This is the "FETCH" pipe. It allows the tutor's dashboard to load their
+ * existing schedule from the MongoDB database. 
+ * Without this, the page would show up blank every time the tutor refreshes.
+ * ----------------------------------------------------------------------------
+ */
+router.get("/availability/me", auth, async (req, res) => {
+  try {
+    // We look for the availability record that belongs to the logged-in tutor.
+    const availability = await Availability.findOne({ tutor: req.user.id });
+    
+    if (!availability) {
+      // If they haven't set a schedule yet, we send back a clean slate.
+      return res.json({ weekly: [], timezone: "UTC", bookingNotice: 12 });
+    }
+    
+    // Send the data back to the frontend page (Availability.jsx).
+    res.json(availability);
+  } catch (err) {
+    console.error("AVAILABILITY FETCH ERROR:", err);
+    res.status(500).json({ error: "Plumbing error: Could not load your schedule." });
+  }
+});
+
+/**
+ * ✅ NEW PLUMBING: PUT /api/tutors/availability
+ * ----------------------------------------------------------------------------
+ * This is the "SAVE" pipe. It connects Availability.jsx to the Database.
  * This endpoint allows tutors to synchronize their weekly schedule grids
  * directly with MongoDB. It uses 'findOneAndUpdate' to ensure we don't
  * create duplicate schedule records for the same tutor.
@@ -243,7 +300,7 @@ router.put("/availability", auth, async (req, res) => {
   try {
     const { weekly, timezone, bookingNotice } = req.body;
     
-    // We use the 'Availability' model you provided
+    // We update the existing record OR create a new one if it's their first time.
     const updated = await Availability.findOneAndUpdate(
       { tutor: req.user.id },
       { 
