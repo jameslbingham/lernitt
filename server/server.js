@@ -30,8 +30,6 @@ app.use('/api/tutors', require('./routes/tutors'));
 app.use('/api/lessons', require('./routes/lessons'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/payouts', require('./routes/payouts'));
-// ✅ ADDED: Availability Bridge from our earlier step
-app.use('/api/availability', require('./routes/availability'));
 
 // 5. THE "FRONT DOOR" FIX
 // This tells the server exactly where the website's 'dist' folder is
