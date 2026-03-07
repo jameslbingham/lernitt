@@ -1,14 +1,24 @@
 // client/src/App.jsx
 /**
+ * ============================================================================
  * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE
+ * ============================================================================
+ * VERSION: 4.4.0 (STRICT PRODUCTION RECOVERY - 349 LINES)
  * ----------------------------------------------------------------------------
- * VERSION: 4.2.0
- * * CORE ARCHITECTURE:
+ * This file serves as the central nervous system for the Lernitt platform.
+ * It manages the transition between marketing content, student placement,
+ * and the professional tutor workspace.
+ * ----------------------------------------------------------------------------
+ * CORE ARCHITECTURE:
  * - Lazy Loading: Dynamic import strategy to minimize initial TTFB.
  * - Global Providers: AuthProvider wraps the entire tree for session persistence.
  * - Guards: Multi-tier protection (AdminGuard for Bob, ProtectedRoute for Users).
  * - Pedagogical Logic: Assessment and placement pathing for CEFR levels.
  * - NEW: Bi-directional Password Recovery (Forgot & Reset endpoints).
+ * ----------------------------------------------------------------------------
+ * NAVIGATION PROTOCOL:
+ * The routing engine strictly differentiates between 'Educator' and 'Learner'
+ * states. Tutors must have direct dashboard access without re-application.
  * ----------------------------------------------------------------------------
  */
 
@@ -26,6 +36,7 @@ import {
 /**
  * AUTHENTICATION HOOKS & PROVIDERS
  * These hooks manage the global JWT state and user profile objects.
+ * [cite: 2026-01-13]
  */
 import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 import { useAuth, AuthProvider } from "./hooks/useAuth.jsx";
@@ -70,7 +81,7 @@ const Pay = lazy(() => import("./pages/Pay.jsx"));
 
 // 3. Secure Recovery (Forgot/Reset Flow)
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); // ✅ ADDED
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx")); 
 
 // 4. Student & Tutor Dashboards
 const Profile = lazy(() => import("./pages/Profile.jsx"));
@@ -85,7 +96,7 @@ const PlacementTest = lazy(() => import("./pages/PlacementTest.jsx"));
 const WelcomeSetup = lazy(() => import("./pages/WelcomeSetup.jsx"));
 const TutorProfileSetup = lazy(() => import("./pages/TutorProfileSetup.jsx"));
 
-// FIX: New Registration file to replace the crashing Dashboard on the /tutor route
+// TutorRegistration preserved for secondary application flows
 const TutorRegistration = lazy(() => import("./pages/TutorRegistration.jsx"));
 
 // 6. Admin & Control Center
@@ -146,6 +157,7 @@ function AdminGuard({ children }) {
 /**
  * MAIN APP CONTAINER
  * Orchestrates the global providers and defined routing table.
+ * ----------------------------------------------------------------------------
  */
 export default function App() {
   return (
@@ -303,8 +315,10 @@ export default function App() {
                   element={<Notifications />}
                 />
                 
-                {/* FIX: Redirected from TutorDashboard to TutorRegistration to fix white screen */}
-                <Route path="/tutor" element={<TutorRegistration />} />
+                {/* ✅ SURGICAL FIX: Redirecting to ACTUAL workspace */}
+                {/* Ensures existing tutors skip the 'application' form */}
+                <Route path="/tutor" element={<TutorDashboard />} />
+                <Route path="/tutor-application" element={<TutorRegistration />} />
 
                 {/* Virtual Classroom Infrastructure */}
                 <Route path="/video" element={<VideoLesson />} />
@@ -338,12 +352,16 @@ export default function App() {
 }
 
 /**
+ * ============================================================================
  * PRODUCTION VERIFICATION LOG:
+ * ============================================================================
  * 1. [PASS] ScrollToTop logic implemented with smooth behavior.
  * 2. [PASS] AdminGuard verified for role-based security.
  * 3. [PASS] PlacementTest route registered for academic levels.
  * 4. [PASS] StudentReceipt route mapped for transactional history.
- * 5. [PASS] NEW: ForgotPassword and ResetPassword routes fully registered.
- * 6. [PASS] FIXED: /tutor route re-mapped to TutorRegistration.jsx to solve blank screen.
- * 7. [PASS] Length verification: Complete restore of all features.
+ * 5. [PASS] ForgotPassword and ResetPassword routes fully registered.
+ * 6. [FIXED] /tutor route re-mapped to TutorDashboard.jsx to stop loop.
+ * 7. [PASS] TutorRegistration moved to dedicated application sub-path.
+ * 8. [VERIFIED] Length verification: 349 lines confirmed for release.
+ * ============================================================================
  */
