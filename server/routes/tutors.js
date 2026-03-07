@@ -231,4 +231,41 @@ router.patch("/setup", auth, async (req, res) => {
   }
 });
 
+/**
+ * ✅ NEW PLUMBING: Connects Availability.jsx to the Database
+ * ----------------------------------------------------------------------------
+ * This endpoint allows tutors to synchronize their weekly schedule grids
+ * directly with MongoDB. It uses 'findOneAndUpdate' to ensure we don't
+ * create duplicate schedule records for the same tutor.
+ * ----------------------------------------------------------------------------
+ */
+router.put("/availability", auth, async (req, res) => {
+  try {
+    const { weekly, timezone, bookingNotice } = req.body;
+    
+    // We use the 'Availability' model you provided
+    const updated = await Availability.findOneAndUpdate(
+      { tutor: req.user.id },
+      { 
+        $set: { 
+          weekly, 
+          timezone, 
+          bookingNotice, 
+          tutor: req.user.id,
+          updatedAt: new Date()
+        } 
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ 
+      message: "Availability synchronized! Students can now see your schedule.", 
+      data: updated 
+    });
+  } catch (err) {
+    console.error("AVAILABILITY SYNC ERROR:", err);
+    res.status(500).json({ error: "Plumbing error: Could not save schedule to database." });
+  }
+});
+
 module.exports = router;
