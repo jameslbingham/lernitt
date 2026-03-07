@@ -2,16 +2,14 @@
 /**
  * LERNITT ACADEMY - UNIFIED AUTHENTICATION INSTANCE
  * ----------------------------------------------------------------------------
- * VERSION: 4.6.0 (STRICT PRODUCTION MERGE - FIXED REDIRECT LOOP)
- * ----------------------------------------------------------------------------
  * This module handles multi-role login, signup, and account recovery.
  * Logic Architecture:
  * 1. PERSISTENCE: Manages email memory via localStorage hooks.
  * 2. ROUTING: italki-style redirection based on user role and onboarding status.
- * 3. INTERCEPTOR: Detects existing auth tokens to bypass redundant login screens.
- * 4. MOCK: Environment-aware simulation for local rapid prototyping.
- * 5. LEGACY: Automatic migration of plain-text passwords to secure hashes.
- * 6. RECOVERY: Entry point for the SendGrid-powered reset password flow.
+ * 3. MOCK: Environment-aware simulation for local rapid prototyping.
+ * 4. LEGACY: Automatic migration of plain-text passwords to secure hashes.
+ * 5. RECOVERY: Entry point for the SendGrid-powered reset password flow.
+ * 6. FIX: Session Interceptor to prevent redirect loops after registration.
  * ----------------------------------------------------------------------------
  */
 
@@ -40,20 +38,6 @@ export default function Login() {
    */
   const initialMode = params.get("mode") === "signup" ? "signup" : "login";
   const urlType = params.get("type") === "tutor" ? "tutor" : "student";
-
-  /**
-   * ✅ SOPHISTICATED SESSION INTERCEPTOR
-   * Logic added: If the user just arrived from Signup.jsx and is already 
-   * authenticated, we 'bounce' them immediately to prevent the login loop.
-   * This is the surgical fix for the "Welcome Back" screen issue.
-   */
-  useEffect(() => {
-    if (isAuthed && authUser) {
-      console.log("Interceptor: User is already authenticated. Redirecting...");
-      const destination = afterLoginPath(authUser);
-      nav(destination, { replace: true });
-    }
-  }, [isAuthed, authUser, nav]);
 
   /**
    * ROLE-BASED NAVIGATION ROUTING
@@ -125,6 +109,19 @@ export default function Login() {
       console.warn("Storage write failed");
     }
   }, [email, remember]);
+
+  /**
+   * ✅ SURGICAL FIX: SESSION INTERCEPTOR
+   * This hook detects if you have already authenticated (e.g., via Signup.jsx).
+   * If an active session is found, it bypasses the Login form and redirects
+   * you to the correct onboarding or dashboard path immediately.
+   */
+  useEffect(() => {
+    if (isAuthed && authUser) {
+      const target = afterLoginPath(authUser);
+      nav(target, { replace: true });
+    }
+  }, [isAuthed, authUser, nav]);
 
   /* -------------------------- Authentication Engine -------------------------- */
 
@@ -202,7 +199,7 @@ export default function Login() {
         throw new Error("Invalid login credentials provided.");
       }
 
-      // ✅ ADMIN IDENTITY: Bob (James) hardcoded privilege escalation
+      // Administrative identity override for Bob
       if (data.user.email === "jameslbingham@yahoo.com") {
         data.user.role = "admin";
         data.user.type = "admin";
@@ -238,6 +235,8 @@ export default function Login() {
   const errorText = err ? `Authentication Error: ${err}` : "";
 
   const isTutorSignup = mode === "signup" && signupType === "tutor";
+
+  /* -------------------------- UI RENDERING -------------------------- */
 
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50 font-sans">
@@ -424,7 +423,7 @@ export default function Login() {
               <p className="text-xs text-slate-400">
                 Protected by our{" "}
                 <Link to="/legal/privacy" className="text-indigo-600 font-bold hover:underline">
-                  Privacy Protocols
+                  Privacy Policy
                 </Link>{" "}
                 and{" "}
                 <Link to="/legal/terms" className="text-indigo-600 font-bold hover:underline">
@@ -442,7 +441,7 @@ export default function Login() {
             LERNITT
           </div>
           <div className="text-[9px] font-bold uppercase tracking-[0.5em] mt-2 text-slate-500">
-            Secure Authentication Protocol v4.6.0
+            Secure Authentication Protocol v4.1.2
           </div>
         </section>
 
