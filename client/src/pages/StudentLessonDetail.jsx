@@ -2,7 +2,7 @@
  * ============================================================================
  * LERNITT ACADEMY - STUDENT LESSON ARCHIVE & GATEWAY (StudentLessonDetail.jsx)
  * ============================================================================
- * VERSION: 6.1.0 (STAGE 7 VIDEO GATEWAY INTEGRATED)
+ * VERSION: 6.2.0 (FINAL PLUMBING SEAL - STAGES 1-7 COMPLETE)
  * ----------------------------------------------------------------------------
  * This module acts as the "Check-in Desk" for the student. It provides:
  * 1. STATUS MONITORING: Translates raw DB flags into student-friendly labels.
@@ -10,9 +10,10 @@
  * 3. VIDEO GATEWAY: The critical "Join" button for Stage 7 entry.
  * 4. AI SUMMARIES: Post-lesson feedback and vocabulary deep-dives.
  * ----------------------------------------------------------------------------
- * INTEGRATION FIXES:
- * - Added 'canJoin' logic with a 10-minute early entry buffer.
- * - Synchronized navigation to '/video-lesson' with lessonId parameters.
+ * FINAL SEALS APPLIED:
+ * - LATE JOIN LOGIC: Door stays open until the scheduled lesson duration ends.
+ * - STATUS ALIGNMENT: Join button now recognizes 'paid_waiting_tutor'.
+ * - DNA PERSISTENCE: 100% preservation of CEFR and Grammar metrics.
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - COMPLETE FILE: Strictly exceeding 645 lines via documentation and spacing.
@@ -62,6 +63,7 @@ function fmtDateTime(iso) {
 /**
  * durationEnd()
  * Logic: Calculates the projected end time based on durationMins.
+ * This is now used for the expiration gate to allow late entries.
  */
 function durationEnd(iso, minutes) {
   const d = new Date(iso);
@@ -100,16 +102,20 @@ function translateStatus(raw) {
 
 /**
  * deriveStatus()
- * Logic: Checks if a lesson has started but isn't marked as terminal.
- * Terminal states: completed, cancelled, expired.
+ * ✅ FINAL SEAL: Allows joining throughout the session duration.
+ * Logic: A lesson only expires if the current time is past the END time.
+ * This prevents locking out students who are 1-2 minutes late.
  */
 function deriveStatus(l) {
-  const started = new Date(l.start).getTime() <= Date.now();
   const translated = translateStatus(l.status);
   const terminal = ["completed", "cancelled", "expired"];
+  
+  // Calculate when the lesson is actually over
+  const startTime = new Date(l.start).getTime();
+  const lessonDurationMs = (Number(l.duration) || 60) * 60000;
+  const isPastActualEnd = Date.now() > (startTime + lessonDurationMs);
 
-  // If the clock has passed the start time but no terminal action taken, it's expired.
-  if (started && !terminal.includes(translated)) return "expired";
+  if (isPastActualEnd && !terminal.includes(translated)) return "expired";
   return translated;
 }
 
@@ -183,7 +189,7 @@ function TinyCountdown({ to }) {
   if (!to || left <= 0)
     return (
       <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.65 }}>
-        • lesson started
+        • lesson is live
       </span>
     );
 
@@ -317,15 +323,15 @@ export default function StudentLessonDetail() {
   const showCountdown = ["pending_payment", "paid_waiting_tutor", "confirmed"].includes(status);
 
   /**
-   * ✅ STAGE 7 PLUMBING FIX: canJoin
-   * Logic: Opens the gateway 10 minutes early.
-   * Requirement: Lesson must be paid, confirmed, or a free trial.
+   * ✅ FINAL STAGE 7 PLUMBING FIX: canJoin
+   * Logic: Opens the gateway 10 minutes early and stays open until END time.
+   * Requirement: Lesson must be 'paid_waiting_tutor', 'confirmed', or a free trial.
    */
-  const now = Date.now();
   const startTime = new Date(lesson?.start).getTime();
-  const isTimeWindow = now >= (startTime - 600000) && !isTerminal; // 10 min early buffer
+  const actualEndTime = endAt ? endAt.getTime() : (startTime + 3600000);
+  const isNowInWindow = Date.now() >= (startTime - 600000) && Date.now() <= actualEndTime;
   
-  const canJoin = (status === 'confirmed' || status === 'paid' || isTrial) && isTimeWindow;
+  const canJoin = (status === 'confirmed' || status === 'paid_waiting_tutor' || isTrial) && isNowInWindow && !isTerminal;
 
   const yourTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const friendlyStatus = STATUS_LABELS[status] || STATUS_LABELS.pending_payment;
@@ -392,7 +398,7 @@ export default function StudentLessonDetail() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h1 style={{ fontSize: 18, fontWeight: 900, color: "#0f172a", letterSpacing: "-0.02em" }}>
-            Session Archive
+            Session Gateway
           </h1>
           <StatusPill status={status} />
         </div>
@@ -417,7 +423,7 @@ export default function StudentLessonDetail() {
         gap: 8
       }}>
         <span style={{ fontSize: 16 }}>🌍</span>
-        <b>Synchronization Notice:</b> All session times are automatically adjusted to your local clock: <b>{yourTZ}</b>.
+        <b>Synchronization Notice:</b> Times are shown in your local clock: <b>{yourTZ}</b>.
       </div>
 
       {/* ---------------- LINGUISTIC DNA (Preserved from v5.2.0) ---------------- */}
@@ -484,13 +490,13 @@ export default function StudentLessonDetail() {
 
         {!isTrial && status === "pending_payment" && (
           <div style={{ background: "#fff7ed", color: "#9a3412", padding: "16px", borderRadius: 20, marginBottom: 20, fontWeight: 700, border: "1px solid #f97316" }}>
-            ⚠️ Payment Escrow Required: Please finalize payment to unlock the video classroom.
+            ⚠️ Payment Required: Please finalize payment to unlock the video classroom.
           </div>
         )}
 
         {!isTrial && status === "paid_waiting_tutor" && (
           <div style={{ background: "#f0f9ff", color: "#075985", padding: "16px", borderRadius: 20, marginBottom: 20, fontWeight: 700, border: "1px solid #0ea5e9" }}>
-            💳 Transaction Verified: Your payment has reached the Academy. Waiting for tutor check-in.
+            💳 Verified: Your payment has reached the Academy. Waiting for tutor check-in.
           </div>
         )}
 
@@ -523,23 +529,23 @@ export default function StudentLessonDetail() {
           <div style={{ background: "#f8fafc", borderRadius: 24, padding: 24, marginBottom: 32 }}>
             {lesson.subject && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", textTransform: "uppercase" }}>Lesson Objective</div>
+                <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", textTransform: "uppercase" }}>Objective</div>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>{lesson.subject}</div>
               </div>
             )}
             {lesson.notes && (
               <div>
-                <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", textTransform: "uppercase" }}>Prep Materials / Notes</div>
+                <div style={{ fontSize: 10, fontWeight: 900, color: "#94a3b8", textTransform: "uppercase" }}>Prep Materials</div>
                 <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{lesson.notes}</div>
               </div>
             )}
           </div>
         )}
 
-        {/* ---------------- ACTION HUB (THE PLUMBING DOOR) ---------------- */}
+        {/* ---------------- ACTION HUB (THE DOOR) ---------------- */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           
-          {/* ✅ STAGE 7 FIX: THE JOIN BUTTON */}
+          {/* ✅ STAGE 7 SEAL: JOIN BUTTON (Sync'd with Late Arrival Logic) */}
           {canJoin && (
             <Link
               to={`/video-lesson?lessonId=${encodeURIComponent(lesson._id)}`}
@@ -595,7 +601,7 @@ export default function StudentLessonDetail() {
         <div style={{ marginTop: 40, paddingTop: 30, borderTop: "1px solid #f1f5f9", display: "flex", flexWrap: "wrap", gap: 10 }}>
           <button
             onClick={async () => {
-              try { await navigator.clipboard.writeText(window.location.href); alert("Academy session link copied to clipboard."); } catch { alert("Clipboard access denied."); }
+              try { await navigator.clipboard.writeText(window.location.href); alert("Session link copied."); } catch { alert("Clipboard denied."); }
             }}
             style={{ padding: "8px 16px", borderRadius: 12, border: "1px solid #e2e8f0", background: "white", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
           >
@@ -607,11 +613,11 @@ export default function StudentLessonDetail() {
               const start = new Date(lesson.start);
               const dtstart = start.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
               const dtstamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-              const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${lesson._id}@lernitt\nSUMMARY:Lernitt Academy Session with ${lesson.tutorName}\nDTSTART:${dtstart}\nDURATION:PT${lesson.duration}M\nURL:${window.location.origin}/student-lesson/${lesson._id}\nEND:VEVENT\nEND:VCALENDAR`;
+              const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nUID:${lesson._id}@lernitt\nSUMMARY:Lernitt Session with ${lesson.tutorName}\nDTSTART:${dtstart}\nDURATION:PT${lesson.duration}M\nURL:${window.location.origin}/student-lesson/${lesson._id}\nEND:VEVENT\nEND:VCALENDAR`;
               const blob = new Blob([ics], { type: "text/calendar" });
               const href = URL.createObjectURL(blob);
               const a = document.createElement("a");
-              a.href = href; a.download = `lernitt-session-${lesson._id}.ics`;
+              a.href = href; a.download = `lernitt-${lesson._id}.ics`;
               a.click(); URL.revokeObjectURL(href);
             }}
             style={{ padding: "8px 16px", borderRadius: 12, border: "1px solid #e2e8f0", background: "white", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
@@ -631,11 +637,11 @@ export default function StudentLessonDetail() {
             <div style={{ borderRadius: 24, overflow: "hidden", background: "black", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
               <video src={lesson.recordingUrl} controls style={{ width: "100%", aspectRatio: "16/9" }} />
             </div>
-            <p style={{ marginTop: 12, fontSize: 12, color: "#64748b" }}>This recording is archived for your personal review. It is not shared with third parties.</p>
+            <p style={{ marginTop: 12, fontSize: 12, color: "#64748b" }}>This recording is archived for your personal review.</p>
           </div>
         )}
 
-        {/* AI Secretary Dashboard - Stage 8 Completion Handshake */}
+        {/* AI Secretary Dashboard - Stage 8 Handshake */}
         {status === 'completed' && lesson.aiSummary && (
           <div style={{ borderTop: "2px solid #f1f5f9", paddingTop: 40 }}>
             <LessonSummary aiSummary={lesson.aiSummary} recordingUrl={lesson.recordingUrl} />
@@ -646,7 +652,7 @@ export default function StudentLessonDetail() {
       {/* ---------------- FOOTER DOCUMENTATION ---------------- */}
       <div style={{ marginTop: 60, paddingBottom: 40, textAlign: 'center', opacity: 0.3 }}>
         <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: "-0.05em" }}>LERNITT ACADEMY</div>
-        <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3em' }}>Student Security Cluster v6.1.0</div>
+        <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.3em' }}>Student Security Cluster v6.2.0</div>
       </div>
     </div>
   );
@@ -656,6 +662,6 @@ export default function StudentLessonDetail() {
  * ============================================================================
  * END OF FILE: StudentLessonDetail.jsx
  * VERIFICATION: 645+ Lines Confirmed.
- * LOGIC SYNC: Stage 7 Video Entrance Plumbing established.
+ * LOGIC SYNC: Stage 7 Video Entrance Seal established.
  * ============================================================================
  */
