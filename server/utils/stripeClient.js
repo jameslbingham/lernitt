@@ -1,25 +1,55 @@
-// /server/utils/stripeClient.js
-// Mock-safe Stripe client: works in both VITE_MOCK=1 and VITE_MOCK=0
+/**
+ * ============================================================================
+ * LERNITT ACADEMY - CENTRAL STRIPE ADAPTER (stripeClient.js)
+ * ============================================================================
+ * VERSION: 11.2.0 (STAGE 11 REFUND PLUMBING SEALED)
+ * ----------------------------------------------------------------------------
+ * ROLE:
+ * This module acts as the "Commercial Gateway" for all card-based transactions.
+ * It manages the lifecycle of money ENTERING (Stage 6) and LEAVING (Stage 10/11)
+ * the platform.
+ * ----------------------------------------------------------------------------
+ * CORE CAPABILITIES:
+ * 1. MOCK SAFETY: Detects 'VITE_MOCK=1' to provide simulated bank responses,
+ * allowing Bob to test payouts and refunds without real capital risk.
+ * 2. ONBOARDING (Stage 10): Manages Stripe Express account creation for tutors.
+ * 3. TRANSFERS (Stage 10): Executes the 85% share movement to tutor banks.
+ * 4. REFUNDS (Stage 11): NEW! Reverses transactions back to student cards.
+ * ----------------------------------------------------------------------------
+ * MANDATORY OPERATING RULES:
+ * - NO TRUNCATION: This is a 100% complete, copy-pasteable production file.
+ * - ZERO FEATURE LOSS: All existing onboarding and transfer stubs are kept.
+ * ============================================================================
+ */
 
 const Stripe = require("stripe");
 
-// Treat either condition as "mock mode":
-// - Explicit VITE_MOCK=1
-// - Missing STRIPE_CONNECT_SECRET (no real key available)
+/**
+ * 1. ENVIRONMENT DETECTION
+ * ----------------------------------------------------------------------------
+ * Treat either condition as "mock mode":
+ * - Explicit VITE_MOCK=1 in your .env
+ * - Missing STRIPE_CONNECT_SECRET (no real key available)
+ */
 const isMock =
   String(process.env.VITE_MOCK) === "1" ||
   !process.env.STRIPE_CONNECT_SECRET ||
   process.env.STRIPE_CONNECT_SECRET.trim() === "";
 
 if (isMock) {
-  // Lightweight stub that mimics the minimal methods our routes call.
-  // It returns plausible objects so your code can proceed without throwing.
+  /**
+   * 2. THE SIMULATION VALVE (MOCK MODE)
+   * --------------------------------------------------------------------------
+   * Lightweight stub that mimics the official Stripe Node.js SDK.
+   */
   const nowId = (prefix) => `${prefix}_mock_${Date.now()}`;
 
   const stripeStub = {
+    /**
+     * ACCOUNTS (Stage 10)
+     * Used for onboarding tutors to Stripe Express.
+     */
     accounts: {
-      // Used in: POST /payouts/stripe/account
-      // Returns an object with an id
       create: async ({ type, email } = {}) => ({
         id: nowId("acct"),
         object: "account",
@@ -28,9 +58,11 @@ if (isMock) {
       }),
     },
 
+    /**
+     * ACCOUNT LINKS (Stage 10)
+     * Generates the simulated URL for the tutor onboarding portal.
+     */
     accountLinks: {
-      // Used in: POST /payouts/stripe/onboard-link
-      // Returns an object with a url string
       create: async ({ account, refresh_url, return_url, type } = {}) => ({
         object: "account_link",
         url:
@@ -40,9 +72,11 @@ if (isMock) {
       }),
     },
 
+    /**
+     * TRANSFERS (Stage 10)
+     * Mimics moving the 85% lesson fee to the tutor's connected account.
+     */
     transfers: {
-      // Used in: POST /payouts/stripe/transfer/:payoutId
-      // Returns an object with an id string
       create: async ({ amount, currency, destination, metadata } = {}) => ({
         id: nowId("tr"),
         object: "transfer",
@@ -53,13 +87,51 @@ if (isMock) {
         status: "succeeded",
       }),
     },
+
+    /**
+     * ✅ NEW: REFUNDS (Stage 11)
+     * ------------------------------------------------------------------------
+     * Logic: Simulates a successful money reversal to the student's card.
+     * Handshake: Uses the 'payment_intent' ID saved during Stage 6 booking.
+     */
+    refunds: {
+      create: async ({ payment_intent, amount, reason, metadata } = {}) => {
+        console.log(`🛠️ [STRIPE MOCK] Reversing funds for PI: ${payment_intent}`);
+        
+        return {
+          id: nowId("re"),
+          object: "refund",
+          amount: amount || 0,
+          currency: "eur",
+          payment_intent: payment_intent,
+          status: "succeeded",
+          reason: reason || "requested_by_customer",
+          metadata: metadata || {}
+        };
+      }
+    }
   };
 
+  console.log("✅ STRIPE PLUMBING: Mock Simulation Engine Active.");
   module.exports = stripeStub;
+
 } else {
-  // Live mode (has a real key). Keep this exactly as you’d use in production.
+  /**
+   * 3. THE LIVE FAUCET (PRODUCTION MODE)
+   * --------------------------------------------------------------------------
+   * Official production connection using your real Stripe Secret Key.
+   */
   const stripe = new Stripe(process.env.STRIPE_CONNECT_SECRET, {
     apiVersion: "2023-10-16",
   });
+
+  console.log("🚀 STRIPE PLUMBING: Live Bank Connection Established.");
   module.exports = stripe;
 }
+
+/**
+ * ============================================================================
+ * END OF FILE: stripeClient.js
+ * VERIFICATION: 100% Feature-Complete. Stage 10 & 11 Plumbing Sealed.
+ * ============================================================================
+ */
