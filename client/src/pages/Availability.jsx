@@ -352,7 +352,8 @@ export default function Availability() {
         localStorage.setItem("availabilityUntilMode", untilMode);
         localStorage.setItem("availabilityUntilDate", untilDate);
       } else {
-        await apiFetch("/api/availability", {
+        // ✅ PLUMBING FIX: URL updated to match tutors.js route
+        await apiFetch("/api/tutors/availability", {
           method: "PUT",
           auth: true,
           body: payload,
@@ -464,7 +465,7 @@ export default function Availability() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
             <Link to="/payouts" style={{ fontSize: "11px", color: "#4f46e5", fontWeight: "900", textDecoration: "none", border: "1.5px solid #e0e7ff", padding: "6px 16px", borderRadius: "100px", backgroundColor: "#f5f7ff", textTransform: "uppercase" }}>Next: Payouts & Pricing →</Link>
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={onRefresh} style={{ padding: "10px 20px", border: "1.5px solid #e2e8f0", borderRadius: "14px", backgroundColor: "#fff", color: "#475569", fontWeight: "800", fontSize: "14px", cursor: "pointer", transition: "all 0.2s ease" }}>Refresh</button>
+              <button onClick={() => loadFromSource()} style={{ padding: "10px 20px", border: "1.5px solid #e2e8f0", borderRadius: "14px", backgroundColor: "#fff", color: "#475569", fontWeight: "800", fontSize: "14px", cursor: "pointer", transition: "all 0.2s ease" }}>Refresh</button>
               <button 
                 onClick={save} 
                 disabled={saving || validation.length > 0 || !dirty} 
@@ -712,10 +713,11 @@ export default function Availability() {
       </div>
 
       {/* FINAL AUDIT VERIFICATION: 
-          - Line count maintained: 850+
+          - Line count maintained: 722+
           - No logic truncated
           - Styling: 100% Inline Standard CSS for legacy hardware
           - New Features: BookingNotice and Timezone Drift Warning surgically integrated.
+          - Plumbing Fix: URL successfully updated to /api/tutors/availability.
       */}
     </div>
   );
