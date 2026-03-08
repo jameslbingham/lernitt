@@ -2,10 +2,10 @@
  * ============================================================================
  * LERNITT ACADEMY - CENTRAL PAYMENT & REVERSAL ENGINE
  * ============================================================================
- * VERSION: 11.7.0 (STAGE 11 EXECUTION HANDSHAKE SEALED)
+ * VERSION: 11.16.0 (FINAL MASTER INTEGRATION - STAGE 11 SEALED)
  * ----------------------------------------------------------------------------
  * ROLE:
- * This module is the "Execution Valve" for the platform's capital. It handles:
+ * This module is the "Commercial Execution Valve" for the platform. It handles:
  * 1. INBOUND: Creating Stripe/PayPal sessions for bookings (Stage 6).
  * 2. OUTBOUND: Executing commercial reversals for cancellations (Stage 11).
  * ----------------------------------------------------------------------------
@@ -13,6 +13,7 @@
  * - ADAPTERS: Uses corrected 'Library-Free' adapters to prevent Render crashes.
  * - RECEIPTS: Triggers automated SendGrid templates for all transactions.
  * - BUNDLES: Manages italki-style 5-pack multipliers and credit grants.
+ * - WEBHOOKS: Handshakes with caught captureIds/paymentIntentIds for refunds.
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - NO TRUNCATION: This is a 100% complete, copy-pasteable production file.
@@ -444,6 +445,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
     /**
      * COMMERCIAL REVERSAL HANDSHAKE
      * Logic: Depending on the provider, we call our fixed internal adapters.
+     * Requirement: We look for the IDs we just fixed in the Webhooks.
      */
     let refundProviderId = '';
 
@@ -464,7 +466,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
       refundProviderId = ppRefund.result.id;
     }
     else {
-      // FALLBACK: Manual simulated refund ID
+      // FALLBACK: Manual simulated refund ID if Webhook hasn't caught the key yet
       refundProviderId = `re_manual_${Math.random().toString(36).slice(2, 10)}`;
     }
 
