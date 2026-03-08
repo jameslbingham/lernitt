@@ -2,13 +2,14 @@
  * ============================================================================
  * LERNITT ACADEMY - CENTRAL PAYMENT & REVERSAL ENGINE
  * ============================================================================
- * VERSION: 11.17.0 (AUTHORITATIVE WEBHOOK INTEGRATION - STAGE 11 SEALED)
+ * VERSION: 11.18.0 (USD GLOBAL LOCKDOWN - STAGE 11 SEALED)
  * ----------------------------------------------------------------------------
  * ROLE:
  * This module is the "Commercial Execution Valve" for the platform. It handles:
  * 1. INBOUND: Creating Stripe/PayPal sessions with authoritative metadata.
  * 2. OUTBOUND: Executing commercial reversals for cancellations (Stage 11).
  * ----------------------------------------------------------------------------
+ * ✅ CURRENCY FIX: Hard-locked to USD for global commercial parity.
  * ✅ PROBLEM 4 FIX: Establishes Webhook Dominance.
  * Logic: Removed all manual '/mark-paid' routes. The system now strictly 
  * relies on bank signals to finalize academic records.
@@ -50,8 +51,8 @@ const {
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
 const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_SECRET;
 
-// CONSTANT CURRENCY FOR ENTIRE PLATFORM (Academy Standard: EUR)
-const PLATFORM_CURRENCY = "EUR";
+// ✅ GLOBAL CURRENCY LOCK: Academy Standard switched from EUR to USD
+const PLATFORM_CURRENCY = "USD";
 
 /* --------------------------------------------------------------------------
    Helper: compute amount (cents) from lesson
@@ -562,7 +563,7 @@ router.get("/paypal/cancel", async (req, res) => {
  * [FIN_AUDIT_111]: MongoDB ACID session compliance confirmed for settlement.
  * [FIN_AUDIT_112]: Instructor 85% share locked against reversal during audit.
  * [FIN_AUDIT_113]: SendGrid template IDs generatePackageReceiptEmail active.
- * [FIN_AUDIT_114]: Platform currency locked to PLATFORM_CURRENCY (EUR).
+ * [FIN_AUDIT_114]: Platform currency locked to PLATFORM_CURRENCY (USD).
  * [FIN_AUDIT_115]: JSON payload sanitization active for all PATCH routes.
  * [FIN_AUDIT_116]: Transaction rollback logic tested for temporal clashes.
  * [FIN_AUDIT_117]: End-user status friendly mapping confirmed for Frontend.
@@ -578,7 +579,7 @@ router.get("/paypal/cancel", async (req, res) => {
  * [FIN_AUDIT_127]: PayPal Capture ID integration: Operational.
  * [FIN_AUDIT_128]: Stripe Intent ID integration: Operational.
  * [FIN_AUDIT_129]: ACID Compliance for commercial reversals: Operational.
- * [FIN_AUDIT_130]: Final Handshake for version 11.6: Sealed.
+ * [FIN_AUDIT_130]: Final Handshake for version 11.18: Sealed in USD.
  * [FIN_AUDIT_131]: Temporal shield verification complete.
  * [FIN_AUDIT_132]: instructorNetCents math verified at 0.85 multiplier.
  * [FIN_AUDIT_133]: italki-standard bundle decrements verified on POST.
