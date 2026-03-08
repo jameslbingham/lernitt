@@ -2,7 +2,7 @@
  * ============================================================================
  * LERNITT ACADEMY - CENTRAL LESSON & BOOKING ENGINE
  * ============================================================================
- * VERSION: 11.5.0 (FINAL ARCHITECTURAL INTEGRATION - STAGES 1-11 SEALED)
+ * VERSION: 11.5.0 (STAGE 11 REFUND & REVERSAL ARCHITECTURE SEALED)
  * ----------------------------------------------------------------------------
  * This module is the "Master Valve" for the platform's academic transactions.
  * It manages the transition from a "Temporal Slot" (Step 5) to a finalized
@@ -12,7 +12,7 @@
  * 3. LEAD-TIME PROTECTION: Enforces tutor-defined booking notice windows.
  * 4. FINANCIAL SETTLEMENT: Calculates commissions and queues payouts.
  * 5. NOTIFICATION HANDSHAKES: Triggers SendGrid alerts for all parties.
- * 6. REVERSAL VALVE: Automates refunds and credit returns (Stage 11).
+ * 6. REFUND VALVE: Automates the reversal of funds for cancellations (Stage 11).
  * ----------------------------------------------------------------------------
  * STAGE 8, 9 & 11 AMENDMENTS:
  * - STUDENT ACKNOWLEDGEMENT: Opened '/complete' to Students (Step 8).
@@ -37,8 +37,6 @@ const mongoose = require('mongoose');
  * Lesson: The primary academic record.
  * User: Used for credit balances and tutorStatus verification.
  * Availability: Used to enforce bookingNotice lead times.
- * Payment: Used for commercial reversals (Stage 11).
- * Payout: Used for instructor earnings settlement (Stage 10).
  */
 const Lesson = require('../models/Lesson');
 const Payment = require('../models/Payment');
