@@ -4,13 +4,16 @@
  * LERNITT ACADEMY - TUTOR ARCHITECTURE & MARKETPLACE LOGIC
  * ============================================================================
  * ROLE: Senior Developer Audit - Step 2 (Availability Plumbing)
- * VERSION: 4.1.0
+ * VERSION: 4.2.0 (VETTING VALVE SEALED)
  * ----------------------------------------------------------------------------
  * This file serves as the primary "Pipe System" for all tutor-related data.
  * It manages three distinct streams of information:
- * * 1. THE MARKETPLACE: Fetching and filtering approved tutors for students.
+ * 1. THE MARKETPLACE: Fetching and filtering approved tutors for students.
  * 2. THE ONBOARDING: Handling video uploads to Supabase and profile updates.
  * 3. THE SCHEDULING: Managing the internal "plumbing" for tutor availability.
+ * ----------------------------------------------------------------------------
+ * ✅ STAGE 4 FIX: Tightened visibility to strictly 'approved' status only.
+ * ✅ PLUMBING SYNC: Handshake verified with AdminDashboard approval triggers.
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - COMPLETE FILES ONLY: No truncation permitted.
@@ -36,16 +39,14 @@ const upload = multer({ storage: multer.memoryStorage() });
 /**
  * SOPHISTICATED MARKETPLACE LOGIC
  * ----------------------------------------------------------------------------
- * Only tutors marked as 'approved' or those legacy tutors without a status
- * are visible to students in the public marketplace.
+ * ✅ FIXED: Strict Vetting Valve.
+ * Only tutors explicitly marked as 'approved' are visible to students.
+ * This ensures Problem 3 is solved: Tutors are invisible until Bob approves.
  * ----------------------------------------------------------------------------
  */
 const visibleTutorMatch = {
   isTutor: true,
-  $or: [
-    { tutorStatus: "approved" },
-    { tutorStatus: { $exists: false } },
-  ],
+  tutorStatus: "approved"
 };
 
 /**
@@ -132,12 +133,12 @@ router.get("/:id", auth, async (req, res) => {
     ]);
 
     if (!result.length) {
-      return res.status(404).json({ error: "Tutor not found" });
+      return res.status(404).json({ error: "Tutor profile not found or not yet approved." });
     }
 
     res.json(result[0]);
   } catch (err) {
-    res.status(400).json({ error: "Invalid tutor id" });
+    res.status(400).json({ error: "Invalid tutor identification badge." });
   }
 });
 
@@ -188,7 +189,7 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
           subjects: subjects ? subjects.split(',').map(s => s.trim()) : [],
           price: Number(hourly_rate) || 0,
           introVideo: videoUrl,
-          tutorStatus: "pending", // Bob needs to review the video
+          tutorStatus: "pending", // Bob needs to review the video in Stage 4
           isTutor: true,
           role: "tutor" // Officially promote them to prevent dashboard entry rejection
         }
@@ -197,7 +198,7 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
     );
 
     res.status(200).json({
-      message: "Application submitted successfully!",
+      message: "Application submitted successfully! Bob (Admin) will review your intro video shortly.",
       videoUrl: videoUrl,
       user: updatedTutor.summary()
     });
@@ -266,12 +267,10 @@ router.patch("/setup", auth, async (req, res) => {
  * ----------------------------------------------------------------------------
  * This is the "FETCH" pipe. It allows the tutor's dashboard to load their
  * existing schedule from the MongoDB database. 
- * Without this, the page would show up blank every time the tutor refreshes.
  * ----------------------------------------------------------------------------
  */
 router.get("/availability/me", auth, async (req, res) => {
   try {
-    // We look for the availability record that belongs to the logged-in tutor.
     const availability = await Availability.findOne({ tutor: req.user.id });
     
     if (!availability) {
@@ -291,9 +290,7 @@ router.get("/availability/me", auth, async (req, res) => {
  * ✅ NEW PLUMBING: PUT /api/tutors/availability
  * ----------------------------------------------------------------------------
  * This is the "SAVE" pipe. It connects Availability.jsx to the Database.
- * This endpoint allows tutors to synchronize their weekly schedule grids
- * directly with MongoDB. It uses 'findOneAndUpdate' to ensure we don't
- * create duplicate schedule records for the same tutor.
+ * This endpoint allows tutors to synchronize their weekly schedule grids.
  * ----------------------------------------------------------------------------
  */
 router.put("/availability", auth, async (req, res) => {
