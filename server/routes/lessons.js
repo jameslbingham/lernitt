@@ -56,6 +56,9 @@ const { auth } = require("../middleware/auth");
 const { canReschedule } = require('../utils/policies');
 const validateSlot = require("../utils/validateSlot");
 
+// FIXED: Global mock flag
+const MOCK = process.env.VITE_MOCK === "1";
+
 /* ----------------------------------------------------------------------------
    1. LOGIC HELPERS: STATUS NORMALIZATION
    ---------------------------------------------------------------------------- */
@@ -770,10 +773,9 @@ router.patch('/:id/reschedule-reject', auth, async (req, res) => {
    ---------------------------------------------------------------------------- */
 router.patch('/expire-overdue', auth, async (req, res) => {
   try {
-    const now = new Date();
     const overdueQuery = {
       tutor: req.user.id,
-      endTime: { $lt: now },
+      endTime: { $lt: new Date() },
       status: { $nin: ['cancelled', 'completed', 'expired'] },
     };
 
@@ -795,10 +797,9 @@ router.patch('/expire-overdue', auth, async (req, res) => {
    ---------------------------------------------------------------------------- */
 router.get('/trial-summary/:tutorId', auth, async (req, res) => {
   try {
-    const student = req.user.id;
     const { tutorId } = req.params;
-    const usedWithTutor = !!(await Lesson.exists({ student, tutor: tutorId, isTrial: true }));
-    const totalTrials = await Lesson.countDocuments({ student, isTrial: true });
+    const usedWithTutor = !!(await Lesson.exists({ student: req.user.id, tutor: tutorId, isTrial: true }));
+    const totalTrials = await Lesson.countDocuments({ student: req.user.id, isTrial: true });
     res.json({ usedWithTutor, totalTrials, limitTotal: 3 });
   } catch (err) {
     console.error('[LESSONS] Trial lookup failure:', err);
