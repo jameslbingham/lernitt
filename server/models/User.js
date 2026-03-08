@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const { Schema } = mongoose;
 
 /**
- * LERNITT ACADEMY - ENHANCED USER DATA MODEL v3.3.0
+ * LERNITT ACADEMY - ENHANCED USER DATA MODEL v3.4.0
  * ----------------------------------------------------------------------------
  * CORE ARCHITECTURE:
  * - Identity: Fundamental account credentials and unique identification.
@@ -12,7 +12,27 @@ const { Schema } = mongoose;
  * - Commerce: italki-style multi-tiered pricing, packages, and payout metadata.
  * - Security: Bcrypt-hashed credentials and temporary reset tokens.
  * ----------------------------------------------------------------------------
+ * ✅ STAGE 11 AUDIT SEAL: Added explicit credit sub-schema for bundle reinstates.
+ * ============================================================================
  */
+
+/**
+ * PACKAGE CREDIT SUB-SCHEMA
+ * Logic: Tracks the number of pre-paid lessons a student has for a specific tutor.
+ * Requirement: Stage 6 (Purchase) increments, Stage 11 (Cancel/Refund) reinstates.
+ */
+const PackageCreditSchema = new Schema({
+  tutorId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+  count: { 
+    type: Number, 
+    default: 0, 
+    min: 0 
+  }
+}, { _id: false });
 
 const UserSchema = new Schema(
   {
@@ -154,6 +174,12 @@ const UserSchema = new Schema(
     },
 
     /**
+     * ✅ STAGE 11 CREDIT VAULT
+     * Logic: Stores student bundle balances. Decremented on book, Incremented on cancel.
+     */
+    packageCredits: [PackageCreditSchema],
+
+    /**
      * italki-STYLE PRICING ARCHITECTURE
      * Multi-tiered lesson templates with automated package discount calculations.
      */
@@ -235,10 +261,11 @@ UserSchema.methods.summary = function () {
     totalEarnings: this.totalEarnings,
     tutorStatus: this.tutorStatus || "none",
     proficiencyLevel: this.proficiencyLevel || "none",
-    grammarWeaknesses: this.grammarWeaknesses || [], // ✅ ADDED TO SUMMARY
+    grammarWeaknesses: this.grammarWeaknesses || [],
     placementTest: this.placementTest || null, 
     lessonTemplates: this.lessonTemplates || [],
-    introVideo: this.introVideo || null
+    introVideo: this.introVideo || null,
+    packageCredits: this.packageCredits || [] // Handshake with Stage 6/11
   };
 };
 
