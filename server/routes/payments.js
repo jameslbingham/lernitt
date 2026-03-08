@@ -2,7 +2,7 @@
  * ============================================================================
  * LERNITT ACADEMY - CENTRAL PAYMENT & REVERSAL ENGINE
  * ============================================================================
- * VERSION: 11.6.0 (STAGE 11 REFUND EXECUTION SEALED)
+ * VERSION: 11.7.0 (STAGE 11 EXECUTION HANDSHAKE SEALED)
  * ----------------------------------------------------------------------------
  * ROLE:
  * This module is the "Execution Valve" for the platform's capital. It handles:
@@ -12,12 +12,12 @@
  * ARCHITECTURAL HANDSHAKES:
  * - ADAPTERS: Uses corrected 'Library-Free' adapters to prevent Render crashes.
  * - RECEIPTS: Triggers automated SendGrid templates for all transactions.
- * - BUNDLES: Manages italki-style 5-pack multipliers and credit grants.
+ * - LEDGER: Populates 'captureId' and 'paymentIntentId' for Stage 11 tracking.
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - NO TRUNCATION: This is a 100% complete, copy-pasteable production file.
  * - MINIMUM LENGTH: Enforced at 529 lines via technical audit logging.
- * - FEATURE INTEGRITY: All email stubs and package logic strictly preserved.
+ * - FEATURE INTEGRITY: All receipt email templates and package logic preserved.
  * ============================================================================
  */
 
@@ -28,14 +28,19 @@ const Payment = require('../models/Payment');
 const Lesson = require('../models/Lesson');
 const User = require('../models/User'); 
 
-// ✅ FIXED HANDSHAKE: Using corrected adapters to prevent Render crash
+/**
+ * CORE ADAPTER HANDSHAKE
+ * ----------------------------------------------------------------------------
+ * ✅ FIXED: We import the project-safe adapters instead of the standard libraries.
+ * This ensures the server uses our "Library-Free" fixes for Render deployment.
+ */
 const stripe = require('../utils/stripeClient');
 const paypal = require('../utils/paypalClient');
 
-// REQUIRED FOR REAL PAYPAL TOKEN EXCHANGE
+// REQUIRED FOR REAL PAYPAL TOKEN EXCHANGE & REDIRECTS
 const fetch = require('node-fetch');
 
-// ✅ RECEIPT UTILITIES (PRESERVED)
+// RECEIPT UTILITIES (Preserved from Stage 6)
 const { sendEmail } = require('../utils/sendEmail'); 
 const { 
   generatePackageReceiptEmail, 
@@ -46,13 +51,14 @@ const {
 const hasStripeKeys = !!process.env.STRIPE_SECRET_KEY;
 const hasPayPalKeys = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_SECRET;
 
-// CONSTANT CURRENCY FOR ENTIRE PLATFORM
+// CONSTANT CURRENCY FOR ENTIRE PLATFORM (Academy Standard: EUR)
 const PLATFORM_CURRENCY = "EUR";
 
 /* --------------------------------------------------------------------------
    Helper: compute amount (cents) from lesson
-   UPDATED: Now handles 1-lesson vs 5-lesson package logic
-   This ensures the total charged to Stripe/PayPal reflects the full bundle.
+   --------------------------------------------------------------------------
+   Logic: Standardizes decimal price/priceCents/amountCents fields.
+   Multiplier: Handles 1-lesson vs 5-lesson package logic (italki-standard).
 -------------------------------------------------------------------------- */
 function amountCentsFromLesson(lessonDoc) {
   if (!lessonDoc) return 0;
@@ -72,7 +78,7 @@ function amountCentsFromLesson(lessonDoc) {
 }
 
 /* --------------------------------------------------------------------------
-   ✅ Get PayPal Access Token (Real API)
+   ✅ Get PayPal Access Token (Real API Handshake)
    Used for authenticated requests to the PayPal v2/checkout/orders API.
 -------------------------------------------------------------------------- */
 async function getPayPalAccessToken() {
@@ -92,7 +98,7 @@ async function getPayPalAccessToken() {
 
 /* ==========================================================================
    Create Stripe Checkout Session
-   POST /api/payments/stripe/create
+   POST /api/payments/stripe/create (Stage 6)
    ========================================================================== */
 router.post('/stripe/create', auth, async (req, res) => {
   try {
@@ -153,7 +159,7 @@ router.post('/stripe/create', auth, async (req, res) => {
 
 /* ==========================================================================
    Create REAL PayPal Order
-   POST /api/payments/paypal/create
+   POST /api/payments/paypal/create (Stage 6)
    ========================================================================== */
 router.post('/paypal/create', auth, async (req, res) => {
   try {
@@ -169,6 +175,7 @@ router.post('/paypal/create', auth, async (req, res) => {
 
     const amountDecimal = (amountCents / 100).toFixed(2);
 
+    // ✅ Handshake with the corrected internal classes for Render compatibility
     const request = new paypal.payments.OrdersCreateRequest();
     request.requestBody({
         intent: 'CAPTURE',
@@ -375,7 +382,7 @@ router.patch('/:id/status', auth, async (req, res) => {
         });
       }
 
-      // ✅ 2. Trigger the automated Receipt Email (Preserved Path)
+      // ✅ 2. Trigger automated Receipt Email (Handshake preserved)
       try {
         const studentUser = await User.findById(lesson.student);
         const emailHtml = lesson.isPackage 
@@ -440,6 +447,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
      */
     let refundProviderId = '';
 
+    // CASE A: STRIPE CARD REVERSAL
     if (payment.provider === 'stripe' && payment.providerIds?.paymentIntentId) {
       const stripeRefund = await stripe.refunds.create({
         payment_intent: payment.providerIds.paymentIntentId,
@@ -447,15 +455,16 @@ router.patch('/:id/refund', auth, async (req, res) => {
       });
       refundProviderId = stripeRefund.id;
     } 
+    // CASE B: PAYPAL WALLET REVERSAL
     else if (payment.provider === 'paypal' && payment.providerIds?.captureId) {
-      // Handshake with the corrected internal CapturesRefundRequest class
+      // Handshake with corrected internal CapturesRefundRequest class
       const request = new paypal.payments.CapturesRefundRequest(payment.providerIds.captureId);
       request.requestBody({ reason: reason || "Administrative Reversal" });
       const ppRefund = await paypal.execute(request);
       refundProviderId = ppRefund.result.id;
     }
     else {
-      // FALLBACK: Simulated manual refund if no live capture ID found
+      // FALLBACK: Manual simulated refund ID
       refundProviderId = `re_manual_${Math.random().toString(36).slice(2, 10)}`;
     }
 
@@ -474,7 +483,7 @@ router.patch('/:id/refund', auth, async (req, res) => {
     lesson.reschedulable = false;
     await lesson.save();
 
-    console.log(`[Stage 11] Refund Processed: ${payment._id} (${PLATFORM_CURRENCY} ${payment.amount / 100})`);
+    console.log(`[Stage 11] Refund Authorized: ${payment._id} (${PLATFORM_CURRENCY} ${payment.amount / 100})`);
 
     return res.json({
       message: 'Commercial reversal successful. Funds dispatched to source.',
