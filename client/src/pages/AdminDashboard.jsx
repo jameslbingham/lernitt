@@ -17,6 +17,7 @@
 //   column toggle, pagination, details drawer, saved per-tab prefs.
 // • Refunds: list with filters, bulk actions placeholder, search/filter/sort/export,
 //   column toggle, pagination, details drawer, saved per-tab prefs.
+//   -> STAGE 11: Added "Process Refund" trigger and status badges for reversals.
 // • Notifications: list + admin tools (broadcast/custom/delete/resend) with stubs,
 //   search/filter/sort/export, column toggle, pagination, details drawer, saved per-tab prefs.
 // • Disputes: list + resolve/reject actions (server PATCH stub ready), search/filter/sort/export,
@@ -485,6 +486,17 @@ export default function AdminDashboard({ initialTab = "users" }) {
           </Badge>
         )}
 
+        {/* Refunds (Stage 11 Reversal) */}
+        {tab === "Refunds" && row.status === "queued_for_refund" && (
+           <Btn
+             onClick={() => handleProcessRefund(row)}
+             className="text-xs"
+             kind="success"
+           >
+             Process Refund
+           </Btn>
+        )}
+
         {/* Disputes */}
         {tab === "Disputes" &&
           row.status &&
@@ -571,7 +583,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
   }
 
   /**
-   * ✅ REQUIRED CHANGE: handleStatusUpdate
+   * handleStatusUpdate
    * Integrated into AdminDashboard to process real-mode tutor status patches.
    */
   async function handleStatusUpdate(userId, newStatus) {
@@ -612,6 +624,33 @@ export default function AdminDashboard({ initialTab = "users" }) {
       });
     } catch {}
     updateRowOverride("Lessons", row.id, { rescheduleStatus: status }, setRows);
+  }
+
+  /**
+   * handleProcessRefund (Stage 11 Handshake)
+   * Triggered from the Refunds tab to execute the commercial reversal pipe.
+   */
+  async function handleProcessRefund(row) {
+     confirm({
+        title: "Confirm Refund",
+        msg: `Authorize commercial reversal for record ${row.id}? This will return funds to the student.`,
+        onConfirm: async () => {
+           try {
+              const data = await safeFetchJSON(`/api/payments/${row.id}/refund`, {
+                 method: 'PATCH',
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify({ reason: "admin_override" })
+              });
+              if (data && !data.error) {
+                 updateRowOverride("Refunds", row.id, { status: "refunded" }, setRows);
+              }
+           } catch (err) {
+              if (MOCK) {
+                 updateRowOverride("Refunds", row.id, { status: "refunded" }, setRows);
+              }
+           }
+        }
+     });
   }
 
   // Disputes
@@ -981,6 +1020,14 @@ export default function AdminDashboard({ initialTab = "users" }) {
           return <Badge color={color}>{formatCell(st)}</Badge>;
         }
 
+        /* ---------- Refund status (Stage 11) ---------- */
+        if (tab === "Refunds" && k === "status") {
+           const color = 
+             val === "queued_for_refund" ? "purple" :
+             val === "refunded" ? "slate" : "gray";
+           return <Badge color={color}>{formatCell(val)}</Badge>;
+        }
+
         return formatCell(val);
       },
     }));
@@ -1137,6 +1184,8 @@ export default function AdminDashboard({ initialTab = "users" }) {
                       <option value="">All</option>
                       <option value="processed">Processed</option>
                       <option value="queued">Queued</option>
+                      <option value="queued_for_refund">Refund Requested</option>
+                      <option value="refunded">Reversed</option>
                     </Select>
                     <Btn onClick={() => setFilterValue("")}>Reset</Btn>
                   </>
@@ -1323,6 +1372,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
                     const checked = selected.includes(i);
 
                     const isLesson = tab === "Lessons";
+                    const isRefund = tab === "Refunds";
                     return (
                       <tr
                         key={row.id ?? i}
@@ -1349,7 +1399,7 @@ export default function AdminDashboard({ initialTab = "users" }) {
                         {keys.map((k) => {
                           const val = flat[k];
 
-                          // === SPECIAL: LESSONS STATUS BADGE ===
+                          // === SPECIAL: LESSON STATUS BADGE ===
                           if (isLesson && k === "status") {
                             const color =
                               val === "booked"
@@ -1464,6 +1514,18 @@ export default function AdminDashboard({ initialTab = "users" }) {
                                 )}
                               </td>
                             );
+                          }
+
+                          // === REFUND STATUS BADGE (Stage 11) ===
+                          if (isRefund && k === "status") {
+                             const color = 
+                               val === "queued_for_refund" ? "purple" :
+                               val === "refunded" ? "slate" : "gray";
+                             return (
+                                <td key={k} className="px-3 py-2 border-b">
+                                   <Badge color={color}>{formatCell(val)}</Badge>
+                                </td>
+                             );
                           }
 
                           return (
