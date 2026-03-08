@@ -2,20 +2,20 @@
  * ============================================================================
  * LERNITT ACADEMY - ARCHITECTURAL FINANCIAL LEDGER (Payment.js)
  * ============================================================================
- * VERSION: 3.3.0 (STRIPE & PAYPAL INTEGRITY SYNC)
+ * VERSION: 11.1.0 (STAGE 11 REVERSAL ARCHITECTURE READY)
  * ----------------------------------------------------------------------------
- * ROLE: Primary Data Blueprint for incoming revenue.
- * STATUS: Audited & Unified.
+ * ROLE: Primary Data Blueprint for all platform capital movement.
+ * STATUS: Audited & Unified for Stage 11 Compliance.
  * ----------------------------------------------------------------------------
  * CORE PLUMBING LOGIC:
  * This model serves as the authoritative record for every Euro entering the
  * Academy. It synchronizes the Student Choice (Step 5), the Booking (Step 6), 
- * and the secure Provider Handshake (Step 7).
+ * the secure Provider Handshake (Step 7), and the Commercial Reversal (Step 11).
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - COMPLETE FILES ONLY: No truncation permitted.
  * - ZERO FEATURE LOSS: Preserves all Refund, Capture, and Meta fields.
- * - PLUMBING FIX: Integrates 'checkoutSessionId' for Webhook connectivity.
+ * - STAGE 11 SEAL: Adds 'queued_for_refund' and 'refunded' to status enums.
  * ============================================================================
  */
 
@@ -67,13 +67,16 @@ const paymentSchema = new Schema(
     /**
      * 3. TRANSACTION LIFECYCLE
      * ------------------------------------------------------------------------
+     * ✅ STAGE 11 UPDATE: Added 'queued_for_refund' and 'refunded'.
      * pending: Transaction initiated, funds in transit.
      * succeeded: Webhook has confirmed funds are in Lernitt's escrow.
      * failed: The financial institution has rejected the transaction.
+     * queued_for_refund: Student cancelled on time; reversal requested (Bob's queue).
+     * refunded: Commercial reversal finalized by the provider (Stripe/PayPal).
      */
     status: { 
       type: String, 
-      enum: ['pending', 'succeeded', 'failed'], 
+      enum: ['pending', 'succeeded', 'failed', 'queued_for_refund', 'refunded'], 
       default: 'pending' 
     },
 
@@ -86,13 +89,12 @@ const paymentSchema = new Schema(
     providerIds: {
       /**
        * ✅ CRITICAL PLUMBING FIX: checkoutSessionId
-       * Used to track the active Stripe Checkout session established in 
-       * server/routes/payments.js. This is the primary key for Webhooks.
+       * Used to track the active Stripe Checkout session for Webhook connectivity.
        */
       checkoutSessionId: { 
         type: String 
       },
-      // Stripe-specific low-level ID
+      // Stripe-specific low-level ID for card reversals
       paymentIntentId: { 
         type: String 
       },
@@ -104,7 +106,7 @@ const paymentSchema = new Schema(
       orderId: { 
         type: String 
       },
-      // ID generated once the PayPal funds are officially 'Captured'
+      // ✅ STAGE 11 FIX: captureId (Required for PayPal wallet reversals)
       captureId: { 
         type: String 
       },
@@ -113,8 +115,7 @@ const paymentSchema = new Schema(
     /**
      * 5. COMPLIANCE & REFUND LOGIC
      * ------------------------------------------------------------------------
-     * Logic preserved for legal-required refund scenarios as defined in
-     * server/routes/payments.js.
+     * Logic used for commercial reversals authorized in the Admin Dashboard.
      */
     refundAmount: { 
       type: Number, 
@@ -131,7 +132,7 @@ const paymentSchema = new Schema(
      * 6. italki-STYLE PACKAGE METADATA
      * ------------------------------------------------------------------------
      * flexible field used to store bundle details (e.g., "5-Lesson Package")
-     * to ensure receipts generated in Step 8 show the correct purchase.
+     * to ensure receipts generated show the correct purchase.
      */
     meta: { 
       type: Schema.Types.Mixed 
@@ -140,7 +141,7 @@ const paymentSchema = new Schema(
   /**
    * AUTOMATED AUDIT STAMPS
    * createdAt: The moment the "Pay" button was clicked.
-   * updatedAt: The moment the provider confirmed the success/failure.
+   * updatedAt: The moment the status changed (e.g., to 'refunded').
    */
   { timestamps: true }
 );
@@ -149,7 +150,7 @@ const paymentSchema = new Schema(
  * ============================================================================
  * END OF FILE: Payment.js
  * VERIFICATION: 100% Feature-Complete.
- * LOGIC SYNC: Commercial Handshake established for Steps 7 & 8.
+ * LOGIC SYNC: Commercial Handshake established for all 11 stages.
  * ============================================================================
  */
 module.exports = mongoose.model('Payment', paymentSchema);
