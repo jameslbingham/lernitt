@@ -2,7 +2,7 @@
  * ============================================================================
  * LERNITT ACADEMY - CENTRAL LESSON & BOOKING ENGINE
  * ============================================================================
- * VERSION: 11.5.0 (STAGE 11 REFUND & REVERSAL ARCHITECTURE SEALED)
+ * VERSION: 11.8.0 (STAGE 11 SEALED - ACCOUNTING CLOG REMOVED)
  * ----------------------------------------------------------------------------
  * This module is the "Master Valve" for the platform's academic transactions.
  * It manages the transition from a "Temporal Slot" (Step 5) to a finalized
@@ -18,6 +18,7 @@
  * - STUDENT ACKNOWLEDGEMENT: Opened '/complete' to Students (Step 8).
  * - TEMPORAL PROTECTION: Prevents settlement before the lesson ends.
  * - PLATFORM ACCOUNT: Increments tutor's lifetime earnings field (Step 9).
+ * - ✅ PAYOUT FIX: Now triggers 85% share for credit-paid lessons (italki sync).
  * - REFUND LOGIC: Reinstates bundle credits or queues card refunds (Step 11).
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
@@ -34,9 +35,6 @@ const mongoose = require('mongoose');
 /**
  * CORE MODELS
  * ----------------------------------------------------------------------------
- * Lesson: The primary academic record.
- * User: Used for credit balances and tutorStatus verification.
- * Availability: Used to enforce bookingNotice lead times.
  */
 const Lesson = require('../models/Lesson');
 const Payment = require('../models/Payment');
@@ -47,9 +45,6 @@ const User = require('../models/User');
 /**
  * UTILITY PLUMBING
  * ----------------------------------------------------------------------------
- * notify: Handles in-app and SendGrid email delivery.
- * auth: Security guard for verifying JWT identity badges (Step 3).
- * validateSlot: Boundary-checker to prevent invalid booking attempts (Step 5).
  */
 const { notify } = require('../utils/notify');
 const { auth } = require("../middleware/auth");
@@ -557,10 +552,6 @@ router.patch('/:id/complete', auth, async (req, res) => {
     const lesson = await Lesson.findById(req.params.id);
     if (!lesson) return res.status(404).json({ message: 'Lesson record not found.' });
 
-    /**
-     * ✅ STAGE 8 SEAL: AUTHORIZATION
-     * Per Step 8 of testing list, Student must be able to acknowledge funds.
-     */
     const isStudent = lesson.student.toString() === req.user.id;
     const isTutor = lesson.tutor.toString() === req.user.id;
 
@@ -587,15 +578,19 @@ router.patch('/:id/complete', auth, async (req, res) => {
      * 💰 COMMISSION CALCULATION PIPE (STEP 9)
      * ------------------------------------------------------------------------
      * Logic: Standard 85% payout to tutor, 15% platform overhead fee.
-     * Duplicate Prevention: Checks .exists() before creating a Payout.
+     * ✅ ACCOUNTING FIX: Triggers even if price is 0 but lesson 'isPaid' (Credits).
      */
     const alreadySettled = await Payout.exists({ lesson: lesson._id });
 
-    if (!lesson.isTrial && lesson.price > 0 && !alreadySettled) {
-      const rawPriceCents = Math.round((lesson.price || 0) * 100);
-      const takeHomeCents = Math.floor(rawPriceCents * 0.85);
-
+    if (!lesson.isTrial && (lesson.price > 0 || lesson.isPaid) && !alreadySettled) {
+      
+      // FALLBACK PRICE: If lesson.price is 0 (it was a credit lesson), 
+      // we derive the payout from the tutor's default hourly template.
       const tutorProfile = await User.findById(lesson.tutor);
+      const effectivePrice = lesson.price > 0 ? lesson.price : (tutorProfile.hourlyRate || 20);
+
+      const rawPriceCents = Math.round(effectivePrice * 100);
+      const takeHomeCents = Math.floor(rawPriceCents * 0.85);
       const paymentProvider = tutorProfile?.paypalEmail ? 'paypal' : 'stripe';
 
       // 1. Queue the formal Payout record (Step 10 Withdrawals)
@@ -610,16 +605,15 @@ router.patch('/:id/complete', auth, async (req, res) => {
 
       /**
        * ✅ STAGE 9 SEAL: PLATFORM ACCOUNT CREDIT
-       * Logic: Increments the totalEarnings on the tutor's profile.
        */
       await User.findByIdAndUpdate(lesson.tutor, {
         $inc: { 
-          totalEarnings: lesson.price * 0.85, 
+          totalEarnings: effectivePrice * 0.85, 
           totalLessons: 1 
         }
       });
       
-      console.log(`[Stage 9] Account Credited: ${lesson.tutor} (Share: €${(takeHomeCents / 100).toFixed(2)})`);
+      console.log(`[Stage 9] Account Settled: ${lesson.tutor} (Share: €${(takeHomeCents / 100).toFixed(2)})`);
     }
 
     await notify(
@@ -662,10 +656,6 @@ router.patch('/:id/reschedule', auth, async (req, res) => {
       return res.status(400).json({ message: 'Closed records cannot be rescheduled.' });
     }
 
-    /**
-     * NEW SLOT VALIDATION:
-     * Logic: Boundary-check the new requested time before updating.
-     */
     const durMins = Math.max(15, Math.round((new Date(newEndTime) - new Date(newStartTime)) / 60000));
     const chk = await validateSlot({
       tutorId: lesson.tutor,
@@ -773,9 +763,10 @@ router.patch('/:id/reschedule-reject', auth, async (req, res) => {
    ---------------------------------------------------------------------------- */
 router.patch('/expire-overdue', auth, async (req, res) => {
   try {
+    const now = new Date();
     const overdueQuery = {
       tutor: req.user.id,
-      endTime: { $lt: new Date() },
+      endTime: { $lt: now },
       status: { $nin: ['cancelled', 'completed', 'expired'] },
     };
 
@@ -797,9 +788,10 @@ router.patch('/expire-overdue', auth, async (req, res) => {
    ---------------------------------------------------------------------------- */
 router.get('/trial-summary/:tutorId', auth, async (req, res) => {
   try {
+    const student = req.user.id;
     const { tutorId } = req.params;
-    const usedWithTutor = !!(await Lesson.exists({ student: req.user.id, tutor: tutorId, isTrial: true }));
-    const totalTrials = await Lesson.countDocuments({ student: req.user.id, isTrial: true });
+    const usedWithTutor = !!(await Lesson.exists({ student, tutor: tutorId, isTrial: true }));
+    const totalTrials = await Lesson.countDocuments({ student, isTrial: true });
     res.json({ usedWithTutor, totalTrials, limitTotal: 3 });
   } catch (err) {
     console.error('[LESSONS] Trial lookup failure:', err);
@@ -809,7 +801,7 @@ router.get('/trial-summary/:tutorId', auth, async (req, res) => {
 
 /**
  * ============================================================================
- * ARCHITECTURAL LOGS & DOCUMENTATION (VERSION 11.2.0)
+ * ARCHITECTURAL LOGS & DOCUMENTATION (VERSION 11.8.0)
  * ----------------------------------------------------------------------------
  * This section ensures the administrative line-count requirement (765+) is met
  * while providing critical audit logs for platform maintainers.
