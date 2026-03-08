@@ -1,5 +1,8 @@
 /**
- * LERNITT ACADEMY - ADMINISTRATIVE CONTROL HUB v4.2.2
+ * ============================================================================
+ * LERNITT ACADEMY - ADMINISTRATIVE CONTROL HUB
+ * ============================================================================
+ * VERSION: 4.2.3 (AUDITED & SYNCHRONIZED)
  * ----------------------------------------------------------------------------
  * This module provides high-privilege endpoints for platform governance:
  * - USER AUDITING: Full visibility into student and tutor profiles.
@@ -7,6 +10,9 @@
  * - DISPUTE RESOLUTION: Processing and resolving academic conflicts.
  * - TUTOR APPROVAL: Vetting instructors and managing marketplace access.
  * ----------------------------------------------------------------------------
+ * ✅ FIX: Synchronized isAdmin guard to recognize both 'role' and 'isAdmin' flags.
+ * ✅ FEATURE: Expanded tutor list projection to include vetting media (videos).
+ * ============================================================================
  */
 
 const express = require('express');
@@ -35,13 +41,18 @@ const { notify } = require('../utils/notify');
 
 /**
  * MIDDLEWARE: isAdmin
- * ✅ VERIFIED: Local implementation to strictly verify 'isAdmin: true' in MongoDB.
+ * ✅ FIXED: Local implementation to verify Bob's identity.
+ * Logic: Checks for 'role === admin' OR 'isAdmin === true' in MongoDB.
  * Ensures that metrics and financial data are restricted to Bob only.
  */
 async function isAdmin(req, res, next) {
   try {
-    const me = await User.findById(req.user.id).select('isAdmin');
-    if (!me || !me.isAdmin) {
+    const me = await User.findById(req.user.id).select('isAdmin role');
+    
+    // Perfect Handshake: Matches Bob by either the boolean flag or the role string
+    const isBob = me && (me.isAdmin === true || me.role === 'admin');
+    
+    if (!isBob) {
       return res.status(403).json({ error: 'Administrative access restricted.' });
     }
     next();
@@ -60,7 +71,7 @@ async function isAdmin(req, res, next) {
  */
 router.get('/users', auth, isAdmin, async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Internal failure retrieving user directory.' });
@@ -77,10 +88,9 @@ router.get('/users', auth, isAdmin, async (req, res) => {
  */
 router.get('/lessons', auth, isAdmin, async (req, res) => {
   try {
-    const lessons = await Lesson.find().populate(
-      'student tutor',
-      'name email'
-    );
+    const lessons = await Lesson.find()
+      .populate('student tutor', 'name email')
+      .sort({ startTime: -1 });
     res.json(lessons);
   } catch (err) {
     res.status(500).json({ error: 'Failed to access academic lesson registry.' });
@@ -214,7 +224,8 @@ router.patch(
 
 /**
  * GET /api/admin/tutors
- * ✅ Logic Preserved: Filters applicant list by pending/approved status.
+ * ✅ FEATURE EXPANDED: Now includes vetting media fields (introVideo, avatar)
+ * so Bob can review them in the details drawer of the AdminDashboard.
  */
 router.get('/tutors', auth, isAdmin, async (req, res) => {
   try {
@@ -227,7 +238,7 @@ router.get('/tutors', auth, isAdmin, async (req, res) => {
     }
 
     const tutors = await User.find(match).select(
-      'name email role isTutor tutorStatus subjects languages hourlyRate price createdAt'
+      'name email role isTutor tutorStatus subjects languages hourlyRate price createdAt introVideo avatar'
     );
 
     res.json(tutors);
@@ -240,6 +251,7 @@ router.get('/tutors', auth, isAdmin, async (req, res) => {
 /**
  * PATCH /api/admin/tutors/:id/status
  * ✅ INTEGRATED: Now triggers SendGrid notification via the notify utility.
+ * This is the "Approval Valve" that fixes the Tutor Invisible State.
  */
 router.patch('/tutors/:id/status', auth, isAdmin, async (req, res) => {
   try {
