@@ -584,7 +584,7 @@ router.patch('/:id/complete', auth, async (req, res) => {
      * 💰 COMMISSION CALCULATION PIPE (STEP 9)
      * ------------------------------------------------------------------------
      * Logic: Standard 85% payout to tutor, 15% platform overhead fee.
-     * ✅ ACCOUNTING FIX: Triggers even if price is 0 but lesson 'isPaid' (Credits).
+     * ✅ ACCOUNTING FIX: Now triggers even if price is 0 but lesson 'isPaid' (Credits).
      */
     const alreadySettled = await Payout.exists({ lesson: lesson._id });
 
