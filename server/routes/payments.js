@@ -2,18 +2,16 @@
  * ============================================================================
  * LERNITT ACADEMY - CENTRAL PAYMENT & REVERSAL ENGINE
  * ============================================================================
- * VERSION: 11.16.0 (FINAL MASTER INTEGRATION - STAGE 11 SEALED)
+ * VERSION: 11.17.0 (AUTHORITATIVE WEBHOOK INTEGRATION - STAGE 11 SEALED)
  * ----------------------------------------------------------------------------
  * ROLE:
  * This module is the "Commercial Execution Valve" for the platform. It handles:
- * 1. INBOUND: Creating Stripe/PayPal sessions for bookings (Stage 6).
+ * 1. INBOUND: Creating Stripe/PayPal sessions with authoritative metadata.
  * 2. OUTBOUND: Executing commercial reversals for cancellations (Stage 11).
  * ----------------------------------------------------------------------------
- * ARCHITECTURAL HANDSHAKES:
- * - ADAPTERS: Uses corrected 'Library-Free' adapters to prevent Render crashes.
- * - RECEIPTS: Triggers automated SendGrid templates for all transactions.
- * - BUNDLES: Manages italki-style 5-pack multipliers and credit grants.
- * - WEBHOOKS: Handshakes with caught captureIds/paymentIntentIds for refunds.
+ * ✅ PROBLEM 4 FIX: Establishes Webhook Dominance.
+ * Logic: Removed all manual '/mark-paid' routes. The system now strictly 
+ * relies on bank signals to finalize academic records.
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - NO TRUNCATION: This is a 100% complete, copy-pasteable production file.
@@ -117,6 +115,11 @@ router.post('/stripe/create', auth, async (req, res) => {
       ? `Package: 5x ${lessonDoc.lessonTypeTitle || 'Lessons'} with ${lessonDoc.tutor?.name || 'Tutor'}`
       : `${lessonDoc.lessonTypeTitle || 'Lesson'} with ${lessonDoc.tutor?.name || 'Tutor'}`;
 
+    /**
+     * ✅ PROBLEM 4 FIX: Authoritative Metadata Handshake
+     * We pass the 'lesson' ID here so the Webhook can update the record
+     * even if the student closes their browser.
+     */
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -128,8 +131,8 @@ router.post('/stripe/create', auth, async (req, res) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm/${lessonId}?success=true`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pay/${lessonId}?cancel=true`,
+      success_url: `${process.env.FRONTEND_URL}/booking-confirmation/${lessonId}?paid=1&provider=stripe`,
+      cancel_url: `${process.env.FRONTEND_URL}/pay/${lessonId}?cancel=true`,
       metadata: { 
         lesson: lessonId,
         isPackage: String(lessonDoc.isPackage || false)
@@ -182,11 +185,15 @@ router.post('/paypal/create', auth, async (req, res) => {
         intent: 'CAPTURE',
         purchase_units: [{
           amount: { currency_code: PLATFORM_CURRENCY, value: amountDecimal },
+          /**
+           * ✅ PROBLEM 4 FIX: Authoritative Reference Handshake
+           * This allows the PayPal webhook to identify the lesson.
+           */
           reference_id: lessonId
         }],
         application_context: {
-          return_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm/${lessonId}?success=true`,
-          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pay/${lessonId}?cancel=true`,
+          return_url: `${process.env.FRONTEND_URL}/booking-confirmation/${lessonId}?paid=1&provider=paypal`,
+          cancel_url: `${process.env.FRONTEND_URL}/pay/${lessonId}?cancel=true`,
         }
     });
 
@@ -240,9 +247,9 @@ router.post('/stripe', auth, async (req, res) => {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm/${lesson}?success=true`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pay/${lesson}?cancel=true`,
-      metadata: { lesson }
+      success_url: `${process.env.FRONTEND_URL}/booking-confirmation/${lesson}?paid=1&provider=stripe`,
+      cancel_url: `${process.env.FRONTEND_URL}/pay/${lesson}?cancel=true`,
+      metadata: { lesson } // 👈 Authority Key
     });
 
     const payment = await Payment.create({
@@ -280,11 +287,11 @@ router.post('/paypal', auth, async (req, res) => {
         intent: 'CAPTURE',
         purchase_units: [{
           amount: { currency_code: PLATFORM_CURRENCY, value: amountDecimal },
-          reference_id: lesson
+          reference_id: lesson // 👈 Authority Key
         }],
         application_context: {
-          return_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm/${lesson}?success=true`,
-          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pay/${lesson}?cancel=true`,
+          return_url: `${process.env.FRONTEND_URL}/booking-confirmation/${lesson}?paid=1&provider=paypal`,
+          cancel_url: `${process.env.FRONTEND_URL}/pay/${lesson}?cancel=true`,
         }
     });
 
@@ -505,7 +512,7 @@ router.get("/stripe/success", async (req, res) => {
   const { lessonId } = req.query;
   if (!lessonId) return res.status(400).send("Missing lessonId");
   const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
-  return res.redirect(`${frontend}/confirm/${encodeURIComponent(lessonId)}`);
+  return res.redirect(`${frontend}/booking-confirmation/${encodeURIComponent(lessonId)}?paid=1&provider=stripe`);
 });
 
 router.get("/stripe/cancel", async (req, res) => {
@@ -518,7 +525,7 @@ router.get("/paypal/success", async (req, res) => {
   const { lessonId } = req.query;
   if (!lessonId) return res.status(400).send("Missing lessonId");
   const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
-  return res.redirect(`${frontend}/confirm/${encodeURIComponent(lessonId)}`);
+  return res.redirect(`${frontend}/booking-confirmation/${encodeURIComponent(lessonId)}?paid=1&provider=paypal`);
 });
 
 router.get("/paypal/cancel", async (req, res) => {
@@ -527,42 +534,12 @@ router.get("/paypal/cancel", async (req, res) => {
   return res.redirect(`${frontend}/pay/${encodeURIComponent(lessonId || "")}?cancel=1`);
 });
 
-/* ==========================================================================
-   Mark lesson as PAID (Internal utility)
-   ========================================================================== */
-router.post("/stripe/mark-paid", async (req, res) => {
-  try {
-    const { lessonId } = req.body || {};
-    if (!lessonId) return res.status(400).json({ message: "Missing lessonId" });
-    const lesson = await Lesson.findById(lessonId);
-    if (!lesson) return res.status(404).json({ message: "Lesson not found" });
-    lesson.status = "paid";
-    lesson.isPaid = true;
-    lesson.paidAt = new Date();
-    await lesson.save();
-    return res.json({ ok: true, lessonId });
-  } catch (err) {
-    console.error("[PAY][stripe mark-paid] error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
-
-router.post("/paypal/mark-paid", async (req, res) => {
-  try {
-    const { lessonId } = req.body || {};
-    if (!lessonId) return res.status(400).json({ message: "Missing lessonId" });
-    const lesson = await Lesson.findById(lessonId);
-    if (!lesson) return res.status(404).json({ message: "Lesson not found" });
-    lesson.status = "paid";
-    lesson.isPaid = true;
-    lesson.paidAt = new Date();
-    await lesson.save();
-    return res.json({ ok: true, lessonId });
-  } catch (err) {
-    console.error("[PAY][paypal mark-paid] error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
-});
+/**
+ * ⚠️ SENIOR DEV SECURITY REMOVAL:
+ * The manual /mark-paid routes have been purged. 
+ * Final transaction confirmation is now handled AUTHORITATIVELY 
+ * by the Stripe and PayPal Webhooks to prevent race conditions.
+ */
 
 /**
  * ============================================================================
