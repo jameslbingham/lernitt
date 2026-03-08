@@ -1,47 +1,46 @@
-// /server/routes/tutors.js
 /**
  * ============================================================================
  * LERNITT ACADEMY - TUTOR ARCHITECTURE & MARKETPLACE LOGIC
  * ============================================================================
- * ROLE: Senior Developer Audit - Step 2 (Availability Plumbing)
- * VERSION: 4.2.0 (VETTING VALVE SEALED)
+ * ROLE: Senior Developer Master Sync - Problem 5 (Temporal Shield Integration)
+ * VERSION: 4.3.0
  * ----------------------------------------------------------------------------
  * This file serves as the primary "Pipe System" for all tutor-related data.
- * It manages three distinct streams of information:
+ * It manages four distinct streams of information:
  * 1. THE MARKETPLACE: Fetching and filtering approved tutors for students.
  * 2. THE ONBOARDING: Handling video uploads to Supabase and profile updates.
  * 3. THE SCHEDULING: Managing the internal "plumbing" for tutor availability.
+ * 4. THE SLOT GENERATOR: ✅ NEW! Bridges the Tutor's clock with the Student's UI.
  * ----------------------------------------------------------------------------
- * ✅ STAGE 4 FIX: Tightened visibility to strictly 'approved' status only.
- * ✅ PLUMBING SYNC: Handshake verified with AdminDashboard approval triggers.
+ * ✅ PROBLEM 5 FIX: Timezone Harmonization.
+ * Logic: Implements the 'GET /:id/slots' valve to ensure students only see
+ * times that are logically valid in the tutor's specific IANA timezone.
  * ----------------------------------------------------------------------------
  * MANDATORY OPERATING RULES:
  * - COMPLETE FILES ONLY: No truncation permitted.
- * - BUSINESS LOGIC PRESERVATION: Existing marketplace aggregation must remain.
+ * - BUSINESS LOGIC PRESERVATION: Marketplace aggregation and flat-path remain.
  * - FLAT PATH RULE: Storage buckets must not use folder prefixes.
  * ============================================================================
  */
 
 const express = require("express");
 const mongoose = require("mongoose");
-const multer = require("multer"); // Added for video file handling
+const multer = require("multer"); 
+const { DateTime } = require("luxon"); // ✅ VITAL: Required for Problem 5 math
 const User = require("../models/User"); 
-const Availability = require("../models/Availability"); // ✅ IMPORTED
-const { supabase } = require("../utils/supabaseClient"); // Added for Supabase storage
+const Availability = require("../models/Availability"); 
+const { supabase } = require("../utils/supabaseClient"); 
 
 const router = express.Router();
 const { auth } = require('../middleware/auth');
 
 // Configure multer for memory storage (temporary holding for the video)
-// We hold the video in the server's RAM just long enough to pass it to Supabase.
 const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * SOPHISTICATED MARKETPLACE LOGIC
  * ----------------------------------------------------------------------------
- * ✅ FIXED: Strict Vetting Valve.
- * Only tutors explicitly marked as 'approved' are visible to students.
- * This ensures Problem 3 is solved: Tutors are invisible until Bob approves.
+ * ✅ STRICT VETTING: Only tutors explicitly 'approved' are visible.
  * ----------------------------------------------------------------------------
  */
 const visibleTutorMatch = {
@@ -52,9 +51,6 @@ const visibleTutorMatch = {
 /**
  * GET /api/tutors
  * List tutors with advanced availability signaling and review aggregation.
- * Performs a complex multi-stage aggregation to calculate ratings on the fly.
- * * PLUMBING CHECK: 
- * This route "joins" the User data with the Review data and Availability data.
  */
 router.get("/", auth, async (req, res) => {
   try {
@@ -77,7 +73,6 @@ router.get("/", auth, async (req, res) => {
         },
       },
       // ✅ SOPHISTICATION: Signal if tutor has configured a schedule
-      // This is the "Read Pipe" that tells the marketplace if a tutor is ready.
       {
         $lookup: {
           from: "availabilities",
@@ -104,7 +99,6 @@ router.get("/", auth, async (req, res) => {
 /**
  * GET /api/tutors/:id
  * Single tutor profile fetch with rating projection.
- * Used when a student clicks on a specific tutor's profile.
  */
 router.get("/:id", auth, async (req, res) => {
   try {
@@ -143,25 +137,94 @@ router.get("/:id", auth, async (req, res) => {
 });
 
 /**
+ * ✅ NEW: GET /api/tutors/:id/slots
+ * ROLE: The "Clock Harmonizer" for Problem 5.
+ * Logic: Generates a list of available ISO strings for the student's UI.
+ * Sync: Aligned with validateSlot.js to prevent temporal clashes.
+ */
+router.get("/:id/slots", async (req, res) => {
+  try {
+    const { from, to, dur, tz } = req.query;
+    const tutorId = req.params.id;
+
+    const avail = await Availability.findOne({ tutor: tutorId });
+    if (!avail) return res.json({ slots: [] });
+
+    const tutorTz = avail.timezone || "UTC";
+    const studentTz = tz || "UTC";
+    const duration = parseInt(dur) || 60;
+
+    // Boundary Logic: Convert incoming request times to the tutor's local perspective
+    let currentDay = DateTime.fromISO(from).setZone(tutorTz).startOf('day');
+    const endBound = DateTime.fromISO(to).setZone(tutorTz);
+    
+    const slots = [];
+
+    while (currentDay < endBound) {
+      const isoDate = currentDay.toISODate();
+      
+      // Check for Exceptions first
+      const ex = (avail.exceptions || []).find(e => e.date === isoDate);
+      let ranges = [];
+      
+      if (ex) {
+        ranges = ex.open ? (ex.ranges || []) : [];
+      } else {
+        const dow = currentDay.weekday === 7 ? 0 : currentDay.weekday;
+        const dayConfig = avail.weekly.find(w => w.dow === dow);
+        ranges = dayConfig ? dayConfig.ranges : [];
+      }
+
+      ranges.forEach(r => {
+        let rStart = currentDay.set({ 
+          hour: +r.start.slice(0, 2), 
+          minute: +r.start.slice(3, 5),
+          second: 0, millisecond: 0 
+        });
+        
+        let rEnd = currentDay.set({ 
+          hour: +r.end.slice(0, 2), 
+          minute: +r.end.slice(3, 5),
+          second: 0, millisecond: 0 
+        });
+
+        // ✅ MIDNIGHT SHIELD: If range crosses 00:00, push end to next day
+        if (rEnd <= rStart) rEnd = rEnd.plus({ days: 1 });
+
+        // Slot Engine: Generate valid start-times in 30-min increments
+        let slotPtr = rStart;
+        while (slotPtr.plus({ minutes: duration }) <= rEnd) {
+          // Force UTC for the database handshake, but frontend will localize for student
+          slots.push(slotPtr.toUTC().toISO());
+          slotPtr = slotPtr.plus({ minutes: 30 });
+        }
+      });
+
+      currentDay = currentDay.plus({ days: 1 });
+    }
+
+    // Filter out historical slots (anything in the past)
+    const nowUTC = DateTime.now().toUTC();
+    const finalSlots = slots.filter(s => DateTime.fromISO(s) > nowUTC);
+
+    res.json({ slots: finalSlots });
+  } catch (err) {
+    console.error("SLOT GENERATION FAILURE:", err);
+    res.status(500).json({ error: "Temporal slot directory sync failed." });
+  }
+});
+
+/**
  * POST /api/tutors/register
- * Handles the multi-part form including the video upload to Supabase.
- * MANDATORY: Uses Flat Path for tutor-videos bucket.
- * * PLUMBING CHECK: 
- * 1. Sends video to Supabase Storage.
- * 2. Receives a URL back.
- * 3. Saves that URL into the User's MongoDB profile.
+ * Handles multi-part form and Supabase video handshake.
  */
 router.post("/register", auth, upload.single('video'), async (req, res) => {
   try {
     const { full_name, bio, subjects, hourly_rate } = req.body;
     let videoUrl = "";
 
-    // 1. Handle Video Upload to Supabase if file exists
     if (req.file) {
-      // Create a clean filename: tutorID-timestamp-originalName
-      // VITAL: No folder prefixes are added here (Flat Path Rule).
       const fileName = `${req.user.id}-${Date.now()}-${req.file.originalname.replace(/\s/g, '_')}`;
-      
       const { data, error: uploadError } = await supabase.storage
         .from('tutor-videos')
         .upload(fileName, req.file.buffer, {
@@ -170,16 +233,10 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
         });
 
       if (uploadError) throw uploadError;
-
-      // Generate the Public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('tutor-videos')
-        .getPublicUrl(fileName);
-        
+      const { data: publicUrlData } = supabase.storage.from('tutor-videos').getPublicUrl(fileName);
       videoUrl = publicUrlData.publicUrl;
     }
 
-    // 2. Update the User profile in MongoDB
     const updatedTutor = await User.findByIdAndUpdate(
       req.user.id,
       {
@@ -189,9 +246,9 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
           subjects: subjects ? subjects.split(',').map(s => s.trim()) : [],
           price: Number(hourly_rate) || 0,
           introVideo: videoUrl,
-          tutorStatus: "pending", // Bob needs to review the video in Stage 4
+          tutorStatus: "pending", 
           isTutor: true,
-          role: "tutor" // Officially promote them to prevent dashboard entry rejection
+          role: "tutor" 
         }
       },
       { new: true }
@@ -204,7 +261,6 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("REGISTRATION PLUMBING ERROR:", err);
     res.status(500).json({ error: "Failed to process application", details: err.message });
   }
 });
@@ -212,18 +268,11 @@ router.post("/register", auth, upload.single('video'), async (req, res) => {
 /**
  * PATCH /api/tutors/setup
  * Synchronizes professional onboarding and financial metadata.
- * ----------------------------------------------------------------------------
- * VITAL FIX: 
- * 1. Promotes role to 'tutor' so new accounts can pass dashboard auth.
- * 2. Uses Defensive Guards (|| "") to ensure MongoDB doesn't reject partial saves.
- * ----------------------------------------------------------------------------
  */
 router.patch("/setup", auth, async (req, res) => {
   try {
-    // Extract fields from the incoming payload
     const { bio, subjects, price, paypalEmail, country, timezone, introVideo, avatarUrl } = req.body;
 
-    // Build the update object with Defensive Logic
     const updateData = {
       bio: bio || "",
       subjects: Array.isArray(subjects) ? subjects : [],
@@ -231,12 +280,11 @@ router.patch("/setup", auth, async (req, res) => {
       paypalEmail: paypalEmail || "",
       country: country || "",
       timezone: timezone || "UTC",
-      tutorStatus: "pending", // Queues for Bob's review
+      tutorStatus: "pending", 
       isTutor: true,
-      role: "tutor" // MANDATORY: Promote user so they can immediately access the Tutor Dashboard
+      role: "tutor" 
     };
 
-    // Surgical Media Handling: Only add if URLs are provided
     if (introVideo) updateData.introVideo = introVideo;
     if (avatarUrl) updateData.avatar = avatarUrl;
 
@@ -246,58 +294,38 @@ router.patch("/setup", auth, async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!updatedTutor) {
-      return res.status(404).json({ error: "Tutor profile not found in database." });
-    }
+    if (!updatedTutor) return res.status(404).json({ error: "Profile lost." });
 
-    // Return the cleaned summary so the dashboard can load without crashing
     res.json({
-      message: "Professional profile saved successfully!",
+      message: "Professional profile saved!",
       user: updatedTutor.summary()
     });
 
   } catch (err) {
-    console.error("TUTOR SETUP CRITICAL ERROR:", err);
-    res.status(500).json({ error: "Failed to save profile details. Ensure price is a number." });
+    res.status(500).json({ error: "Failed to save profile details." });
   }
 });
 
 /**
- * ✅ NEW PLUMBING: GET /api/tutors/availability/me
- * ----------------------------------------------------------------------------
- * This is the "FETCH" pipe. It allows the tutor's dashboard to load their
- * existing schedule from the MongoDB database. 
- * ----------------------------------------------------------------------------
+ * GET /api/tutors/availability/me
  */
 router.get("/availability/me", auth, async (req, res) => {
   try {
     const availability = await Availability.findOne({ tutor: req.user.id });
-    
-    if (!availability) {
-      // If they haven't set a schedule yet, we send back a clean slate.
-      return res.json({ weekly: [], timezone: "UTC", bookingNotice: 12 });
-    }
-    
-    // Send the data back to the frontend page (Availability.jsx).
+    if (!availability) return res.json({ weekly: [], timezone: "UTC", bookingNotice: 12 });
     res.json(availability);
   } catch (err) {
-    console.error("AVAILABILITY FETCH ERROR:", err);
     res.status(500).json({ error: "Plumbing error: Could not load your schedule." });
   }
 });
 
 /**
- * ✅ NEW PLUMBING: PUT /api/tutors/availability
- * ----------------------------------------------------------------------------
- * This is the "SAVE" pipe. It connects Availability.jsx to the Database.
- * This endpoint allows tutors to synchronize their weekly schedule grids.
- * ----------------------------------------------------------------------------
+ * PUT /api/tutors/availability
  */
 router.put("/availability", auth, async (req, res) => {
   try {
     const { weekly, timezone, bookingNotice } = req.body;
     
-    // We update the existing record OR create a new one if it's their first time.
     const updated = await Availability.findOneAndUpdate(
       { tutor: req.user.id },
       { 
@@ -312,13 +340,9 @@ router.put("/availability", auth, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    res.json({ 
-      message: "Availability synchronized! Students can now see your schedule.", 
-      data: updated 
-    });
+    res.json({ message: "Availability synchronized!", data: updated });
   } catch (err) {
-    console.error("AVAILABILITY SYNC ERROR:", err);
-    res.status(500).json({ error: "Plumbing error: Could not save schedule to database." });
+    res.status(500).json({ error: "Plumbing error: Could not save schedule." });
   }
 });
 
