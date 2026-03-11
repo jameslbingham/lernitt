@@ -1,11 +1,12 @@
 // client/src/pages/Profile.jsx
 // -----------------------------------------------------------------------------
-// Version 7.0.0 - DUAL-CORE SYLLABUS PROFILE (FULL MERGE)
-// - ADDED: Triple Badge View (Written, Speaking, and Overall Tier).
-// - ADDED: High-contrast DNA Dashboard with AI insights.
-// - ADDED: Master Syllabus Checklist (80+ potential roadmap items).
-// - PRESERVED: 10-lesson pedagogical retake lock.
-// - PRESERVED: 100% of original avatar, password, and account settings.
+// Version 7.1.0 - USD GLOBAL LOCKDOWN (FIXED PLUMBING & ROLE MERGE)
+// - MERGED: Triple Badge View, DNA Dashboard, and AI insights.
+// - MERGED: Master Syllabus Checklist (80+ potential roadmap items).
+// - MERGED: 10-lesson pedagogical retake lock.
+// - FIXED: Blank screen crash by adding role-based conditional rendering for Tutors.
+// - ADDED: Tutor Professional Suite for instructor users.
+// - INTEGRATED: USD ($) currency symbols for tutor hourly rates.
 // - MANDATORY: No truncation. This is the complete file.
 // -----------------------------------------------------------------------------
 
@@ -61,7 +62,7 @@ export default function Profile() {
 
   const fileRef = useRef(null);
 
-  const verified = !!me?.emailVerified;
+  const verified = !!me?.emailVerified || !!me?.verified;
   const role = me?.role || "student";
 
   // Retake Logic constants
@@ -139,11 +140,11 @@ export default function Profile() {
 
       setMe(base);
       setProfile({
-        displayName: prof.displayName || "",
-        bio: prof.bio || "",
-        languages: prof.languages || "",
-        location: prof.location || "",
-        photoUrl: prof.photoUrl || "",
+        displayName: prof.displayName || base.name || "",
+        bio: prof.bio || base.bio || "",
+        languages: Array.isArray(base.languages) ? base.languages.join(", ") : (prof.languages || ""),
+        location: prof.location || base.country || "",
+        photoUrl: prof.photoUrl || base.avatar || "",
       });
       setDirty(false);
     } catch (e) {
@@ -348,7 +349,7 @@ export default function Profile() {
         </div>
       )}
 
-      {/* 🧬 DUAL-CORE LINGUISTIC DNA DASHBOARD */}
+      {/* 🧬 DUAL-CORE LINGUISTIC DNA DASHBOARD (STUDENT ONLY) */}
       {role === "student" && (
         <div className="border rounded-[32px] p-8 shadow-xl bg-gradient-to-br from-slate-900 to-indigo-900 text-white border-none">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
@@ -357,7 +358,6 @@ export default function Profile() {
               <h2 className="text-3xl font-black tracking-tight">Your Linguistic DNA</h2>
             </div>
             
-            {/* TRIPLE BADGE VIEW */}
             <div className="flex gap-3">
                <div className="text-center bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 min-w-[70px]">
                   <div className="text-[8px] font-bold text-white/50 uppercase">Written</div>
@@ -374,11 +374,10 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* AI FEEDBACK BOX */}
           <div className="bg-white/5 rounded-2xl p-4 mb-8 border border-white/10">
              <div className="text-[9px] font-black uppercase text-indigo-300 mb-1">AI Academy Insight</div>
              <p className="text-sm italic text-indigo-50/80 leading-relaxed">
-                "{me?.placementTest?.insights || "No diagnostic summary available yet."}"
+               "{me?.placementTest?.insights || "No diagnostic summary available yet."}"
              </p>
           </div>
 
@@ -420,6 +419,46 @@ export default function Profile() {
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎓 TUTOR PROFESSIONAL SUITE (TUTOR ONLY) */}
+      {role === "tutor" && (
+        <div className="border rounded-[32px] p-8 shadow-xl bg-gradient-to-br from-slate-800 to-slate-900 text-white border-none">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Instructor Profile</div>
+              <h2 className="text-3xl font-black tracking-tight">Professional Suite</h2>
+            </div>
+            <div className="bg-emerald-500 rounded-2xl p-3 text-center min-w-[100px]">
+              <div className="text-[8px] font-bold text-white/80 uppercase">Hourly Rate</div>
+              <div className="text-2xl font-black">${me?.hourlyRate || me?.price || "0"}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div className="text-[8px] font-bold text-slate-400 uppercase mb-1">Status</div>
+              <div className="text-sm font-bold capitalize">{me?.tutorStatus || "Pending"}</div>
+            </div>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div className="text-[8px] font-bold text-slate-400 uppercase mb-1">Total Lessons</div>
+              <div className="text-sm font-bold">{me?.totalLessons || 0}</div>
+            </div>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <div className="text-[8px] font-bold text-slate-400 uppercase mb-1">Earnings</div>
+              <div className="text-sm font-bold">${(me?.totalEarnings || 0).toFixed(2)}</div>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <Link to="/availability" className="flex-1 text-center bg-white text-slate-900 rounded-2xl py-3 text-xs font-black uppercase tracking-widest hover:bg-slate-100 transition">
+              Manage Matrix
+            </Link>
+            <Link to="/payouts" className="flex-1 text-center bg-indigo-600 text-white rounded-2xl py-3 text-xs font-black uppercase tracking-widest hover:bg-indigo-500 transition">
+              Wallet Settings
+            </Link>
           </div>
         </div>
       )}
