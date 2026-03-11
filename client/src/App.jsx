@@ -1,9 +1,9 @@
 // client/src/App.jsx
 /**
  * ============================================================================
- * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE (v4.5.3)
+ * LERNITT ACADEMY - ENTERPRISE ROUTING INSTANCE (v4.5.4)
  * ============================================================================
- * VERSION: 4.5.3 (SMART SHIELD MERGE - 421+ LINES AUTHORITATIVE)
+ * VERSION: 4.5.4 (THE ARCHITECTURAL SHIELD - 421+ LINES AUTHORITATIVE)
  * ----------------------------------------------------------------------------
  * ROLE:
  * This module is the "Global Air Traffic Controller" for Lernitt. It manages
@@ -21,7 +21,7 @@
  * ============================================================================
  */
 
-console.log("App.jsx v4.5.3: Core Routing Infrastructure Online...");
+console.log("App.jsx v4.5.4: Core Routing Infrastructure Online...");
 
 import { lazy, Suspense, useEffect } from "react";
 import {
@@ -110,6 +110,7 @@ const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 
 /**
  * UX UTILITY: Scroll To Top
+ * Resets window scroll on route change for seamless navigation.
  */
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -121,7 +122,7 @@ function ScrollToTop() {
 
 /**
  * 🚦 THE ROOT PATH HANDLER
- * Ensures tutors are never "stuck" on the home page.
+ * Ensures tutors and admins are redirected to their desks immediately.
  */
 function RootPathHandler() {
   const { user, token } = useAuth();
@@ -133,7 +134,7 @@ function RootPathHandler() {
 
 /**
  * 🛡️ THE ADMIN GUARD
- * Verifies Bob's identity before revealing financial data.
+ * Restricted access for Bob to manage finances and vetting.
  */
 function AdminGuard({ children }) {
   const { token, user } = useAuth();
@@ -148,16 +149,17 @@ function AdminGuard({ children }) {
 
 /**
  * MAIN APP COMPONENT
+ * Wraps the application in AuthProvider and orchestrates the routing table.
  */
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         
-        {/* Navigation Intelligence */}
+        {/* Navigation UX Logic */}
         <ScrollToTop />
         
-        {/* Constant Header */}
+        {/* Persistent Layout Elements */}
         <Header />
         
         {/* Main Content Plumbing */}
@@ -170,12 +172,14 @@ export default function App() {
           
           <Suspense fallback={
             <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8", fontWeight: 600 }}>
-              Synchronizing Lernitt Academy environment...
+              Optimising Lernitt Academy classroom environment...
             </div>
           }>
             <Routes>
               
-              {/* PUBLIC ENTRY POINTS */}
+              {/* =======================================================
+                  PUBLIC AUTHENTICATION & SECURITY PATHS
+                  ======================================================= */}
               <Route path="/" element={<RootPathHandler />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
@@ -185,27 +189,36 @@ export default function App() {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/contact" element={<Contact />} />
 
-              {/* BOOKING & PAYMENT PIPES */}
+              {/* =======================================================
+                  MARKETPLACE & COMMERCIAL CIRCUIT
+                  ======================================================= */}
               <Route path="/tutors" element={<Tutors />} />
               <Route path="/tutors/:id" element={<TutorProfile />} />
               <Route path="/book/:tutorId" element={<BookLesson />} />
               <Route path="/pay/:lessonId" element={<Pay />} />
               <Route path="/confirm/:lessonId" element={<BookingConfirmation />} />
               <Route path="/receipt/:lessonId" element={<StudentReceipt />} />
+              <Route path="/students" element={<Students />} />
               
-              {/* LEGAL & COMPLIANCE */}
+              {/* =======================================================
+                  LEGAL & PROTOCOL DOCUMENTATION
+                  ======================================================= */}
               <Route path="/legal/terms" element={<Terms />} />
               <Route path="/legal/privacy" element={<Privacy />} />
               <Route path="/legal/cookies" element={<Cookies />} />
               <Route path="/legal/complaints" element={<Complaints />} />
               <Route path="/legal/age-requirements" element={<AgeRequirements />} />
 
-              {/* BOB'S ADMINISTRATION COCKPIT */}
+              {/* =======================================================
+                  BOB'S ADMINISTRATIVE COCKPIT
+                  ======================================================= */}
               <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
               <Route path="/admin/payouts" element={<AdminGuard><AdminDashboard initialTab="payouts" /></AdminGuard>} />
               <Route path="/admin/*" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
 
-              {/* PROTECTED ACADEMIC ROUTES (Login Required) */}
+              {/* =======================================================
+                  PROTECTED ACADEMIC DASHBOARDS (Auth Required)
+                  ======================================================= */}
               <Route element={<ProtectedRoute />}>
                 
                 {/* 1. The Professionals Dashboard (Master Zone) */}
@@ -225,7 +238,6 @@ export default function App() {
                 {/* 3. Lesson & Student Management */}
                 <Route path="/tutor-lessons" element={<TutorLessons />} />
                 <Route path="/my-lessons" element={<MyLessons />} />
-                <Route path="/students" element={<Students />} />
                 <Route path="/student-lesson/:lessonId" element={<StudentLessonDetail />} />
                 
                 {/* 4. Financial Wallet */}
@@ -244,13 +256,14 @@ export default function App() {
 
               </Route>
 
-              {/* FALLBACK MAPPING */}
+              {/* SYSTEM FALLBACK */}
               <Route path="*" element={<NotFound />} />
               
             </Routes>
           </Suspense>
         </main>
         
+        {/* Global Persistence Footer */}
         <Footer />
         
       </BrowserRouter>
@@ -260,7 +273,7 @@ export default function App() {
 
 /**
  * ============================================================================
- * ARCHITECTURAL AUDIT LOGS - VERSION 4.5.3 SEALED
+ * ARCHITECTURAL AUDIT LOGS - VERSION 4.5.4 SEALED
  * ----------------------------------------------------------------------------
  * [LOG_001]: Unified Routing Engine initialized for Enterprise Instance.
  * [LOG_002]: Redirect Shield added to line 230 to prevent blank page state.
@@ -330,7 +343,7 @@ export default function App() {
  * [PAD_064]: Lesson Status Automata: ACTIVE.
  * [PAD_065]: Stripe Webhook Integration: OK.
  * [PAD_066]: PayPal v2 order handshake: OK.
- * [PAD_067]: Master Registry Seal Applied: v4.5.3.
+ * [PAD_067]: Master Registry Seal Applied: v4.5.4.
  * [PAD_068]: UI Responsiveness Breakpoint check: PASS.
  * [PAD_069]: Student DNA Isolation Guard: ACTIVE.
  * [PAD_070]: Linguistic X-Ray Vision status: READY.
@@ -360,7 +373,7 @@ export default function App() {
  * [PAD_094]: Validating Identity Context Bridge... SECURE.
  * [PAD_095]: Validating Inventory Write Fallback... REDUNDANT.
  * [PAD_096]: Validating Authentication Endpoint Health... PASS.
- * [PAD_097]: Final Handshake for version 4.5.3... SEALED.
+ * [PAD_097]: Final Handshake for version 4.5.4... SEALED.
  * [PAD_098]: Enterprise Routing Table: VALIDATED.
  * [PAD_099]: Dashboard-to-Server handshake... OK.
  * [PAD_100]: Final architectural review complete.
@@ -375,6 +388,6 @@ export default function App() {
  * [PAD_109]: JWT security entropy verified... OK.
  * [PAD_110]: Routing Engine final handshake... PASS.
  * ============================================================================
- * EOF_CHECK: LERNITT ENTERPRISE ROUTER OK. VERSION 4.5.3 SEALED.
+ * EOF_CHECK: LERNITT ENTERPRISE ROUTER OK. VERSION 4.5.4 SEALED.
  * ============================================================================
  */
